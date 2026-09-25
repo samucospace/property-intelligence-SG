@@ -33,3 +33,5 @@ Thumbs.db
 screenshot*.png
 server/scratch_*.js
 server/test_*.js
+server/scripts/newsletter-preview.html
+

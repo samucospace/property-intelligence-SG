@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import crypto from 'crypto';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -117,6 +118,56 @@ app.post('/api/leads/submit', async (req, res) => {
   } catch (err) {
     console.error('Error submitting lead:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// 1c. 1-Click PDPA Unsubscribe Endpoint
+app.get('/api/leads/unsubscribe', async (req, res) => {
+  try {
+    const { email, token } = req.query;
+    if (!email) {
+      return res.status(400).send('Email address is required.');
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const secret = process.env.ADMIN_API_KEY || 'property_sg_newsletter_secret';
+    const expectedToken = crypto.createHash('sha256').update(`${cleanEmail}|${secret}`).digest('hex').slice(0, 16);
+
+    if (token && token !== expectedToken) {
+      return res.status(403).send('Invalid or expired unsubscribe link.');
+    }
+
+    await dbRun(`UPDATE leads SET unsubscribed_at = CURRENT_TIMESTAMP WHERE LOWER(email) = ?`, [cleanEmail]);
+
+    res.type('text/html').send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Unsubscribed | Property Intelligence SG</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #FFFAFO; color: #36454F; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 16px; }
+          .card { background: #FFFFFF; border: 1px solid rgba(54,69,79,0.12); border-radius: 16px; padding: 40px 32px; max-width: 480px; text-align: center; box-shadow: 0 4px 20px rgba(54,69,79,0.06); }
+          h2 { color: #CB6D51; margin-top: 0; font-size: 1.4rem; }
+          p { font-size: 0.9rem; line-height: 1.6; color: #6A7B82; }
+          .badge { display: inline-block; background: #ECFDF5; color: #065F46; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 16px; }
+          a { color: #4F7942; text-decoration: none; font-weight: 600; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="badge">Singapore PDPA Compliant Opt-Out</div>
+          <h2>You Have Been Unsubscribed</h2>
+          <p>Your email <strong>${cleanEmail}</strong> has been removed from the Property Intelligence SG Weekly Watchlist. You will receive no further automated emails from this list.</p>
+          <p style="margin-top: 24px;"><a href="/">← Return to Valuation Portal</a></p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error('Unsubscribe error:', err);
+    res.status(500).send('An error occurred processing your request.');
   }
 });
 

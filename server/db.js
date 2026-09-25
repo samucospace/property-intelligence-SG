@@ -119,12 +119,14 @@ export async function initDb() {
       project_interest TEXT,
       pdpa_consent INTEGER DEFAULT 1,
       details TEXT,
+      unsubscribed_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
   try { await dbRun(`ALTER TABLE leads ADD COLUMN name TEXT`); } catch (e) {}
   try { await dbRun(`ALTER TABLE leads ADD COLUMN enquiry_type TEXT`); } catch (e) {}
   try { await dbRun(`ALTER TABLE leads ADD COLUMN pdpa_consent INTEGER DEFAULT 1`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE leads ADD COLUMN unsubscribed_at DATETIME`); } catch (e) {}
 
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_transactions_date ON property_transactions(contract_date DESC);`);
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_transactions_project ON property_transactions(project_id);`);
