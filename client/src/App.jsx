@@ -114,9 +114,27 @@ export default function App() {
         </div>
 
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-            <Database size={16} /> Sync URA API Data
-          </button>
+          {new URLSearchParams(window.location.search).get('admin') === '1' || import.meta.env.DEV ? (
+            <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+              <Database size={16} /> Sync URA API Data
+            </button>
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              background: '#ECFDF5',
+              border: '1px solid #A7F3D0',
+              color: '#065F46',
+              fontSize: '0.82rem',
+              fontWeight: 600
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
+              URA & OneMap Verified Data
+            </div>
+          )}
         </div>
       </header>
 
@@ -409,6 +427,42 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Footer & Legal Compliance Section */}
+      <footer style={{
+        marginTop: 'auto',
+        background: '#FAF6F0',
+        borderTop: '1px solid var(--color-border-subtle)',
+        padding: '32px 24px',
+        color: 'var(--color-text-muted)',
+        fontSize: '0.8rem',
+        lineHeight: 1.6
+      }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ fontWeight: 700, color: 'var(--color-text-charcoal)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Building2 size={18} color="var(--color-primary-green)" />
+              Property Intelligence SG
+            </div>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              <a href="#about" onClick={(e) => { e.preventDefault(); alert("Property Intelligence SG delivers transparent valuation, tenancy yields, and livability analytics for private properties in Singapore."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>About</a>
+              <a href="#privacy" onClick={(e) => { e.preventDefault(); alert("Privacy Policy: We do not collect personal identification numbers or confidential user financial records. Standard web analytics and cookie disclosures apply."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>Privacy Policy</a>
+              <a href="#terms" onClick={(e) => { e.preventDefault(); alert("Terms of Service: All valuation analytics and rental indices are computational estimates based on historical caveats and publicly available benchmark rates."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>Terms of Service</a>
+              <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary-green)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                Singapore Open Data Licence <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid rgba(54, 69, 79, 0.08)', paddingTop: '12px', fontSize: '0.75rem', color: '#8898AA' }}>
+            <p>
+              <strong>Data Attribution:</strong> Singapore private residential transaction caveats and quarterly rental contracts are sourced from the <strong>Urban Redevelopment Authority (URA) Data Service</strong>, accessed under the terms of the <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Singapore Open Data Licence</a>. Historical interest benchmark rates reflect the Singapore Overnight Rate Average (SORA) published by the Monetary Authority of Singapore (MAS). Spatial amenities and coordinates utilize SVY21 conversion derived from Singapore Land Authority (SLA) OneMap and OpenStreetMap data.
+            </p>
+            <p style={{ marginTop: '6px' }}>
+              <strong>Disclaimer:</strong> This website is an independent analytical service and is not affiliated with, sponsored by, or endorsed by the Urban Redevelopment Authority (URA), the Singapore Land Authority (SLA), or the Government of Singapore. All property valuation indicators, rental yields, and livability indexes are computed algorithmically for research and educational purposes only.
+            </p>
+          </div>
+        </div>
+      </footer>
 
       {/* Slide-over Livability Details Drawer */}
       <LivabilityDrawer

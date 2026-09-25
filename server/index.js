@@ -1,15 +1,57 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { initDb, dbGet, dbAll } from './db.js';
 import { fetchUraData, importRealUraData, seedSoraRates, seedRealisticRentalData, seedMockData } from './ingestion.js';
 import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics } from './queryEngine.js';
 import { seedAmenities, calculateLivabilityScore } from './livabilityEngine.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust reverse proxy (Caddy / Nginx / Cloudflare)
+app.set('trust proxy', 1);
+
+// Security & Performance middlewares
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
+app.use(compression());
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// General Rate Limiter (300 requests per 15 minutes per IP)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again later.' }
+});
+app.use('/api/', apiLimiter);
+
+// Ingestion Admin Auth Guard
+const requireAdmin = (req, res, next) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  // If in production or if ADMIN_API_KEY is configured, strictly enforce
+  if (process.env.NODE_ENV === 'production' || adminKey) {
+    const authHeader = req.headers['x-admin-key'] || req.query.adminKey;
+    if (!adminKey || authHeader !== adminKey) {
+      return res.status(401).json({ error: 'Unauthorized: Valid X-Admin-Key header required.' });
+    }
+  }
+  next();
+};
+app.use('/api/ingest', requireAdmin);
 
 // 1. Health check
 app.get('/api/health', (req, res) => {
@@ -163,6 +205,18 @@ app.post('/api/ingest/seed', async (req, res) => {
     console.error('Error seeding demo data:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// 10. Serve Static Frontend in Production
+const clientDist = path.join(__dirname, '../client/dist');
+app.use(express.static(clientDist));
+
+// Catch-all route to serve Vite index.html for SPA routing
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.join(clientDist, 'index.html'));
 });
 
 // Startup logic

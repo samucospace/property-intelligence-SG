@@ -21,6 +21,8 @@ dist/
 .env
 .env.*
 .env.local
+!.env.example
+
 
 # Logs & OS artifacts
 *.log
