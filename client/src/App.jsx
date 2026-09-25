@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Building2, Database, Key, Percent, Layers, Calendar, ExternalLink } from 'lucide-react';
+import { Building2, Database, Key, Percent, Layers, Calendar, ExternalLink, ShieldCheck } from 'lucide-react';
 import SearchHeader from './components/SearchHeader';
 import PropertyMap from './components/PropertyMap';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -38,6 +38,7 @@ export default function App() {
 
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   // Livability & Rental Detail Drawer states
   const [selectedDrawerProject, setSelectedDrawerProject] = useState(null);
@@ -453,7 +454,7 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
               <a href="#about" onClick={(e) => { e.preventDefault(); alert("Property Intelligence SG delivers transparent valuation, tenancy yields, and livability analytics for private properties in Singapore."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>About</a>
-              <a href="#privacy" onClick={(e) => { e.preventDefault(); alert("Privacy Policy: We do not collect personal identification numbers or confidential user financial records. Standard web analytics and cookie disclosures apply."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>Privacy Policy</a>
+              <a href="#privacy" onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ color: 'var(--color-primary-green)', fontWeight: 600, textDecoration: 'none' }}>Privacy Policy & PDPA Notice</a>
               <a href="#terms" onClick={(e) => { e.preventDefault(); alert("Terms of Service: All valuation analytics and rental indices are computational estimates based on historical caveats and publicly available benchmark rates."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>Terms of Service</a>
               <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary-green)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 Singapore Open Data Licence <ExternalLink size={12} />
@@ -492,6 +493,59 @@ export default function App() {
         onClose={() => setIsModalOpen(false)}
         onIngestionComplete={fetchAnalytics}
       />
+
+      {/* Singapore PDPA & Privacy Policy Modal */}
+      {showPrivacyModal && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '640px', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', color: 'var(--color-text-charcoal)' }}>
+                <ShieldCheck size={22} color="var(--color-primary-green)" />
+                Privacy Policy & Singapore PDPA Notice
+              </h3>
+              <ExternalLink size={18} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setShowPrivacyModal(false)} />
+            </div>
+
+            <div style={{ fontSize: '0.82rem', color: 'var(--color-text-charcoal)', lineHeight: '1.6', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p>
+                <strong>1. Commitment to Singapore PDPA 2012</strong><br />
+                Property Intelligence SG is committed to safeguarding personal data in compliance with the <strong>Singapore Personal Data Protection Act 2012 (PDPA)</strong>. This notice explains how personal data is collected, used, disclosed, and protected.
+              </p>
+
+              <p>
+                <strong>2. Collection of Personal Data</strong><br />
+                We only collect personal information when you explicitly choose to provide it:
+                <br />• <strong>Property Deal Watchlist (Newsletter):</strong> Email address for delivering weekly analytical property market digests.
+                <br />• <strong>Real Estate Advisory Requests:</strong> Name, email address, WhatsApp/phone number, and property development of interest.
+                <br /><em>Note: We never ask for or collect NRIC, FIN, or confidential banking numbers.</em>
+              </p>
+
+              <p>
+                <strong>3. Purpose of Processing & CEA Agent Introductions</strong><br />
+                Your data is processed strictly for the purpose for which it was provided:
+                <br />• To deliver weekly property analytical briefings upon your opt-in consent.
+                <br />• To connect you with our appointed Council for Estate Agencies (CEA) licensed property representative for advisory and on-the-ground valuation assistance.
+              </p>
+
+              <p>
+                <strong>4. Protection Against Telemarketing & Third Parties</strong><br />
+                We do not sell, rent, trade, or distribute your personal data to mass telemarketers or external advertisers.
+              </p>
+
+              <p>
+                <strong>5. Your Rights: Consent Withdrawal & Data Access</strong><br />
+                Under the PDPA, you may at any time withdraw your consent for future communications or request access to and correction of your personal data. All newsletters include a 1-click unsubscribe option. For inquiries, contact our Data Protection representative at <strong>dpo@propertyintelligence.sg</strong>.
+              </p>
+            </div>
+
+            <div style={{ textAlign: 'right', marginTop: '16px' }}>
+              <button className="btn btn-primary" onClick={() => setShowPrivacyModal(false)} style={{ fontSize: '0.82rem' }}>
+                Close Notice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

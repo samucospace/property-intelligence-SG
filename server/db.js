@@ -111,14 +111,20 @@ export async function initDb() {
   await dbRun(`
     CREATE TABLE IF NOT EXISTS leads (
       lead_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
       email TEXT NOT NULL,
-      lead_type TEXT NOT NULL,
-      project_interest TEXT,
       phone TEXT,
+      lead_type TEXT NOT NULL,
+      enquiry_type TEXT,
+      project_interest TEXT,
+      pdpa_consent INTEGER DEFAULT 1,
       details TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  try { await dbRun(`ALTER TABLE leads ADD COLUMN name TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE leads ADD COLUMN enquiry_type TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE leads ADD COLUMN pdpa_consent INTEGER DEFAULT 1`); } catch (e) {}
 
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_transactions_date ON property_transactions(contract_date DESC);`);
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_transactions_project ON property_transactions(project_id);`);

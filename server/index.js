@@ -92,18 +92,28 @@ app.get('/sitemap.xml', async (req, res) => {
   }
 });
 
-// 1b. Lead Capture (Mortgage Comparison & Newsletter)
+// 1b. Lead Capture (Agent Advisory & Weekly Newsletter)
 app.post('/api/leads/submit', async (req, res) => {
   try {
-    const { email, leadType, projectInterest, phone } = req.body;
+    const { name, email, phone, leadType, enquiryType, projectInterest, pdpaConsent, details } = req.body;
     if (!email || !email.includes('@')) {
-      return res.status(400).json({ error: 'Valid email is required.' });
+      return res.status(400).json({ error: 'A valid email address is required.' });
     }
     await dbRun(
-      `INSERT INTO leads (email, lead_type, project_interest, phone) VALUES (?, ?, ?, ?)`,
-      [email.trim().toLowerCase(), leadType || 'newsletter', projectInterest || null, phone || null]
+      `INSERT INTO leads (name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, details)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name ? name.trim() : null,
+        email.trim().toLowerCase(),
+        phone ? phone.trim() : null,
+        leadType || 'agent_advisory',
+        enquiryType || 'General Enquiry',
+        projectInterest || null,
+        pdpaConsent ? 1 : 0,
+        details || null
+      ]
     );
-    res.json({ status: 'success', message: 'Request recorded successfully.' });
+    res.json({ status: 'success', message: 'Enquiry received. An accredited CEA representative will be in touch.' });
   } catch (err) {
     console.error('Error submitting lead:', err);
     res.status(500).json({ error: err.message });
