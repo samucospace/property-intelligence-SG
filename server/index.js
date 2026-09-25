@@ -58,6 +58,40 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// 1a. SEO: Robots.txt & Dynamic Sitemap
+app.get('/robots.txt', (req, res) => {
+  const host = req.get('host');
+  const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+  const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
+  res.type('text/plain');
+  res.send(`User-agent: *\nAllow: /\n\nSitemap: ${baseUrl}/sitemap.xml\n`);
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const host = req.get('host');
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
+
+    const projects = await dbAll(`SELECT project_name, updated_at FROM projects ORDER BY project_name ASC LIMIT 5000`);
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+    xml += `  <url>\n    <loc>${baseUrl}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
+
+    for (const p of projects) {
+      const encoded = encodeURIComponent(p.project_name);
+      xml += `  <url>\n    <loc>${baseUrl}/?project=${encoded}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+    }
+    xml += `</urlset>`;
+
+    res.header('Content-Type', 'application/xml');
+    res.send(xml);
+  } catch (err) {
+    console.error('Error generating sitemap:', err);
+    res.status(500).send('Error generating sitemap');
+  }
+});
+
 // 1b. Lead Capture (Mortgage Comparison & Newsletter)
 app.post('/api/leads/submit', async (req, res) => {
   try {
