@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDb, dbGet, dbAll } from './db.js';
-import { fetchUraData, importRealUraData, seedSoraRates, seedRealisticRentalData, seedMockData } from './ingestion.js';
+import { fetchUraData, importRealUraData, seedSoraRates } from './ingestion.js';
 import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics } from './queryEngine.js';
 import { seedAmenities, calculateLivabilityScore } from './livabilityEngine.js';
 
@@ -191,22 +191,6 @@ app.post('/api/ingest/ura', async (req, res) => {
   }
 });
 
-// 9. Re-seed Database with Realistic Demo / Mock Dataset (No API Key Required)
-app.post('/api/ingest/seed', async (req, res) => {
-  try {
-    const salesCount = await seedMockData();
-    await seedRealisticRentalData();
-    res.json({
-      status: 'success',
-      message: 'Successfully generated realistic Singapore property demo dataset.',
-      salesCount
-    });
-  } catch (err) {
-    console.error('Error seeding demo data:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // 10. Serve Static Frontend in Production
 const clientDist = path.join(__dirname, '../client/dist');
 app.use(express.static(clientDist));
@@ -224,10 +208,9 @@ async function startServer() {
   await initDb();
 
   const projectCount = await dbGet(`SELECT COUNT(*) as count FROM projects`);
+  console.log(`Database ready. Total official developments: ${projectCount?.count || 0}`);
   if (!projectCount || projectCount.count === 0) {
-    console.log('Database empty on startup. Automatically generating realistic Singapore property demo dataset...');
-    await seedMockData();
-    await seedRealisticRentalData();
+    console.log('NOTICE: Database has no official property records yet. Run "node server/scripts/sync-ura.js" to synchronize official URA data.');
   }
 
   const soraCount = await dbGet(`SELECT COUNT(*) as count FROM sora_rates`);

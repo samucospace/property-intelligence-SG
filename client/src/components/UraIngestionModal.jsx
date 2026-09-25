@@ -4,30 +4,14 @@ import { X, Database, Key, RefreshCw, CheckCircle2, AlertCircle, Sparkles } from
 
 export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete }) {
   const [accessKey, setAccessKey] = useState('');
+  const [adminKey, setAdminKey] = useState(() => new URLSearchParams(window.location.search).get('key') || '');
   const [jsonInput, setJsonInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
   const [error, setError] = useState(null);
-  const [importMode, setImportMode] = useState('demo'); // 'demo', 'api', or 'file'
+  const [importMode, setImportMode] = useState('api'); // 'api' or 'file'
 
   if (!isOpen) return null;
-
-  const handleSeedDemo = async () => {
-    setLoading(true);
-    setError(null);
-    setStatusMessage('Generating 5-year realistic Singapore property transactions and rental contracts dataset...');
-
-    try {
-      const res = await axios.post('/api/ingest/seed');
-      setStatusMessage(res.data.message || 'Realistic Singapore property demo dataset generated successfully!');
-      onIngestionComplete();
-    } catch (err) {
-      console.error('Seed demo error:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to generate demo dataset.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleLiveIngestion = async (e) => {
     e.preventDefault();
@@ -44,7 +28,9 @@ export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete
 
     try {
       setStatusMessage('Requesting URA daily token & fetching sale transaction batches & rental quarters...');
-      const backendRes = await axios.post('/api/ingest/ura', { accessKey: cleanKey });
+      const backendRes = await axios.post('/api/ingest/ura', { accessKey: cleanKey }, {
+        headers: adminKey ? { 'X-Admin-Key': adminKey } : {}
+      });
       setStatusMessage(`Live URA API sync complete! Stored ${backendRes.data.totalRentalsIngested || 0} rental contracts and ${backendRes.data.totalSalesIngested || 0} sales caveats into property.db.`);
       onIngestionComplete();
     } catch (backendErr) {
@@ -68,7 +54,9 @@ export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete
 
     try {
       const parsed = JSON.parse(jsonInput);
-      const res = await axios.post('/api/ingest/import-data', { jsonData: parsed });
+      const res = await axios.post('/api/ingest/import-data', { jsonData: parsed }, {
+        headers: adminKey ? { 'X-Admin-Key': adminKey } : {}
+      });
       setStatusMessage(`Real URA Data Import complete! Successfully stored ${res.data.totalSalesIngested} sales and ${res.data.totalRentalsIngested} rental contracts into database.`);
       onIngestionComplete();
     } catch (err) {
@@ -117,72 +105,55 @@ export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '6px', margin: '8px 0', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className={`btn ${importMode === 'demo' ? 'btn-primary' : ''}`}
-            onClick={() => setImportMode('demo')}
-            style={{ flex: 1, minWidth: '130px', fontSize: '0.78rem', justifyContent: 'center' }}
-          >
-            <Sparkles size={14} /> Option 1: Offline Demo Data
-          </button>
+        <div style={{ display: 'flex', gap: '8px', margin: '8px 0' }}>
           <button
             type="button"
             className={`btn ${importMode === 'api' ? 'btn-primary' : ''}`}
             onClick={() => setImportMode('api')}
-            style={{ flex: 1, minWidth: '130px', fontSize: '0.78rem', justifyContent: 'center' }}
+            style={{ flex: 1, fontSize: '0.82rem', justifyContent: 'center' }}
           >
-            <Key size={14} /> Option 2: Live URA API Key
+            <Key size={14} /> Option 1: Live URA API Sync
           </button>
           <button
             type="button"
             className={`btn ${importMode === 'file' ? 'btn-primary' : ''}`}
             onClick={() => setImportMode('file')}
-            style={{ flex: 1, minWidth: '130px', fontSize: '0.78rem', justifyContent: 'center' }}
+            style={{ flex: 1, fontSize: '0.82rem', justifyContent: 'center' }}
           >
-            <Database size={14} /> Option 3: Import Data File
+            <Database size={14} /> Option 2: Import URA JSON Export
           </button>
         </div>
 
-        {importMode === 'demo' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ background: '#F8FAF9', border: '1px solid var(--color-border-light)', borderRadius: '8px', padding: '12px 14px', fontSize: '0.82rem', color: 'var(--color-text-charcoal)', lineHeight: '1.5' }}>
-              <div style={{ fontWeight: 600, color: 'var(--color-primary-green)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                <Sparkles size={15} /> Instant Demo Mode (No API Key Required)
-              </div>
-              <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
-                Quickly explore and test the platform without an official URA account. Populates your local SQLite database with 10 representative prime developments across CCR, RCR, and OCR, including 5 years of transactions, rental yields, SORA rate benchmarks, and amenities.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleSeedDemo}
-              disabled={loading}
-              style={{ justifyContent: 'center' }}
-            >
-              {loading ? <RefreshCw size={16} className="spin" /> : 'Generate / Reset Offline Demo Dataset'}
-            </button>
-          </div>
-        ) : importMode === 'api' ? (
+        {importMode === 'api' ? (
           <form onSubmit={handleLiveIngestion} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div className="filter-group">
               <label className="filter-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Key size={14} color="var(--color-accent-teal)" /> URA Access Key (Daily Token Service)
               </label>
               <input
-                type="text"
+                type="password"
                 className="input-box"
-                placeholder="Paste URA Access Key here..."
+                placeholder="Enter your private URA Access Key..."
                 value={accessKey}
                 onChange={e => setAccessKey(e.target.value)}
                 disabled={loading}
               />
             </div>
 
+            <div className="filter-group">
+              <label className="filter-label">Admin Security Key (if required by server)</label>
+              <input
+                type="password"
+                className="input-box"
+                placeholder="X-Admin-Key (optional in local dev)..."
+                value={adminKey}
+                onChange={e => setAdminKey(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+
             <button type="submit" className="btn btn-primary" disabled={loading} style={{ justifyContent: 'center' }}>
-              {loading ? <RefreshCw size={16} className="spin" /> : 'Fetch & Save Live URA Contracts to Database'}
+              {loading ? <RefreshCw size={16} className="spin" /> : 'Fetch & Ingest Live Official URA Caveats'}
             </button>
           </form>
         ) : (
