@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { dbRun, dbAll, dbGet } from './db.js';
+import { dbRun, dbAll, dbGet } from '../db.js';
 
 export async function fetchFullSingaporeAmenities() {
   console.log('Fetching comprehensive Singapore Parks & Greenery from Overpass API mirror...');
