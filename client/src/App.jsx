@@ -8,6 +8,7 @@ import UraIngestionModal from './components/UraIngestionModal';
 import LivabilityBadge from './components/LivabilityBadge';
 import LivabilityDrawer from './components/LivabilityDrawer';
 import RentalYieldDrawer from './components/RentalYieldDrawer';
+import MonetizationBanner from './components/MonetizationBanner';
 
 export default function App() {
   const [viewMode, setViewMode] = useState('sale'); // 'sale' or 'rental'
@@ -239,6 +240,9 @@ export default function App() {
           </div>
         )}
 
+        {/* High-Intent Native Monetization: Mortgage Comparison */}
+        <MonetizationBanner variant="mortgage" />
+
         {/* Main Grid: Charts & GIS Map */}
         <div className="dashboard-grid">
           <AnalyticsCharts
@@ -258,6 +262,9 @@ export default function App() {
             onOpenLivabilityDrawer={handleOpenLivabilityDrawer}
           />
         </div>
+
+        {/* High-Intent Native Monetization: Weekly Deals Newsletter */}
+        <MonetizationBanner variant="newsletter" />
 
         {/* Detailed Caveats / Tenancy Transactions Log Table */}
         <div className="card">

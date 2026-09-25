@@ -6,7 +6,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initDb, dbGet, dbAll } from './db.js';
+import { initDb, dbGet, dbAll, dbRun } from './db.js';
 import { fetchUraData, importRealUraData, seedSoraRates } from './ingestion.js';
 import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics } from './queryEngine.js';
 import { seedAmenities, calculateLivabilityScore } from './livabilityEngine.js';
@@ -56,6 +56,24 @@ app.use('/api/ingest', requireAdmin);
 // 1. Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// 1b. Lead Capture (Mortgage Comparison & Newsletter)
+app.post('/api/leads/submit', async (req, res) => {
+  try {
+    const { email, leadType, projectInterest, phone } = req.body;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email is required.' });
+    }
+    await dbRun(
+      `INSERT INTO leads (email, lead_type, project_interest, phone) VALUES (?, ?, ?, ?)`,
+      [email.trim().toLowerCase(), leadType || 'newsletter', projectInterest || null, phone || null]
+    );
+    res.json({ status: 'success', message: 'Request recorded successfully.' });
+  } catch (err) {
+    console.error('Error submitting lead:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 2. Search Autocomplete

@@ -108,6 +108,18 @@ export async function initDb() {
     );
   `);
 
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS leads (
+      lead_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      lead_type TEXT NOT NULL,
+      project_interest TEXT,
+      phone TEXT,
+      details TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_transactions_date ON property_transactions(contract_date DESC);`);
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_transactions_project ON property_transactions(project_id);`);
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_rentals_date ON rental_transactions(lease_date DESC);`);

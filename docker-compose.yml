@@ -1,0 +1,41 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-secure_admin_key_please_change}
+      - URA_ACCESS_KEY=${URA_ACCESS_KEY}
+    volumes:
+      # Persist SQLite database across container restarts and updates
+      - ./server/property.db:/app/server/property.db
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Optional Caddy Reverse Proxy for Automated Free SSL (Let's Encrypt)
+  # Uncomment below when pointing a custom domain (e.g. yourdomain.com) to your server
+  # caddy:
+  #   image: caddy:2-alpine
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   depends_on:
+  #     - app
+
+# volumes:
+#   caddy_data:
+#   caddy_config:

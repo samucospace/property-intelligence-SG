@@ -1,0 +1,7 @@
+# Caddyfile for automated HTTPS & Gzip reverse proxy
+# Replace example.com with your live domain name
+
+# example.com {
+#     encode gzip zstd
+#     reverse_proxy app:3001
+# }
