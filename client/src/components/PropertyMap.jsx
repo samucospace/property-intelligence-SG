@@ -85,6 +85,7 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
     supermarket: true,
     park: true
   });
+  const [basemapStyle, setBasemapStyle] = useState('Default');
 
   // Default map center: Singapore Keppel / Central (1.2850, 103.8200)
   const defaultCenter = [1.2850, 103.8200];
@@ -249,6 +250,30 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
           >
             <Trees size={12} color="#059669" /> Parks
           </button>
+
+          {/* SLA OneMap Basemap Style Selector */}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Map Style:</span>
+            <select
+              value={basemapStyle}
+              onChange={e => setBasemapStyle(e.target.value)}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '6px',
+                border: '1px solid #CBD5E1',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                background: '#FFFFFF',
+                color: '#334155',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="Default">SLA OneMap (Default)</option>
+              <option value="Grey">SLA OneMap (Grey)</option>
+              <option value="Night">SLA OneMap (Night)</option>
+              <option value="Original">SLA OneMap (Original)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -256,12 +281,19 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
         <MapContainer
           center={defaultCenter}
           zoom={12}
+          minZoom={11}
+          maxZoom={19}
+          maxBounds={[[1.13, 103.55], [1.48, 104.10]]}
+          maxBoundsViscosity={0.8}
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom={true}
         >
           <TileLayer
-            attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            key={basemapStyle}
+            attribution='&copy; <a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a> &copy; Singapore Land Authority'
+            url={`https://www.onemap.gov.sg/maps/tiles/${basemapStyle}/{z}/{x}/{y}.png`}
+            minZoom={11}
+            maxZoom={19}
           />
 
           <MapEventsHandler onMapClick={handleMapClick} />
@@ -422,11 +454,26 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
             return (
               <Marker key={`amenity-${a.id || a.amenity_id || idx}`} position={[aLat, aLng]} icon={icon}>
                 <Popup>
-                  <div style={{ padding: '2px', fontSize: '0.82rem' }}>
-                    <div style={{ fontWeight: 700, color: 'var(--color-text-charcoal)' }}>{a.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>
-                      Category: {a.category}
+                  <div style={{ padding: '4px', maxWidth: '220px' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--color-text-charcoal)', fontSize: '0.88rem', marginBottom: '2px' }}>{a.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-primary-green)', fontWeight: 600, textTransform: 'capitalize', marginBottom: '4px' }}>
+                      {a.category} {a.details?.type ? `• ${a.details.type}` : ''}
                     </div>
+                    {a.details?.address && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '3px' }}>
+                        {a.details.address}
+                      </div>
+                    )}
+                    {a.details?.famousFor && (
+                      <div style={{ fontSize: '0.72rem', color: '#B45309', background: '#FEF3C7', padding: '3px 6px', borderRadius: '4px', marginTop: '4px' }}>
+                        ✨ {a.details.famousFor}
+                      </div>
+                    )}
+                    {a.details?.stalls && (
+                      <div style={{ fontSize: '0.72rem', color: '#047857', background: '#D1FAE5', padding: '2px 6px', borderRadius: '4px', marginTop: '4px', display: 'inline-block' }}>
+                        🍲 {a.details.stalls} Food Stalls
+                      </div>
+                    )}
                   </div>
                 </Popup>
               </Marker>

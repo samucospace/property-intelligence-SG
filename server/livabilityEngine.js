@@ -14,19 +14,22 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// 1. Seed Amenities Table if empty
-export async function seedAmenities() {
+// 1. Seed or synchronize Amenities Table
+export async function seedAmenities(forceRefresh = false) {
   const row = await dbGet(`SELECT COUNT(*) as count FROM amenities`);
-  if (row && row.count > 0) return row.count;
+  if (!forceRefresh && row && row.count >= seedAmenitiesData.length) {
+    return row.count;
+  }
 
-  console.log(`Seeding ${seedAmenitiesData.length} Singapore POI amenities into database...`);
+  console.log(`Synchronizing ${seedAmenitiesData.length} authoritative Singapore amenities into database...`);
+  await dbRun(`DELETE FROM amenities`);
   for (const item of seedAmenitiesData) {
     await dbRun(
       `INSERT INTO amenities (category, name, latitude, longitude, details) VALUES (?, ?, ?, ?, ?)`,
-      [item.category, item.name, item.latitude, item.longitude, item.details]
+      [item.category, item.name, item.latitude, item.longitude, typeof item.details === 'string' ? item.details : JSON.stringify(item.details || {})]
     );
   }
-  console.log(`Seeded amenities successfully.`);
+  console.log(`Successfully seeded ${seedAmenitiesData.length} amenities into database.`);
   return seedAmenitiesData.length;
 }
 

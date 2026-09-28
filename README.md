@@ -12,7 +12,19 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
 - **Pre-Populated Database**: Includes ~3,400+ condominium developments, >128,000 official sales transaction caveats, and >405,000 rental contract records.
 - **Zero-Latency SVY21 Spatial Engine**: Pure mathematical conversion of Singapore Transverse Mercator (SVY21) coordinates to WGS84 (Lat/Lng) in 0ms without external geocoding API rate limits.
 - **SORA Benchmark Yield Analytics**: Compares gross rental yields against 1M & 3M compounded Singapore Overnight Rate Average (SORA) interest benchmarks published by MAS to visualize the investor yield spread.
-- **Interactive GIS Map & Livability Scoring**: Leaflet map featuring color-coded development markers (CCR, RCR, OCR), radius filtering, and walking distance density scoring to MRT stations, primary schools, supermarkets, and parks.
+- **Interactive GIS Map & Livability Scoring (SLA OneMap)**:
+  - Powered by official **Singapore Land Authority (SLA) OneMap** basemap tiles (compliant with commercial use under the Singapore Open Data Licence).
+  - Built-in style switcher supporting **Default (Color)**, **Grey (Minimalist)**, **Night (Dark Mode)**, and **Original** basemaps.
+  - Interactive radius circles (0.5km to 5km) and active property walking distance rings (400m / 5-min walk & 800m / 10-min walk).
+  - Walking distance livability density scoring across MRT stations, primary schools, hawker centres, supermarkets, and parks.
+- **Comprehensive Singapore POI Amenities Dataset (399 POIs)**:
+  - **139 Hawker Centres & Eating Houses**: Sourced from official National Environment Agency (NEA) records (`data.gov.sg`) with stall counts, addresses, and prominent neighborhood eating houses (e.g. Binjai Park, Beauty World Food Centre, Cheong Chin Nam, Greenwood, Sixth Ave).
+  - **80 Supermarkets**: Islandwide coverage across FairPrice Finest, FairPrice Xtra, CS Fresh, Cold Storage, Sheng Siong, Don Don Donki, Meidi-Ya, and Giant (including newly opened stores like FairPrice Finest @ Dunearn Village).
+  - **95 MRT Stations, 22 Top Primary Schools, and 63 Parks / Greenery Reserves**.
+  - Interactive rich amenity popups displaying exact addresses, stall counts, and specialties.
+- **Robust Geocoding & Spatial Fallback Engine**:
+  - Automatically resolves project coordinates via SVY21 math, street-level spatial inheritance, and OneMap address geocoding.
+  - Corrects rental contract records to prevent unmapped developments from landing in fallback coordinates.
 - **Verified CEA Agent Lead Referral**:
   - High-converting, native district specialist advisory banner and lead capture modal.
   - Mandatory Singapore Personal Data Protection Act 2012 (PDPA) consent checkbox and Do Not Call (DNC) authorization.
@@ -106,6 +118,13 @@ npm run dev:server
 npm run dev:client
 ```
 Open **[http://localhost:3000](http://localhost:3000)** (Vite proxies `/api` calls to port 3001).
+
+### 4. Testing on Other Devices on the Same Wi-Fi (Laptop, Tablet, Mobile)
+To test the site from another device on the same local Wi-Fi:
+1. Find your host PC's local IP (e.g. `192.168.x.x` via `ipconfig`).
+2. Both port `3001` (production server) and port `3000` (Vite dev server with `host: true`) accept connections over the local network:
+   - **Production preview**: `http://<YOUR_LOCAL_IP>:3001`
+   - **Vite dev server**: `http://<YOUR_LOCAL_IP>:3000`
 
 ---
 

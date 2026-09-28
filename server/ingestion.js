@@ -151,7 +151,7 @@ export async function fetchUraData(accessKey) {
         for (const rawProj of projectsData) {
           const projName = (rawProj.project || 'Unknown Project').trim().toUpperCase();
           const street = (rawProj.street || 'Singapore').trim();
-          const district = String(rawProj.marketSegment || rawProj.district || '00').padStart(2, '0');
+          const district = String(rawProj.district || rawProj.postal_district || '00').padStart(2, '0');
           const segment = rawProj.marketSegment || 'OCR';
 
           let projRecord = await dbGet(`SELECT project_id FROM projects WHERE UPPER(project_name) = UPPER(?)`, [projName]);
@@ -163,15 +163,35 @@ export async function fetchUraData(accessKey) {
               geo = svy21ToWgs84(parseFloat(rawProj.y), parseFloat(rawProj.x));
             }
 
-            const fallback = districtCenters[district] || { lat: 1.3521, lng: 103.8198, planningArea: 'Central' };
-            const lat = geo ? geo.latitude : fallback.lat;
-            const lng = geo ? geo.longitude : fallback.lng;
-            const planningArea = fallback.planningArea;
+            let lat, lng, planningArea, resolvedDistrict = district;
+            if (geo) {
+              lat = geo.latitude;
+              lng = geo.longitude;
+              planningArea = (districtCenters[district] || {}).planningArea || 'Central';
+            } else {
+              const streetMatch = await dbGet(
+                `SELECT latitude, longitude, postal_district, planning_area FROM projects WHERE UPPER(street_name) = UPPER(?) AND (latitude != 1.3521 OR longitude != 103.8198) LIMIT 1`,
+                [street]
+              );
+              if (streetMatch) {
+                lat = streetMatch.latitude;
+                lng = streetMatch.longitude;
+                planningArea = streetMatch.planning_area;
+                if (resolvedDistrict === '00' || ['CCR','RCR','OCR'].includes(resolvedDistrict)) {
+                  resolvedDistrict = streetMatch.postal_district;
+                }
+              } else {
+                const fallback = districtCenters[district] || { lat: 1.3521, lng: 103.8198, planningArea: 'Central' };
+                lat = fallback.lat;
+                lng = fallback.lng;
+                planningArea = fallback.planningArea;
+              }
+            }
             
             const insertRes = await dbRun(
               `INSERT INTO projects (project_name, street_name, postal_district, market_segment, planning_area, latitude, longitude)
                VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              [projName, street, district, segment, planningArea, lat, lng]
+              [projName, street, resolvedDistrict, segment, planningArea, lat, lng]
             );
             projId = insertRes.lastID;
           } else {
@@ -253,7 +273,7 @@ export async function fetchUraData(accessKey) {
           if (!projName) continue;
 
           const street = (rawProj.street || 'Singapore').trim();
-          const district = String(rawProj.marketSegment || rawProj.district || '00').padStart(2, '0');
+          const district = String(rawProj.district || rawProj.postal_district || '00').padStart(2, '0');
           const segment = rawProj.marketSegment || 'OCR';
 
           let projRecord = await dbGet(`SELECT project_id FROM projects WHERE UPPER(project_name) = UPPER(?)`, [projName]);
@@ -265,14 +285,35 @@ export async function fetchUraData(accessKey) {
               geo = svy21ToWgs84(parseFloat(rawProj.y), parseFloat(rawProj.x));
             }
 
-            const fallback = districtCenters[district] || { lat: 1.3521, lng: 103.8198, planningArea: 'Central' };
-            const lat = geo ? geo.latitude : fallback.lat;
-            const lng = geo ? geo.longitude : fallback.lng;
+            let lat, lng, planningArea, resolvedDistrict = district;
+            if (geo) {
+              lat = geo.latitude;
+              lng = geo.longitude;
+              planningArea = (districtCenters[district] || {}).planningArea || 'Central';
+            } else {
+              const streetMatch = await dbGet(
+                `SELECT latitude, longitude, postal_district, planning_area FROM projects WHERE UPPER(street_name) = UPPER(?) AND (latitude != 1.3521 OR longitude != 103.8198) LIMIT 1`,
+                [street]
+              );
+              if (streetMatch) {
+                lat = streetMatch.latitude;
+                lng = streetMatch.longitude;
+                planningArea = streetMatch.planning_area;
+                if (resolvedDistrict === '00' || ['CCR','RCR','OCR'].includes(resolvedDistrict)) {
+                  resolvedDistrict = streetMatch.postal_district;
+                }
+              } else {
+                const fallback = districtCenters[district] || { lat: 1.3521, lng: 103.8198, planningArea: 'Central' };
+                lat = fallback.lat;
+                lng = fallback.lng;
+                planningArea = fallback.planningArea;
+              }
+            }
 
             const insertRes = await dbRun(
               `INSERT INTO projects (project_name, street_name, postal_district, market_segment, planning_area, latitude, longitude)
                VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              [projName, street, district, segment, fallback.planningArea, lat, lng]
+              [projName, street, resolvedDistrict, segment, planningArea, lat, lng]
             );
             projId = insertRes.lastID;
           } else {
@@ -364,7 +405,7 @@ export async function importRealUraData(jsonData) {
       if (!projName) continue;
 
       const street = (rawProj.street || rawProj.street_name || 'Singapore').trim();
-      const district = String(rawProj.marketSegment || rawProj.postal_district || '00').padStart(2, '0');
+      const district = String(rawProj.postal_district || rawProj.district || '00').padStart(2, '0');
       const segment = rawProj.marketSegment || rawProj.market_segment || 'OCR';
 
       let projRecord = await dbGet(`SELECT project_id FROM projects WHERE project_name = ?`, [projName]);
@@ -376,15 +417,39 @@ export async function importRealUraData(jsonData) {
           geo = svy21ToWgs84(parseFloat(rawProj.y), parseFloat(rawProj.x));
         }
 
-        const fallback = districtCenters[district] || { lat: 1.3521, lng: 103.8198, planningArea: 'Central' };
-        const lat = geo ? geo.latitude : (rawProj.latitude ? parseFloat(rawProj.latitude) : fallback.lat);
-        const lng = geo ? geo.longitude : (rawProj.longitude ? parseFloat(rawProj.longitude) : fallback.lng);
-        const planningArea = rawProj.planningArea || rawProj.planning_area || fallback.planningArea;
+        let lat, lng, planningArea, resolvedDistrict = district;
+        if (geo) {
+          lat = geo.latitude;
+          lng = geo.longitude;
+          planningArea = rawProj.planningArea || rawProj.planning_area || (districtCenters[district] || {}).planningArea || 'Central';
+        } else if (rawProj.latitude && rawProj.longitude) {
+          lat = parseFloat(rawProj.latitude);
+          lng = parseFloat(rawProj.longitude);
+          planningArea = rawProj.planningArea || rawProj.planning_area || 'Central';
+        } else {
+          const streetMatch = await dbGet(
+            `SELECT latitude, longitude, postal_district, planning_area FROM projects WHERE UPPER(street_name) = UPPER(?) AND (latitude != 1.3521 OR longitude != 103.8198) LIMIT 1`,
+            [street]
+          );
+          if (streetMatch) {
+            lat = streetMatch.latitude;
+            lng = streetMatch.longitude;
+            planningArea = streetMatch.planning_area;
+            if (resolvedDistrict === '00' || ['CCR','RCR','OCR'].includes(resolvedDistrict)) {
+              resolvedDistrict = streetMatch.postal_district;
+            }
+          } else {
+            const fallback = districtCenters[district] || { lat: 1.3521, lng: 103.8198, planningArea: 'Central' };
+            lat = fallback.lat;
+            lng = fallback.lng;
+            planningArea = fallback.planningArea;
+          }
+        }
 
         const insertRes = await dbRun(
           `INSERT INTO projects (project_name, street_name, postal_district, market_segment, planning_area, latitude, longitude)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [projName, street, district, segment, planningArea, lat, lng]
+          [projName, street, resolvedDistrict, segment, planningArea, lat, lng]
         );
         projId = insertRes.lastID;
       } else {
