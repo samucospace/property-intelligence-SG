@@ -18,8 +18,8 @@
 │              Backend Server (Node.js / Express)        │
 │  - Data Aggregator & Haversine Query Engine            │
 │  - Ingestion Orchestrator (URA API Batch Fetcher)       │
-│  - OneMap Geocoder Service                             │
-│  - Mock Data Generator (Offline / Demo fallback)       │
+│  - Zero-Latency SVY21 Mathematical Coordinate Engine   │
+│  - Scheduled Background Sync Engine & Deduplication    │
 └───────────────┬────────────────────────┬───────────────┘
                 │                        │
   Daily/Weekly  │                        │ Read / Write
@@ -133,8 +133,11 @@ The Query Engine filters developments within bounding box `[lat_min, lat_max, ln
 2. `POST /api/analytics/price-trends`
    Aggregates transaction metrics by Month or Quarter based on selected filters (projects, street, planning area, district, unit size sqm/sqft range, and radius).
 
-3. `POST /api/ingest/trigger`
-   Triggers online URA fetch + OneMap geocoding (or loads mock dataset if no API key is provided).
+3. `POST /api/ingest/ura` (Guarded by `X-Admin-Key`)
+   Triggers official URA live token exchange & multi-batch transaction download.
+
+4. `POST /api/ingest/import-data` (Guarded by `X-Admin-Key`)
+   Ingests raw official URA JSON exports into SQLite.
 
 ---
 
@@ -149,14 +152,16 @@ The Query Engine filters developments within bounding box `[lat_min, lat_max, ln
    * Estimated Value (Median sale price over selected period).
    * Median Rate ($/sqm and $/sqft).
    * Total Transaction Volume & Price Range.
+   * Livability Score Index across filtered developments.
 
 3. **Analytics & Trend Charts:**
    * Price Trend Line Chart (Median $/sqm over time) paired with Sales Volume Bar Chart.
    * Floor Level Scatter Plot (Price vs. Floor Range tier).
+   * Rental Yield vs. MAS 1M & 3M SORA benchmark comparison curves.
 
 4. **Interactive GIS Property Map:**
-   * Leaflet map displaying project markers color-coded by median $/sqm.
+   * Leaflet map displaying project markers color-coded by market segment (CCR, RCR, OCR).
    * Interactive popup showing development summary & quick filter button.
 
-5. **Demo / Offline Mode:**
-   * Embedded mock generator yielding realistic Singapore condos (CCR, RCR, OCR) with multi-year historical transactions for instant out-of-the-box demo without API key setup.
+5. **100% Official Data Integrity Policy:**
+   * Strictly operates on official URA transaction caveats and rental agreements. All synthetic and mock data generators have been permanently purged from the system.
