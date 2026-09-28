@@ -109,10 +109,7 @@ export default function App() {
           <div className="brand-icon">
             <Building2 size={22} />
           </div>
-          <div>
-            <div className="brand-title">Habitat Real Estate Engine</div>
-            <div className="brand-sub">Singapore Property Valuation, Tenancy & Livability Analytics</div>
-          </div>
+          <div className="brand-title">Singapore Home Intel</div>
         </div>
 
         <div className="header-actions">
@@ -450,10 +447,10 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div style={{ fontWeight: 700, color: 'var(--color-text-charcoal)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Building2 size={18} color="var(--color-primary-green)" />
-              Property Intelligence SG
+              Singapore Home Intel
             </div>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <a href="#about" onClick={(e) => { e.preventDefault(); alert("Property Intelligence SG delivers transparent valuation, tenancy yields, and livability analytics for private properties in Singapore."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>About</a>
+              <a href="#about" onClick={(e) => { e.preventDefault(); alert("Singapore Home Intel delivers transparent valuation, tenancy yields, and livability analytics for private properties in Singapore."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>About</a>
               <a href="#privacy" onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ color: 'var(--color-primary-green)', fontWeight: 600, textDecoration: 'none' }}>Privacy Policy & PDPA Notice</a>
               <a href="#terms" onClick={(e) => { e.preventDefault(); alert("Terms of Service: All valuation analytics and rental indices are computational estimates based on historical caveats and publicly available benchmark rates."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>Terms of Service</a>
               <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary-green)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -509,7 +506,7 @@ export default function App() {
             <div style={{ fontSize: '0.82rem', color: 'var(--color-text-charcoal)', lineHeight: '1.6', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <p>
                 <strong>1. Commitment to Singapore PDPA 2012</strong><br />
-                Property Intelligence SG is committed to safeguarding personal data in compliance with the <strong>Singapore Personal Data Protection Act 2012 (PDPA)</strong>. This notice explains how personal data is collected, used, disclosed, and protected.
+                Singapore Home Intel is committed to safeguarding personal data in compliance with the <strong>Singapore Personal Data Protection Act 2012 (PDPA)</strong>. This notice explains how personal data is collected, used, disclosed, and protected.
               </p>
 
               <p>

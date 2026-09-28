@@ -1,4 +1,4 @@
-# Property Intelligence SG (`property-intelligence-SG`)
+# Singapore Home Intel (`property-intelligence-SG`)
 
 An institutional-grade Singapore private residential valuation engine, rental yield tracker, and livability analytics portal powered by official **Urban Redevelopment Authority (URA) Data Service** transaction caveats, **Monetary Authority of Singapore (MAS)** SORA benchmark interest rates, and **SLA OneMap** spatial data.
 
@@ -10,6 +10,7 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
 
 - **100% Official Government Data Only**: Strictly operates on verified URA transaction caveats and rental agreements. Zero synthetic, fabricated, or mock data.
 - **Pre-Populated Database**: Includes ~3,400+ condominium developments, >128,000 official sales transaction caveats, and >405,000 rental contract records.
+- **Time-Proportional Chronological Axis Scaling**: Chart timelines across sales transactions, price indices, and rental trends are scaled proportionally across time. Inactive months with zero transactions retain their calendar tick with 0 volume, ensuring transaction pauses and market hiatuses are accurately depicted rather than compressed.
 - **Zero-Latency SVY21 Spatial Engine**: Pure mathematical conversion of Singapore Transverse Mercator (SVY21) coordinates to WGS84 (Lat/Lng) in 0ms without external geocoding API rate limits.
 - **SORA Benchmark Yield Analytics**: Compares gross rental yields against 1M & 3M compounded Singapore Overnight Rate Average (SORA) interest benchmarks published by MAS to visualize the investor yield spread.
 - **Interactive GIS Map & Livability Scoring (SLA OneMap)**:
@@ -255,7 +256,7 @@ Add the automated maintenance tasks using `crontab -e`:
 - **Singapore Open Data Licence (SODL)**: Property transaction caveats and rental statistics are sourced from the Urban Redevelopment Authority (URA) Data Service, accessed under the terms of the [Singapore Open Data Licence](https://data.gov.sg/open-data-licence).
 - **Benchmark Interest Rates**: SORA benchmark data reflects published records from the Monetary Authority of Singapore (MAS).
 - **Personal Data Protection Act 2012 (PDPA)**: All email collections and lead submissions require explicit affirmative consent and include 1-click opt-out rights.
-- **Estate Agents Act & CEA Disclosures**: Property Intelligence SG is an independent technology platform and does not perform estate agency work. Advisory and transaction assistance are provided exclusively by licensed real estate salespersons registered with the Council for Estate Agencies (CEA).
+- **Estate Agents Act & CEA Disclosures**: Singapore Home Intel is an independent technology platform and does not perform estate agency work. Advisory and transaction assistance are provided exclusively by licensed real estate salespersons registered with the Council for Estate Agencies (CEA).
 - **Valuation Notice**: Automated valuation estimates and $/sqft trends are algorithmic computations for informational purposes only, and do not constitute formal appraisals under the Singapore Institute of Surveyors and Valuers (SISV).
 
 ---

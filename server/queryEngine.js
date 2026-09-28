@@ -14,6 +14,29 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// Generate an array of YYYY-MM strings for every month between startMonth and endMonth inclusive
+function generateMonthRange(startMonth, endMonth) {
+  const months = [];
+  if (!startMonth || !endMonth) return months;
+
+  let [startYear, startM] = startMonth.split('-').map(Number);
+  const [endYear, endM] = endMonth.split('-').map(Number);
+
+  if (isNaN(startYear) || isNaN(startM) || isNaN(endYear) || isNaN(endM)) {
+    return months;
+  }
+
+  while (startYear < endYear || (startYear === endYear && startM <= endM)) {
+    months.push(`${startYear}-${String(startM).padStart(2, '0')}`);
+    startM++;
+    if (startM > 12) {
+      startM = 1;
+      startYear++;
+    }
+  }
+  return months;
+}
+
 // 1. Search Autocomplete Suggestions
 export async function getSearchSuggestions(q) {
   if (!q || typeof q !== 'string' || q.trim().length === 0) {
@@ -161,38 +184,61 @@ export async function getPriceAnalytics(filters = {}) {
     soraMap.set(r.reference_month, { sora1m: r.sora_1m, sora3m: r.sora_3m });
   });
 
-  // Time-series trend grouping (Monthly)
-  const monthlyMap = new Map();
-  filteredTx.forEach(tx => {
-    const monthKey = tx.contract_date.substring(0, 7);
-    if (!monthlyMap.has(monthKey)) {
-      monthlyMap.set(monthKey, { month: monthKey, psqmList: [], psftList: [], priceList: [] });
-    }
-    const item = monthlyMap.get(monthKey);
-    item.psqmList.push(tx.psqm_sgd);
-    item.psftList.push(tx.psft_sgd);
-    item.priceList.push(tx.price_sgd);
-  });
+  // Time-series trend grouping (Monthly proportional scale)
+  let timeSeries = [];
+  if (filteredTx.length > 0) {
+    const monthlyMap = new Map();
+    filteredTx.forEach(tx => {
+      const monthKey = tx.contract_date.substring(0, 7);
+      if (!monthlyMap.has(monthKey)) {
+        monthlyMap.set(monthKey, { month: monthKey, psqmList: [], psftList: [], priceList: [] });
+      }
+      const item = monthlyMap.get(monthKey);
+      item.psqmList.push(tx.psqm_sgd);
+      item.psftList.push(tx.psft_sgd);
+      item.priceList.push(tx.price_sgd);
+    });
 
-  const timeSeries = Array.from(monthlyMap.entries()).map(([mKey, data]) => {
-    const sPsqm = [...data.psqmList].sort((a, b) => a - b);
-    const sPsft = [...data.psftList].sort((a, b) => a - b);
-    const sPrice = [...data.priceList].sort((a, b) => a - b);
-    const mid = Math.floor(sPsqm.length / 2);
-    const sora = soraMap.get(mKey) || { sora1m: null, sora3m: null };
+    const startMonth = (dateFrom || '2021-01-01').substring(0, 7);
+    const endMonth = (dateTo || '2026-12-31').substring(0, 7);
+    const allMonths = generateMonthRange(startMonth, endMonth);
 
-    return {
-      period: mKey,
-      volume: data.psqmList.length,
-      medianPsqm: Math.round(sPsqm.length % 2 !== 0 ? sPsqm[mid] : (sPsqm[mid - 1] + sPsqm[mid]) / 2),
-      avgPsqm: Math.round(sPsqm.reduce((a, b) => a + b, 0) / sPsqm.length),
-      medianPsft: Math.round(sPsft.length % 2 !== 0 ? sPsft[mid] : (sPsft[mid - 1] + sPsft[mid]) / 2),
-      avgPsft: Math.round(sPsft.reduce((a, b) => a + b, 0) / sPsft.length),
-      medianPrice: Math.round(sPrice.length % 2 !== 0 ? sPrice[mid] : (sPrice[mid - 1] + sPrice[mid]) / 2),
-      sora1m: sora.sora1m,
-      sora3m: sora.sora3m
-    };
-  }).sort((a, b) => a.period.localeCompare(b.period));
+    timeSeries = allMonths.map(mKey => {
+      const data = monthlyMap.get(mKey);
+      const sora = soraMap.get(mKey) || { sora1m: null, sora3m: null };
+
+      if (!data || data.psqmList.length === 0) {
+        return {
+          period: mKey,
+          volume: 0,
+          medianPsqm: null,
+          avgPsqm: null,
+          medianPsft: null,
+          avgPsft: null,
+          medianPrice: null,
+          sora1m: sora.sora1m,
+          sora3m: sora.sora3m
+        };
+      }
+
+      const sPsqm = [...data.psqmList].sort((a, b) => a - b);
+      const sPsft = [...data.psftList].sort((a, b) => a - b);
+      const sPrice = [...data.priceList].sort((a, b) => a - b);
+      const mid = Math.floor(sPsqm.length / 2);
+
+      return {
+        period: mKey,
+        volume: data.psqmList.length,
+        medianPsqm: Math.round(sPsqm.length % 2 !== 0 ? sPsqm[mid] : (sPsqm[mid - 1] + sPsqm[mid]) / 2),
+        avgPsqm: Math.round(sPsqm.reduce((a, b) => a + b, 0) / sPsqm.length),
+        medianPsft: Math.round(sPsft.length % 2 !== 0 ? sPsft[mid] : (sPsft[mid - 1] + sPsft[mid]) / 2),
+        avgPsft: Math.round(sPsft.reduce((a, b) => a + b, 0) / sPsft.length),
+        medianPrice: Math.round(sPrice.length % 2 !== 0 ? sPrice[mid] : (sPrice[mid - 1] + sPrice[mid]) / 2),
+        sora1m: sora.sora1m,
+        sora3m: sora.sora3m
+      };
+    });
+  }
 
   // Floor tier scatter plot points
   const scatterPoints = filteredTx.slice(-200).map(t => ({
@@ -444,7 +490,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
     avgPsft: parseFloat((stats.psftSum / stats.count).toFixed(2))
   })).sort((a, b) => a.bedroom.localeCompare(b.bedroom));
 
-  // Time Series Aggregation by Month
+  // Time Series Aggregation by Month (Proportional timeline)
   const timeMap = new Map();
   rentalCaveats.forEach(r => {
     const m = r.leaseDate;
@@ -457,14 +503,27 @@ export async function getRentalYieldAnalytics(filters = {}) {
     t.count += 1;
   });
 
-  const timeSeries = Array.from(timeMap.entries())
-    .map(([month, data]) => ({
+  const startMonth = (dateFrom || '2021-01-01').substring(0, 7);
+  const endMonth = (dateTo || '2026-12-31').substring(0, 7);
+  const allMonths = generateMonthRange(startMonth, endMonth);
+
+  const timeSeries = allMonths.map(month => {
+    const data = timeMap.get(month);
+    if (!data || data.count === 0) {
+      return {
+        month,
+        avgRent: null,
+        avgRentPsft: null,
+        count: 0
+      };
+    }
+    return {
       month,
       avgRent: Math.round(data.rentSum / data.count),
       avgRentPsft: parseFloat((data.psftSum / data.count).toFixed(2)),
       count: data.count
-    }))
-    .sort((a, b) => a.month.localeCompare(b.month));
+    };
+  });
 
   // Map Projects Aggregation with Gross Yield & Rental Rates
   const mapProjectsMap = new Map();

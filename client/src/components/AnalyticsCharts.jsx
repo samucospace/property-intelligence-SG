@@ -18,6 +18,7 @@ import { TrendingUp, Layers, BarChart2, Percent } from 'lucide-react';
 const CustomTooltip = ({ active, payload, label, unitType, show1mSora, show3mSora }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
+    const hasTransactions = data.volume > 0;
     return (
       <div style={{
         background: '#FFFFFF',
@@ -29,15 +30,23 @@ const CustomTooltip = ({ active, payload, label, unitType, show1mSora, show3mSor
         color: '#36454F'
       }}>
         <div style={{ fontWeight: 700, marginBottom: '6px', color: '#36454F', fontFamily: 'var(--font-heading)' }}>{label}</div>
-        <div style={{ color: '#00B080', margin: '3px 0' }}>
-          Median Rate: <strong>${(unitType === 'sqm' ? data.medianPsqm : data.medianPsft)?.toLocaleString()}</strong> /{unitType}
-        </div>
-        <div style={{ color: '#4F7942', margin: '3px 0' }}>
-          Median Price: <strong>${data.medianPrice?.toLocaleString()} SGD</strong>
-        </div>
-        <div style={{ color: '#CB6D51', margin: '3px 0' }}>
-          Sales Volume: <strong>{data.volume} transactions</strong>
-        </div>
+        {hasTransactions ? (
+          <>
+            <div style={{ color: '#00B080', margin: '3px 0' }}>
+              Median Rate: <strong>${(unitType === 'sqm' ? data.medianPsqm : data.medianPsft)?.toLocaleString()}</strong> /{unitType}
+            </div>
+            <div style={{ color: '#4F7942', margin: '3px 0' }}>
+              Median Price: <strong>${data.medianPrice?.toLocaleString()} SGD</strong>
+            </div>
+            <div style={{ color: '#CB6D51', margin: '3px 0' }}>
+              Sales Volume: <strong>{data.volume} {data.volume === 1 ? 'transaction' : 'transactions'}</strong>
+            </div>
+          </>
+        ) : (
+          <div style={{ color: '#6A7B82', margin: '4px 0', fontSize: '0.82rem', fontStyle: 'italic' }}>
+            No transaction caveats in this period
+          </div>
+        )}
         {show1mSora && data.sora1m != null && (
           <div style={{ color: '#7C3AED', margin: '3px 0' }}>
             1M Compounded SORA: <strong>{data.sora1m}%</strong>
@@ -50,7 +59,7 @@ const CustomTooltip = ({ active, payload, label, unitType, show1mSora, show3mSor
         )}
       </div>
     );
-  };
+  }
   return null;
 };
 
@@ -90,11 +99,19 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={timeSeries} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748B' }} dy={8} />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11, fill: '#64748B' }}
+                    tickLine={true}
+                    interval="preserveStartEnd"
+                    minTickGap={25}
+                    dy={8}
+                  />
                   <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#64748B' }} unit=" $" />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#64748B' }} />
                   <Tooltip
                     formatter={(value, name) => {
+                      if (value == null) return ['N/A', name === 'avgRent' ? 'Average Rent' : name];
                       if (name === 'avgRent') return [`$${value.toLocaleString()} /mo`, 'Average Rent'];
                       if (name === 'avgRentPsft') return [`$${value} /sqft/mo`, 'Rent Rate'];
                       if (name === 'count') return [`${value} leases`, 'Lease Volume'];
@@ -103,7 +120,7 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                   />
                   <Legend wrapperStyle={{ paddingTop: '10px' }} />
                   <Bar yAxisId="right" dataKey="count" name="Lease Volume" fill="#CBD5E1" opacity={0.5} barSize={16} radius={[4, 4, 0, 0]} />
-                  <Line yAxisId="left" type="monotone" dataKey="avgRent" name="Avg Monthly Rent ($)" stroke="#CB6D51" strokeWidth={3} dot={{ r: 3, fill: '#CB6D51' }} />
+                  <Line yAxisId="left" type="monotone" dataKey="avgRent" name="Avg Monthly Rent ($)" stroke="#CB6D51" strokeWidth={3} connectNulls={true} dot={{ r: 3, fill: '#CB6D51' }} />
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
@@ -210,7 +227,14 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={timeSeries} margin={{ top: 10, right: 15, left: 10, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(54, 69, 79, 0.08)" />
-                <XAxis dataKey="period" stroke="#6A7B82" fontSize={11} tickLine={false} />
+                <XAxis
+                  dataKey="period"
+                  stroke="#6A7B82"
+                  fontSize={11}
+                  tickLine={true}
+                  interval="preserveStartEnd"
+                  minTickGap={25}
+                />
                 
                 {/* Left Y-Axis: Rate ($/sqm or $/sqft) */}
                 <YAxis
@@ -264,6 +288,7 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                   name={`Median Rate ($/${unitType.toUpperCase()})`}
                   stroke="#00B080"
                   strokeWidth={3}
+                  connectNulls={true}
                   dot={{ r: 4, fill: '#00B080' }}
                   activeDot={{ r: 7 }}
                 />
@@ -277,6 +302,7 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                     stroke="#7C3AED"
                     strokeWidth={2}
                     strokeDasharray="4 4"
+                    connectNulls={true}
                     dot={{ r: 3, fill: '#7C3AED' }}
                     activeDot={{ r: 6 }}
                   />
@@ -290,6 +316,7 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                     name="3-Month SORA (3M SORA %)"
                     stroke="#DB2777"
                     strokeWidth={2.5}
+                    connectNulls={true}
                     dot={{ r: 3, fill: '#DB2777' }}
                     activeDot={{ r: 6 }}
                   />
