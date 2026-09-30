@@ -118,8 +118,18 @@ describe('Security Utilities', () => {
       });
     });
 
-    it('fails closed (503) if ADMIN_API_KEY is the insecure default placeholder', () => {
+    it('fails closed (503) if ADMIN_API_KEY is an insecure default placeholder', () => {
       expect(checkAdminKey('secure_admin_key_please_change', validKey)).toEqual({
+        ok: false,
+        status: 503,
+        error: 'Admin API disabled: ADMIN_API_KEY is not securely configured.'
+      });
+      expect(checkAdminKey('change_this_to_a_secure_random_key_in_production', validKey)).toEqual({
+        ok: false,
+        status: 503,
+        error: 'Admin API disabled: ADMIN_API_KEY is not securely configured.'
+      });
+      expect(checkAdminKey('my_example_secret_key_that_is_32_characters_long', validKey)).toEqual({
         ok: false,
         status: 503,
         error: 'Admin API disabled: ADMIN_API_KEY is not securely configured.'

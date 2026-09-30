@@ -52,8 +52,13 @@ app.use(helmet({
 app.use(compression());
 app.use(cors());
 
-// Step 3.4.2: Strict 100kb body limit for public routes
-app.use(express.json({ limit: '100kb' }));
+// Step 3.4.2: Strict 100kb body limit for public routes (exempting dedicated 50mb import-data route)
+app.use((req, res, next) => {
+  if (req.path === '/api/ingest/import-data') {
+    return next();
+  }
+  express.json({ limit: '100kb' })(req, res, next);
+});
 
 // General Rate Limiter (300 requests per 15 minutes per IP)
 const apiLimiter = rateLimit({
@@ -592,7 +597,7 @@ app.post('/api/ingest/import-data', express.json({ limit: '50mb' }), async (req,
       return res.status(400).json({ error: 'jsonData is required in request body.' });
     }
     const result = await importRealUraData(jsonData);
-    invalidateSaleValuationsCache();
+    await invalidateSaleValuationsCache();
     invalidateLivabilityCache();
     invalidateAnalyticsCache();
     res.json(result);
@@ -609,7 +614,7 @@ app.post('/api/ingest/ura', async (req, res, next) => {
       return res.status(400).json({ error: 'AccessKey is required in request body.' });
     }
     const result = await fetchUraData(accessKey);
-    invalidateSaleValuationsCache();
+    await invalidateSaleValuationsCache();
     invalidateLivabilityCache();
     invalidateAnalyticsCache();
     res.json(result);
@@ -621,7 +626,7 @@ app.post('/api/ingest/ura', async (req, res, next) => {
 // 10. Serve Static Frontend in Production
 // 10. Serve Static Frontend in Production
 const clientDist = path.join(__dirname, '../client/dist');
-app.use(express.static(clientDist));
+app.use(express.static(clientDist, { index: false }));
 
 // Step 4.5.5: Clean up expired unconverted agent advisory leads older than 12 months
 async function cleanupExpiredLeads() {
@@ -682,18 +687,19 @@ app.get('*', async (req, res, next) => {
 
     let html = fs.readFileSync(targetHtmlPath, 'utf8');
 
-    html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
-    html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${desc}" />`);
-    html = html.replace(/<meta property="og:title" content=".*?" \/>/, `<meta property="og:title" content="${title}" />`);
-    html = html.replace(/<meta property="og:description" content=".*?" \/>/, `<meta property="og:description" content="${desc}" />`);
-    html = html.replace(/<meta property="og:url" content=".*?" \/>/, `<meta property="og:url" content="${canonicalUrl}" />`);
-    html = html.replace(/<meta name="twitter:title" content=".*?" \/>/, `<meta name="twitter:title" content="${title}" />`);
-    html = html.replace(/<meta name="twitter:description" content=".*?" \/>/, `<meta name="twitter:description" content="${desc}" />`);
+    // Use replacer functions (() => val) to prevent $ characters in titles/descriptions from triggering regex patterns
+    html = html.replace(/<title>.*?<\/title>/, () => `<title>${title}</title>`);
+    html = html.replace(/<meta name="description" content=".*?" \/>/, () => `<meta name="description" content="${desc}" />`);
+    html = html.replace(/<meta property="og:title" content=".*?" \/>/, () => `<meta property="og:title" content="${title}" />`);
+    html = html.replace(/<meta property="og:description" content=".*?" \/>/, () => `<meta property="og:description" content="${desc}" />`);
+    html = html.replace(/<meta property="og:url" content=".*?" \/>/, () => `<meta property="og:url" content="${canonicalUrl}" />`);
+    html = html.replace(/<meta name="twitter:title" content=".*?" \/>/, () => `<meta name="twitter:title" content="${title}" />`);
+    html = html.replace(/<meta name="twitter:description" content=".*?" \/>/, () => `<meta name="twitter:description" content="${desc}" />`);
 
     if (html.includes('<link rel="canonical"')) {
-      html = html.replace(/<link rel="canonical" href=".*?" \/>/, `<link rel="canonical" href="${canonicalUrl}" />`);
+      html = html.replace(/<link rel="canonical" href=".*?" \/>/, () => `<link rel="canonical" href="${canonicalUrl}" />`);
     } else {
-      html = html.replace('</head>', `  <link rel="canonical" href="${canonicalUrl}" />\n  </head>`);
+      html = html.replace('</head>', () => `  <link rel="canonical" href="${canonicalUrl}" />\n  </head>`);
     }
 
     res.type('text/html').send(html);
@@ -766,10 +772,16 @@ async function startServer() {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
+  return server;
 }
 
+export { app, startServer };
+
 // Step 5.5: Ensure startup failure exits non-zero so PM2/Docker triggers restart
-startServer().catch(err => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
+if (isMain) {
+  startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}

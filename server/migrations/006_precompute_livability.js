@@ -13,7 +13,7 @@ export async function up(conn) {
   const all = conn.all.bind(conn);
 
   console.log('[Migration 006] Pre-computing livability scores into projects table...');
-  const amenities = await getParsedAmenities();
+  const amenities = await getParsedAmenities(conn);
   const projects = await all(`SELECT project_id, latitude, longitude FROM projects`);
 
   let count = 0;

@@ -112,6 +112,9 @@ export function resolveProjectDistrict(rawProj) {
 export function isLandedDevelopment(projName) {
   if (!projName) return false;
   const upper = projName.trim().toUpperCase();
+  if (upper.includes('NON-LANDED')) {
+    return false;
+  }
   return (
     upper.includes('LANDED HOUSING') ||
     upper.includes('SEMI-DETACHED') ||

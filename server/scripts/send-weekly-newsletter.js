@@ -212,7 +212,9 @@ async function main() {
   const subscribers = await dbAll(`
     SELECT email, name
     FROM leads
-    WHERE lead_type = 'newsletter' AND (unsubscribed_at IS NULL)
+    WHERE lead_type = 'newsletter'
+      AND unsubscribed_at IS NULL
+      AND confirmed_at IS NOT NULL
   `);
 
   console.log(`Active newsletter subscribers: ${subscribers.length}`);

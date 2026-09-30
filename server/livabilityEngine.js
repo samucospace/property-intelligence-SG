@@ -2,12 +2,34 @@ import { dbAll, dbRun, dbGet, createConnection, withTransaction } from './db.js'
 import { seedAmenitiesData } from './amenitiesData.js';
 import { haversineDistance } from './utils/geo.js';
 
+export const AMENITIES_SEED_VERSION = 1;
+
 // In-memory caches for startup pre-calculation (Phase 1.1)
 let parsedAmenitiesCache = null;
 const defaultLivabilityCache = new Map();
 const trimmedLivabilityCache = new Map();
 
-export async function getParsedAmenities() {
+export async function getParsedAmenities(conn = null) {
+  if (conn) {
+    const all = conn.all.bind(conn);
+    const rows = await all(`SELECT amenity_id, category, name, latitude, longitude, details FROM amenities`);
+    return rows.map(a => {
+      let extra = {};
+      try {
+        extra = typeof a.details === 'string' ? JSON.parse(a.details || '{}') : (a.details || {});
+      } catch (e) {
+        extra = {};
+      }
+      return {
+        amenity_id: a.amenity_id,
+        category: a.category,
+        name: a.name,
+        latitude: a.latitude,
+        longitude: a.longitude,
+        details: extra
+      };
+    });
+  }
   if (parsedAmenitiesCache) return parsedAmenitiesCache;
   const rows = await dbAll(`SELECT amenity_id, category, name, latitude, longitude, details FROM amenities`);
   parsedAmenitiesCache = rows.map(a => {

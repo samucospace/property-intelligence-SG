@@ -7,6 +7,8 @@ import {
 } from '../utils/projectUpsert.js';
 import { generateRentalQuarters } from '../utils/dateUtils.js';
 import { createConnection, withTransaction } from '../db.js';
+import { generateTxHash, generateRentHash, importRealUraData } from '../ingestion.js';
+import { runMigrations } from '../migrations/index.js';
 
 describe('Ingestion & Geospatial Integrity', () => {
   describe('svy21ToWgs84', () => {
@@ -110,6 +112,7 @@ describe('Ingestion & Geospatial Integrity', () => {
       expect(isLandedDevelopment("D'LEEDON")).toBe(false);
       expect(isLandedDevelopment('TREASURE AT TAMPINES')).toBe(false);
       expect(isLandedDevelopment('CANBERRA RESIDENCES')).toBe(false);
+      expect(isLandedDevelopment('NON-LANDED HOUSING DEVELOPMENT')).toBe(false);
     });
   });
 
@@ -160,6 +163,75 @@ describe('Ingestion & Geospatial Integrity', () => {
         const rows = await conn.all(`SELECT * FROM test_items`);
         expect(rows.length).toBe(1);
         expect(rows[0].name).toBe('initial item');
+      } finally {
+        await conn.close();
+      }
+    });
+  });
+
+  describe('Deduplication & Transaction Hashing', () => {
+    it('generates deterministic transaction hashes and distinguishes occurrence indices', () => {
+      const hash1 = generateTxHash('TEST CONDO', '2024-01-01', 1500000, 85, '06 to 10', 1, 1, 'Condominium', '09');
+      const hash1Dup = generateTxHash('TEST CONDO', '2024-01-01', 1500000, 85, '06 to 10', 1, 1, 'Condominium', '09');
+      const hash2 = generateTxHash('TEST CONDO', '2024-01-01', 1500000, 85, '06 to 10', 2, 1, 'Condominium', '09');
+
+      expect(hash1).toBe(hash1Dup);
+      expect(hash1).not.toBe(hash2);
+      expect(hash1).toMatch(/^[0-9a-f]{32}$/);
+    });
+
+    it('generates deterministic rental hashes and distinguishes occurrence indices', () => {
+      const rHash1 = generateRentHash('TEST CONDO', '2024-01', 4500, 850, '2-Bedder', '800-900 sqft', 1, '09');
+      const rHash1Dup = generateRentHash('TEST CONDO', '2024-01', 4500, 850, '2-Bedder', '800-900 sqft', 1, '09');
+      const rHash2 = generateRentHash('TEST CONDO', '2024-01', 4500, 850, '2-Bedder', '800-900 sqft', 2, '09');
+
+      expect(rHash1).toBe(rHash1Dup);
+      expect(rHash1).not.toBe(rHash2);
+      expect(rHash1).toMatch(/^[0-9a-f]{32}$/);
+    });
+
+    it('idempotently imports and replaces transactions on subsequent syncs without accumulating duplicates', async () => {
+      const conn = createConnection(':memory:');
+      try {
+        await runMigrations(conn);
+
+        const samplePayload = [
+          {
+            project: 'EMERALD GARDENS',
+            street: 'EMERALD HILL ROAD',
+            district: '09',
+            x: 28000,
+            y: 30000,
+            transaction: [
+              { contractDate: '0124', price: '2000000', area: '100', floorRange: '01 to 05', noOfUnits: '1', propertyType: 'Condominium' },
+              { contractDate: '0124', price: '2000000', area: '100', floorRange: '01 to 05', noOfUnits: '1', propertyType: 'Condominium' } // genuine duplicate in same payload
+            ],
+            rental: [
+              { leaseDate: '0124', rent: '5000', areaSqft: '1000-1100', noOfBedRoom: '2' }
+            ]
+          }
+        ];
+
+        // First import
+        const res1 = await importRealUraData(samplePayload, conn);
+        expect(res1.status).toBe('success');
+        expect(res1.totalSalesIngested).toBe(2);
+        expect(res1.totalRentalsIngested).toBe(1);
+
+        const salesCount1 = await conn.get(`SELECT COUNT(*) as c FROM property_transactions`);
+        const rentalCount1 = await conn.get(`SELECT COUNT(*) as c FROM rental_transactions`);
+        expect(salesCount1.c).toBe(2);
+        expect(rentalCount1.c).toBe(1);
+
+        // Second import (simulating scheduled re-sync with replace-by-project)
+        const res2 = await importRealUraData(samplePayload, conn);
+        expect(res2.status).toBe('success');
+
+        const salesCount2 = await conn.get(`SELECT COUNT(*) as c FROM property_transactions`);
+        const rentalCount2 = await conn.get(`SELECT COUNT(*) as c FROM rental_transactions`);
+        // Counts must remain identical — NO duplicate record accumulation
+        expect(salesCount2.c).toBe(2);
+        expect(rentalCount2.c).toBe(1);
       } finally {
         await conn.close();
       }

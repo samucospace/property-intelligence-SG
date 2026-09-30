@@ -18,14 +18,16 @@ if (fs.existsSync(serverEnvPath)) {
   dotenv.config();
 }
 
+import { isPlaceholderSecret } from './utils/security.js';
+
 // Validate critical variables in production
 if (process.env.NODE_ENV === 'production') {
   const missing = [];
-  if (!process.env.ADMIN_API_KEY || process.env.ADMIN_API_KEY.length < 32 || process.env.ADMIN_API_KEY === 'secure_admin_key_please_change') {
-    missing.push('ADMIN_API_KEY (must be at least 32 characters and non-default)');
+  if (!process.env.ADMIN_API_KEY || process.env.ADMIN_API_KEY.length < 32 || isPlaceholderSecret(process.env.ADMIN_API_KEY)) {
+    missing.push('ADMIN_API_KEY (must be at least 32 characters and non-placeholder)');
   }
-  if (!process.env.UNSUBSCRIBE_SECRET || process.env.UNSUBSCRIBE_SECRET.length < 16) {
-    missing.push('UNSUBSCRIBE_SECRET (must be configured for secure HMAC tokens)');
+  if (!process.env.UNSUBSCRIBE_SECRET || process.env.UNSUBSCRIBE_SECRET.length < 16 || isPlaceholderSecret(process.env.UNSUBSCRIBE_SECRET)) {
+    missing.push('UNSUBSCRIBE_SECRET (must be at least 16 characters and non-placeholder)');
   }
   if (!process.env.BASE_URL) {
     missing.push('BASE_URL (required for production links)');

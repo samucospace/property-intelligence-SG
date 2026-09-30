@@ -81,6 +81,20 @@ export function verifyUnsubscribeToken(email, token) {
 }
 
 /**
+ * Helper to identify unconfigured placeholder or example secrets.
+ */
+export function isPlaceholderSecret(secret) {
+  if (!secret || typeof secret !== 'string') return true;
+  const s = secret.toLowerCase();
+  return (
+    s.includes('change_this') ||
+    s.includes('placeholder') ||
+    s.includes('example') ||
+    s === 'secure_admin_key_please_change'
+  );
+}
+
+/**
  * Validates admin credentials with fail-closed semantics (Step 1.3).
  * Rejects undefined, empty, default placeholder, or short (< 32 char) keys.
  */
@@ -89,7 +103,7 @@ export function checkAdminKey(configuredKey, providedKey) {
     !configuredKey ||
     typeof configuredKey !== 'string' ||
     configuredKey.length < 32 ||
-    configuredKey === 'secure_admin_key_please_change'
+    isPlaceholderSecret(configuredKey)
   ) {
     return { ok: false, status: 503, error: 'Admin API disabled: ADMIN_API_KEY is not securely configured.' };
   }

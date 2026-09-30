@@ -6,6 +6,7 @@ import { normalizeStreetName } from './utils/streetUtils.js';
 import { classifyTenure } from './utils/tenureUtils.js';
 import { normalizeBedroom } from './utils/bedroomUtils.js';
 import { refreshProjectBenchmarks } from './queryEngine.js';
+import { precomputeAllProjectLivability } from './livabilityEngine.js';
 import { svy21ToWgs84, DISTRICT_CENTERS, getDistrictCenter } from './utils/geo.js';
 import { getOrCreateProject, cleanPostalDistrict, resolveProjectDistrict, isLandedDevelopment } from './utils/projectUpsert.js';
 
@@ -86,6 +87,10 @@ export async function fetchUraData(accessKey) {
         const projectsData = batchBody.Result || batchBody.result || [];
         console.log(`Batch ${batch} URA Sales Status:`, batchBody.Status, 'Projects count:', Array.isArray(projectsData) ? projectsData.length : 0);
 
+        if (batchBody.Status && batchBody.Status !== 'Success') {
+          salesBatchErrors.push({ batch, error: batchBody.Message || `Sales batch status: ${batchBody.Status}` });
+        }
+
         if (Array.isArray(projectsData) && projectsData.length > 0) {
           let batchInserted = 0;
           await withTransaction(conn, async () => {
@@ -93,6 +98,10 @@ export async function fetchUraData(accessKey) {
               const { projId, projName, resolvedDistrict } = await getOrCreateProject(conn, rawProj);
 
               const txList = rawProj.transaction || [];
+              if (txList.length > 0) {
+                // Step 2.5.1: Replace by project: purge prior records for this project so fresh hashes and occurrence indices replace them cleanly
+                await conn.run('DELETE FROM property_transactions WHERE project_id = ?', [projId]);
+              }
               const txOccurrenceTracker = new Map();
 
               for (const tx of txList) {
@@ -185,10 +194,27 @@ export async function fetchUraData(accessKey) {
         const rentBody = rentRes.data || {};
         const rentProjects = rentBody.Result || rentBody.result || [];
 
+        if (rentBody.Status && rentBody.Status !== 'Success') {
+          quarterErrors.push({ quarter: refPeriod, error: rentBody.Message || `Rental quarter status: ${rentBody.Status}` });
+        }
+
         if (rentBody.Status === 'Success' && Array.isArray(rentProjects) && rentProjects.length > 0) {
           console.log(`Quarter [${refPeriod}]: Retrieved ${rentProjects.length} rental projects from URA.`);
           let quarterInserted = 0;
           await withTransaction(conn, async () => {
+            // Step 2.5.1: Replace-by-period: delete existing records for this quarter before inserting fresh URA data
+            const qMatch = /^(\d{2})q([1-4])$/i.exec(String(refPeriod).trim());
+            if (qMatch) {
+              const yy = qMatch[1];
+              const qNum = parseInt(qMatch[2], 10);
+              const qMonths = [
+                `20${yy}-${String((qNum - 1) * 3 + 1).padStart(2, '0')}`,
+                `20${yy}-${String((qNum - 1) * 3 + 2).padStart(2, '0')}`,
+                `20${yy}-${String((qNum - 1) * 3 + 3).padStart(2, '0')}`
+              ];
+              await conn.run(`DELETE FROM rental_transactions WHERE lease_date IN (?, ?, ?)`, qMonths);
+            }
+
             for (const rawProj of rentProjects) {
               const { projId, projName, resolvedDistrict, isNew, street } = await getOrCreateProject(conn, rawProj);
               if (isNew) {
@@ -293,6 +319,7 @@ export async function fetchUraData(accessKey) {
 
     // Step 3.1: Automatically refresh project benchmarks after live ingestion
     await refreshProjectBenchmarks(conn);
+    await precomputeAllProjectLivability(conn);
 
     return {
       status: salesBatchErrors.length === 0 && quarterErrors.length === 0 ? 'success' : 'partial_success',
@@ -312,13 +339,14 @@ export async function fetchUraData(accessKey) {
 }
 
 // 3. Bulk Real URA Dataset Importer (JSON or Array payload)
-export async function importRealUraData(jsonData) {
+export async function importRealUraData(jsonData, targetConn = null) {
   const resultData = Array.isArray(jsonData) ? jsonData : (jsonData?.Result || jsonData?.data || []);
   if (!Array.isArray(resultData) || resultData.length === 0) {
     throw new Error('Invalid URA Data format. Expected JSON containing array of project records.');
   }
 
-  const conn = createConnection();
+  const conn = targetConn || createConnection();
+  const shouldClose = !targetConn;
   let totalSalesIngested = 0;
   let totalRentalsIngested = 0;
   let skippedSalesNoDate = 0;
@@ -334,6 +362,9 @@ export async function importRealUraData(jsonData) {
 
         // Process Sales Transactions
         const txList = rawProj.transaction || rawProj.transactions || [];
+        if (txList.length > 0) {
+          await conn.run('DELETE FROM property_transactions WHERE project_id = ?', [projId]);
+        }
         const txOccurrenceTracker = new Map();
 
         for (const tx of txList) {
@@ -401,6 +432,9 @@ export async function importRealUraData(jsonData) {
 
         // Process Rental Contracts
         const rentalList = rawProj.rental || rawProj.rentals || [];
+        if (rentalList.length > 0) {
+          await conn.run('DELETE FROM rental_transactions WHERE project_id = ?', [projId]);
+        }
         const rentOccurrenceTracker = new Map();
 
         for (const r of rentalList) {
@@ -495,7 +529,9 @@ export async function importRealUraData(jsonData) {
     console.log(`Real URA Data Import complete: ${totalSalesIngested} sales (skipped ${skippedSalesNoDate} without date), ${totalRentalsIngested} rentals (skipped ${skippedRentalsNoDate} without date).`);
     return { status: 'success', totalSalesIngested, totalRentalsIngested, skippedSalesNoDate, skippedRentalsNoDate };
   } finally {
-    await conn.close();
+    if (shouldClose) {
+      await conn.close();
+    }
   }
 }
 

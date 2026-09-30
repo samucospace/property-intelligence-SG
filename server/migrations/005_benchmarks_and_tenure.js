@@ -92,23 +92,44 @@ export async function up(conn) {
   console.log('[Migration 005] Pre-computing initial 24-month rolling project benchmarks...');
   await run(`
     INSERT INTO project_benchmarks (project_id, rolling_24m_median_price, rolling_24m_median_psft, sale_count, updated_at)
-    WITH ranked AS (
-      SELECT project_id, price_sgd, psft_sgd,
-             ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY psft_sgd) AS rn_psft,
-             ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY price_sgd) AS rn_price,
+    WITH ranked_psft AS (
+      SELECT project_id, psft_sgd,
+             ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY psft_sgd) AS rn,
              COUNT(*) OVER (PARTITION BY project_id) AS cnt
       FROM property_transactions
       WHERE contract_date >= date('now', '-24 months')
         AND (no_of_units = 1 OR no_of_units IS NULL)
+    ),
+    med_psft AS (
+      SELECT project_id,
+             ROUND(AVG(psft_sgd), 2) AS rolling_24m_median_psft,
+             cnt AS sale_count
+      FROM ranked_psft
+      WHERE rn IN ((cnt + 1)/2, (cnt + 2)/2)
+      GROUP BY project_id
+    ),
+    ranked_price AS (
+      SELECT project_id, price_sgd,
+             ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY price_sgd) AS rn,
+             COUNT(*) OVER (PARTITION BY project_id) AS cnt
+      FROM property_transactions
+      WHERE contract_date >= date('now', '-24 months')
+        AND (no_of_units = 1 OR no_of_units IS NULL)
+    ),
+    med_price AS (
+      SELECT project_id,
+             ROUND(AVG(price_sgd)) AS rolling_24m_median_price
+      FROM ranked_price
+      WHERE rn IN ((cnt + 1)/2, (cnt + 2)/2)
+      GROUP BY project_id
     )
-    SELECT project_id,
-           ROUND(AVG(price_sgd)) as rolling_24m_median_price,
-           ROUND(AVG(psft_sgd), 2) as rolling_24m_median_psft,
-           cnt as sale_count,
+    SELECT p.project_id,
+           pr.rolling_24m_median_price,
+           p.rolling_24m_median_psft,
+           p.sale_count,
            CURRENT_TIMESTAMP
-    FROM ranked
-    WHERE rn_psft IN ((cnt + 1)/2, (cnt + 2)/2) OR rn_price IN ((cnt + 1)/2, (cnt + 2)/2)
-    GROUP BY project_id
+    FROM med_psft p
+    JOIN med_price pr ON p.project_id = pr.project_id
     ON CONFLICT(project_id) DO UPDATE SET
       rolling_24m_median_price = excluded.rolling_24m_median_price,
       rolling_24m_median_psft = excluded.rolling_24m_median_psft,

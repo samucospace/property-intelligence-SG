@@ -60,9 +60,9 @@ export async function initSaleValuationsCache() {
   }
 }
 
-export function invalidateSaleValuationsCache() {
-  saleValuationsCache.clear();
+export async function invalidateSaleValuationsCache() {
   analyticsQueryCache.clear();
+  await initSaleValuationsCache();
 }
 
 export function invalidateAnalyticsCache() {
@@ -85,23 +85,44 @@ export async function refreshProjectBenchmarks(conn = null) {
 
       await localConn.run(`
         INSERT INTO project_benchmarks (project_id, rolling_24m_median_price, rolling_24m_median_psft, sale_count, updated_at)
-        WITH ranked AS (
-          SELECT project_id, price_sgd, psft_sgd,
-                 ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY psft_sgd) AS rn_psft,
-                 ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY price_sgd) AS rn_price,
+        WITH ranked_psft AS (
+          SELECT project_id, psft_sgd,
+                 ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY psft_sgd) AS rn,
                  COUNT(*) OVER (PARTITION BY project_id) AS cnt
           FROM property_transactions
           WHERE contract_date >= date('now', '-24 months')
             AND (no_of_units = 1 OR no_of_units IS NULL)
+        ),
+        med_psft AS (
+          SELECT project_id,
+                 ROUND(AVG(psft_sgd), 2) AS rolling_24m_median_psft,
+                 cnt AS sale_count
+          FROM ranked_psft
+          WHERE rn IN ((cnt + 1)/2, (cnt + 2)/2)
+          GROUP BY project_id
+        ),
+        ranked_price AS (
+          SELECT project_id, price_sgd,
+                 ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY price_sgd) AS rn,
+                 COUNT(*) OVER (PARTITION BY project_id) AS cnt
+          FROM property_transactions
+          WHERE contract_date >= date('now', '-24 months')
+            AND (no_of_units = 1 OR no_of_units IS NULL)
+        ),
+        med_price AS (
+          SELECT project_id,
+                 ROUND(AVG(price_sgd)) AS rolling_24m_median_price
+          FROM ranked_price
+          WHERE rn IN ((cnt + 1)/2, (cnt + 2)/2)
+          GROUP BY project_id
         )
-        SELECT project_id,
-               ROUND(AVG(price_sgd)) as rolling_24m_median_price,
-               ROUND(AVG(psft_sgd), 2) as rolling_24m_median_psft,
-               cnt as sale_count,
+        SELECT p.project_id,
+               pr.rolling_24m_median_price,
+               p.rolling_24m_median_psft,
+               p.sale_count,
                CURRENT_TIMESTAMP
-        FROM ranked
-        WHERE rn_psft IN ((cnt + 1)/2, (cnt + 2)/2) OR rn_price IN ((cnt + 1)/2, (cnt + 2)/2)
-        GROUP BY project_id
+        FROM med_psft p
+        JOIN med_price pr ON p.project_id = pr.project_id
       `);
     });
 
@@ -256,7 +277,7 @@ export async function getPriceAnalytics(filters = {}) {
   if (propertyType === 'condo') {
     whereClauses.push(`(t.property_type IN ('Condominium', 'Apartment') OR t.property_type IS NULL) AND p.is_landed_aggregate = 0`);
   } else if (propertyType === 'landed') {
-    whereClauses.push(`(p.is_landed_aggregate = 1 OR t.property_type IN ('Detached House', 'Semi-Detached House', 'Terrace House'))`);
+    whereClauses.push(`(p.is_landed_aggregate = 1 OR t.property_type IN ('Detached', 'Semi-detached', 'Terrace', 'Strata Detached', 'Strata Semi-detached', 'Strata Terrace', 'Detached House', 'Semi-Detached House', 'Terrace House'))`);
   } else if (propertyType === 'ec') {
     whereClauses.push(`t.property_type = 'Executive Condominium'`);
   } else if (propertyType !== 'all') {
@@ -276,6 +297,7 @@ export async function getPriceAnalytics(filters = {}) {
         summary: { totalVolume: 0, medianPrice: 0, medianPsqm: 0, medianPsft: 0, minPrice: 0, maxPrice: 0, averagePrice: 0 },
         timeSeries: [],
         scatter: [],
+        scatterPoints: [],
         mapProjects: [],
         totalCount: 0,
         page: Number(page) || 1,
@@ -466,13 +488,16 @@ export async function getPriceAnalytics(filters = {}) {
     lng: p.lng,
     txCount: p.txCount,
     medianPsqm: p.medianPsqm,
-    medianPsft: p.medianPsft
+    medianPsft: p.medianPsft,
+    locationQuality: p.locationQuality,
+    livability: getProjectLivability(p.id) || null
   }));
 
   const result = {
     summary,
     timeSeries,
     scatter,
+    scatterPoints: scatter,
     mapProjects,
     totalCount: countRow?.totalCount || 0,
     page: Number(page) || 1,
