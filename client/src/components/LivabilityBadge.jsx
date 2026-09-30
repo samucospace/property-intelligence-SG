@@ -9,7 +9,26 @@ export default function LivabilityBadge({ livability, onClick, size = 'medium' }
 
   if (!livability) return null;
 
-  const { score = 50, label = 'Somewhat Walkable', color = '#D97706', subScores = {} } = livability;
+  const { score, label = 'Location unavailable', color = '#94A3B8', subScores = {} } = livability;
+
+  if (score === null || score === undefined) {
+    const fontSz = size === 'large' ? '1.75rem' : size === 'small' ? '0.85rem' : '0.95rem';
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          fontWeight: 600,
+          fontSize: fontSz,
+          color: '#94A3B8',
+          cursor: 'default'
+        }}
+        title="Location unavailable"
+      >
+        <span>N/A</span>
+      </span>
+    );
+  }
 
   const handleMouseEnter = () => {
     if (textRef.current) {

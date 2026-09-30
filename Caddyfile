@@ -1,7 +1,8 @@
-# Caddyfile for automated HTTPS & Gzip reverse proxy
-# Replace example.com with your live domain name
+# Caddyfile for automated HTTPS & Gzip/Zstandard reverse proxy
+# Set DOMAIN in environment (e.g. DOMAIN=homeintel.sg) or defaults to localhost
 
-# homeintel.sg {
-#     encode gzip zstd
-#     reverse_proxy app:3001
-# }
+{$DOMAIN:localhost} {
+    encode gzip zstd
+    reverse_proxy app:3001
+}
+

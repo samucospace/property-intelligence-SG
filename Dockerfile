@@ -12,6 +12,13 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV TZ=Asia/Singapore
+
+# Install tzdata for Singapore timezone and build essentials for native sqlite3 binaries
+RUN apk add --no-cache tzdata python3 make g++
+
+# Ensure persistent data directory exists
+RUN mkdir -p /app/data
 
 # Copy server package manifest and install production dependencies only
 COPY server/package*.json ./server/

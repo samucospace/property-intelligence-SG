@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './config.js';
 import express from 'express';
 import crypto from 'crypto';
 import cors from 'cors';
@@ -9,8 +9,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDb, dbGet, dbAll, dbRun } from './db.js';
 import { fetchUraData, importRealUraData, seedSoraRates } from './ingestion.js';
-import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics } from './queryEngine.js';
-import { seedAmenities, calculateLivabilityScore } from './livabilityEngine.js';
+import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics, initSaleValuationsCache, invalidateSaleValuationsCache, invalidateAnalyticsCache } from './queryEngine.js';
+import { seedAmenities, calculateLivabilityScore, initLivabilityCache, invalidateLivabilityCache, getProjectLivability } from './livabilityEngine.js';
+import { safeEqual, escapeHtml, verifyUnsubscribeToken } from './utils/security.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,7 +24,19 @@ app.set('trust proxy', 1);
 
 // Security & Performance middlewares
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'https://www.onemap.gov.sg'],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"]
+    },
+    reportOnly: true
+  },
   crossOriginEmbedderPolicy: false
 }));
 app.use(compression());
@@ -40,15 +53,15 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// Ingestion Admin Auth Guard
+// Ingestion Admin Auth Guard (Fail-closed independent of NODE_ENV)
 const requireAdmin = (req, res, next) => {
   const adminKey = process.env.ADMIN_API_KEY;
-  // If in production or if ADMIN_API_KEY is configured, strictly enforce
-  if (process.env.NODE_ENV === 'production' || adminKey) {
-    const authHeader = req.headers['x-admin-key'] || req.query.adminKey;
-    if (!adminKey || authHeader !== adminKey) {
-      return res.status(401).json({ error: 'Unauthorized: Valid X-Admin-Key header required.' });
-    }
+  if (!adminKey || adminKey.length < 32 || adminKey === 'secure_admin_key_please_change') {
+    return res.status(503).json({ error: 'Admin API disabled: ADMIN_API_KEY is not securely configured.' });
+  }
+  const clientKey = req.get('x-admin-key');
+  if (!clientKey || !safeEqual(clientKey, adminKey)) {
+    return res.status(401).json({ error: 'Unauthorized: Valid X-Admin-Key header required.' });
   }
   next();
 };
@@ -121,24 +134,40 @@ app.post('/api/leads/submit', async (req, res) => {
   }
 });
 
-// 1c. 1-Click PDPA Unsubscribe Endpoint
-app.get('/api/leads/unsubscribe', async (req, res) => {
+// 1c. 1-Click PDPA Unsubscribe Endpoints (RFC 8058 GET and POST)
+const handleUnsubscribe = async (req, res, isPost = false) => {
   try {
-    const { email, token } = req.query;
+    const rawEmail = req.query.email || req.body?.email;
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+    const token = typeof req.query.token === 'string'
+      ? req.query.token.trim()
+      : (typeof req.body?.token === 'string' ? req.body.token.trim() : '');
+
     if (!email) {
-      return res.status(400).send('Email address is required.');
+      return isPost
+        ? res.status(400).json({ error: 'Email address is required.' })
+        : res.status(400).send('Email address is required.');
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const secret = process.env.ADMIN_API_KEY || 'property_sg_newsletter_secret';
-    const expectedToken = crypto.createHash('sha256').update(`${cleanEmail}|${secret}`).digest('hex').slice(0, 16);
-
-    if (token && token !== expectedToken) {
-      return res.status(403).send('Invalid or expired unsubscribe link.');
+    if (!token) {
+      return isPost
+        ? res.status(401).json({ error: 'Valid unsubscribe verification token required.' })
+        : res.status(401).send('Valid unsubscribe verification token required.');
     }
 
-    await dbRun(`UPDATE leads SET unsubscribed_at = CURRENT_TIMESTAMP WHERE LOWER(email) = ?`, [cleanEmail]);
+    if (!verifyUnsubscribeToken(email, token)) {
+      return isPost
+        ? res.status(403).json({ error: 'Invalid or expired unsubscribe link.' })
+        : res.status(403).send('Invalid or expired unsubscribe link.');
+    }
 
+    await dbRun(`UPDATE leads SET unsubscribed_at = CURRENT_TIMESTAMP WHERE LOWER(email) = ?`, [email]);
+
+    if (isPost) {
+      return res.status(200).json({ success: true, message: 'Unsubscribed successfully.' });
+    }
+
+    const safeEmail = escapeHtml(email);
     res.type('text/html').send(`
       <!DOCTYPE html>
       <html lang="en">
@@ -147,7 +176,7 @@ app.get('/api/leads/unsubscribe', async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Unsubscribed | Singapore Home Intel</title>
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #FFFAFO; color: #36454F; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 16px; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #FFFAF0; color: #36454F; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 16px; }
           .card { background: #FFFFFF; border: 1px solid rgba(54,69,79,0.12); border-radius: 16px; padding: 40px 32px; max-width: 480px; text-align: center; box-shadow: 0 4px 20px rgba(54,69,79,0.06); }
           h2 { color: #CB6D51; margin-top: 0; font-size: 1.4rem; }
           p { font-size: 0.9rem; line-height: 1.6; color: #6A7B82; }
@@ -159,7 +188,7 @@ app.get('/api/leads/unsubscribe', async (req, res) => {
         <div class="card">
           <div class="badge">Singapore PDPA Compliant Opt-Out</div>
           <h2>You Have Been Unsubscribed</h2>
-          <p>Your email <strong>${cleanEmail}</strong> has been removed from the Singapore Home Intel Weekly Watchlist. You will receive no further automated emails from this list.</p>
+          <p>Your email <strong>${safeEmail}</strong> has been removed from the Singapore Home Intel Weekly Watchlist. You will receive no further automated emails from this list.</p>
           <p style="margin-top: 24px;"><a href="/">← Return to Singapore Home Intel</a></p>
         </div>
       </body>
@@ -167,9 +196,16 @@ app.get('/api/leads/unsubscribe', async (req, res) => {
     `);
   } catch (err) {
     console.error('Unsubscribe error:', err);
-    res.status(500).send('An error occurred processing your request.');
+    if (isPost) {
+      res.status(500).json({ error: 'An error occurred processing your request.' });
+    } else {
+      res.status(500).send('An error occurred processing your request.');
+    }
   }
-});
+};
+
+app.get('/api/leads/unsubscribe', (req, res) => handleUnsubscribe(req, res, false));
+app.post('/api/leads/unsubscribe', (req, res) => handleUnsubscribe(req, res, true));
 
 // 2. Search Autocomplete
 app.get('/api/search/suggestions', async (req, res) => {
@@ -232,7 +268,7 @@ app.get('/api/projects/:id/livability', async (req, res) => {
       try { customWeights = JSON.parse(req.query.weights); } catch (e) {}
     }
 
-    const livability = await calculateLivabilityScore(project.latitude, project.longitude, customWeights);
+    const livability = await getProjectLivability(project.project_id, project.latitude, project.longitude, customWeights, { trimmed: false });
     res.json({
       project: {
         id: project.project_id,
@@ -282,6 +318,9 @@ app.post('/api/ingest/import-data', async (req, res) => {
       return res.status(400).json({ error: 'jsonData is required in request body.' });
     }
     const result = await importRealUraData(jsonData);
+    invalidateSaleValuationsCache();
+    invalidateLivabilityCache();
+    invalidateAnalyticsCache();
     res.json(result);
   } catch (err) {
     console.error('Error importing real URA dataset:', err);
@@ -297,6 +336,9 @@ app.post('/api/ingest/ura', async (req, res) => {
       return res.status(400).json({ error: 'AccessKey is required in request body.' });
     }
     const result = await fetchUraData(accessKey);
+    invalidateSaleValuationsCache();
+    invalidateLivabilityCache();
+    invalidateAnalyticsCache();
     res.json(result);
   } catch (err) {
     console.error('Error executing URA live fetch:', err);
@@ -333,6 +375,9 @@ async function startServer() {
   }
 
   await seedAmenities();
+  console.log('Pre-warming livability and valuation caches...');
+  await initLivabilityCache();
+  await initSaleValuationsCache();
 
   app.listen(PORT, () => {
     console.log(`Backend server running on http://localhost:${PORT}`);

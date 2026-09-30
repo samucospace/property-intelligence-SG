@@ -9,25 +9,29 @@ import LivabilityBadge from './components/LivabilityBadge';
 import LivabilityDrawer from './components/LivabilityDrawer';
 import RentalYieldDrawer from './components/RentalYieldDrawer';
 import MonetizationBanner from './components/MonetizationBanner';
+import { getDefaultDateRange } from './utils/dateUtils';
 
 export default function App() {
   const [viewMode, setViewMode] = useState('sale'); // 'sale' or 'rental'
   const unitType = 'sqft'; // Use per square feet only
-  const [filters, setFilters] = useState({
-    projects: [],
-    street: null,
-    district: null,
-    planningArea: null,
-    bedroomCount: 'all',
-    radiusKm: null,
-    centerCoords: null,
-    dateFrom: '2021-01-01',
-    dateTo: '2026-12-31',
-    unitSizeMin: 0,
-    unitSizeMax: 10000,
-    priceMin: null,
-    priceMax: null,
-    tenure: 'all'
+  const [filters, setFilters] = useState(() => {
+    const { dateFrom, dateTo } = getDefaultDateRange(5);
+    return {
+      projects: [],
+      street: null,
+      district: null,
+      planningArea: null,
+      bedroomCount: 'all',
+      radiusKm: null,
+      centerCoords: null,
+      dateFrom,
+      dateTo,
+      unitSizeMin: 0,
+      unitSizeMax: 10000,
+      priceMin: null,
+      priceMax: null,
+      tenure: 'all'
+    };
   });
 
   const [analyticsData, setAnalyticsData] = useState({
@@ -50,12 +54,24 @@ export default function App() {
   const [isRentalDrawerOpen, setIsRentalDrawerOpen] = useState(false);
 
   const handleOpenLivabilityDrawer = async (projData) => {
-    if (projData && projData.project && projData.livability) {
-      setSelectedDrawerProject(projData);
+    const proj = projData?.project || projData;
+    const projectId = projData?.projectId || proj?.id || proj?.project_id;
+    const livability = projData?.livability || proj?.livability;
+
+    if (livability?.nearest && Object.keys(livability.nearest).length > 0) {
+      setSelectedDrawerProject({ project: proj, livability });
       setIsDrawerOpen(true);
-    } else if (projData && projData.projectId) {
+      return;
+    }
+
+    if (proj && livability) {
+      setSelectedDrawerProject({ project: proj, livability });
+      setIsDrawerOpen(true);
+    }
+
+    if (projectId) {
       try {
-        const res = await axios.get(`/api/projects/${projData.projectId}/livability`);
+        const res = await axios.get(`/api/projects/${projectId}/livability`);
         setSelectedDrawerProject(res.data);
         setIsDrawerOpen(true);
       } catch (err) {
@@ -270,7 +286,9 @@ export default function App() {
           <div className="card-header">
             <h3 className="card-title">
               <Layers size={18} color={viewMode === 'rental' ? 'var(--color-primary-terracotta)' : 'var(--color-primary-green)'} />
-              {viewMode === 'rental' ? `Recent Tenancy Agreements Log (${analyticsData.rentalCaveats?.length || 0} Listed)` : `Recent Caveat Transactions Log (${analyticsData.scatterPoints?.length || 0} Listed)`}
+              {viewMode === 'rental'
+                ? `Recent Tenancy Agreements Log (${analyticsData.rentalCaveats?.length || 0}${analyticsData.totalCount ? ` of ${analyticsData.totalCount.toLocaleString()}` : ''} Listed)`
+                : `Recent Caveat Transactions Log (${analyticsData.scatterPoints?.length || 0}${analyticsData.totalCount ? ` of ${analyticsData.totalCount.toLocaleString()}` : ''} Listed)`}
             </h3>
           </div>
 
@@ -291,10 +309,10 @@ export default function App() {
                 </thead>
                 <tbody>
                   {analyticsData.rentalCaveats && analyticsData.rentalCaveats.length > 0 ? (
-                    analyticsData.rentalCaveats.slice(0, 150).map((r, idx) => {
+                    analyticsData.rentalCaveats.map((r, idx) => {
                       const matchProj = mapProjList.find(p => p && (p.id === r.projectId || p.name === r.projectName));
                       const rateVal = unitType === 'sqm' ? `$${r.rentPsqm} /sqm` : `$${r.rentPsft} /sqft`;
-                      const yieldColor = r.grossYield >= 4.25 ? '#10B981' : r.grossYield >= 3.25 ? '#D97706' : '#CB6D51';
+                      const yieldColor = r.grossYield == null ? 'var(--color-text-muted)' : r.grossYield >= 4.25 ? '#10B981' : r.grossYield >= 3.25 ? '#D97706' : '#CB6D51';
 
                       return (
                         <tr key={r.rentalId || idx}>
@@ -311,8 +329,8 @@ export default function App() {
                           </td>
                           <td>{r.floorAreaRange}</td>
                           <td>
-                            <span style={{ fontWeight: 800, color: yieldColor }}>
-                              {r.grossYield}%
+                            <span style={{ fontWeight: 800, color: yieldColor, fontSize: r.grossYield != null ? 'inherit' : '0.78rem' }}>
+                              {r.grossYield != null ? `${r.grossYield}%` : 'N/A — no recent sales'}
                             </span>
                           </td>
                           <td>

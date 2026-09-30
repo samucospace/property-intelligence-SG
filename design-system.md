@@ -20,7 +20,7 @@ The color system uses warm, earth-inspired tones paired with clean neutrals to e
 #### Natural Background & Neutral Tones
 | Token Name | Hex Code | Role / Usage |
 | :--- | :--- | :--- |
-| `color-bg-sunlit` | `#FFFAFO` | Primary app background (warm off-white, light sunlit tone) |
+| `color-bg-sunlit` | `#FFFAF0` | Primary app background (warm off-white, light sunlit tone) |
 | `color-bg-sand` | `#F0E6D2` | Surface/card background, soft container fills, input backgrounds |
 | `color-text-charcoal` | `#36454F` | Primary text color (soft dark charcoal instead of harsh pure black) |
 | `color-text-muted` | `#6A7B82` | Secondary text, captions, metadata |

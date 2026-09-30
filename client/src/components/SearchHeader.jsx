@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Search, X, SlidersHorizontal, MapPin, Building, Map, RefreshCw } from 'lucide-react';
+import { getDefaultDateRange } from '../utils/dateUtils';
 
 export default function SearchHeader({ filters, setFilters, unitType, setUnitType, viewMode = 'sale', setViewMode, onOpenIngestionModal }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,6 +89,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
   };
 
   const clearAllFilters = () => {
+    const { dateFrom, dateTo } = getDefaultDateRange(5);
     setFilters({
       projects: [],
       street: null,
@@ -96,8 +98,8 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
       bedroomCount: 'all',
       radiusKm: null,
       centerCoords: null,
-      dateFrom: '2021-01-01',
-      dateTo: '2026-12-31',
+      dateFrom,
+      dateTo,
       unitSizeMin: 0,
       unitSizeMax: 10000,
       priceMin: null,

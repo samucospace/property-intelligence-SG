@@ -4,7 +4,7 @@ import { X, Database, Key, RefreshCw, CheckCircle2, AlertCircle, Sparkles } from
 
 export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete }) {
   const [accessKey, setAccessKey] = useState('');
-  const [adminKey, setAdminKey] = useState(() => new URLSearchParams(window.location.search).get('key') || '');
+  const [adminKey, setAdminKey] = useState('');
   const [jsonInput, setJsonInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);

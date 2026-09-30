@@ -12,6 +12,8 @@ client/node_modules/
 *.sqlite3
 server/property.db
 server/property.db-journal
+data/
+server/backups/
 
 # Build output
 client/dist/
@@ -34,4 +36,8 @@ screenshot*.png
 server/scratch_*.js
 server/test_*.js
 server/scripts/newsletter-preview.html
+
+# Internal review documents
+TECHNICAL_REVIEW.md
+REMEDIATION_PLAN.md
 

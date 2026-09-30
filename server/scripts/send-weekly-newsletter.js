@@ -1,24 +1,24 @@
-import 'dotenv/config';
+import '../config.js';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
 import { initDb, dbAll, dbGet } from '../db.js';
+import { generateUnsubscribeToken } from '../utils/security.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Helper: Generate secure 1-click PDPA unsubscribe token
-function generateUnsubToken(email) {
-  const secret = process.env.ADMIN_API_KEY || 'property_sg_newsletter_secret';
-  return crypto.createHash('sha256').update(`${email.trim().toLowerCase()}|${secret}`).digest('hex').slice(0, 16);
-}
-
 // Generate the responsive HTML email template
 function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, baseUrl }) {
-  const unsubToken = generateUnsubToken(recipientEmail);
-  const unsubUrl = `${baseUrl}/api/leads/unsubscribe?email=${encodeURIComponent(recipientEmail)}&token=${unsubToken}`;
+  let unsubUrl = `${baseUrl}/api/leads/unsubscribe`;
+  try {
+    const unsubToken = generateUnsubscribeToken(recipientEmail);
+    unsubUrl += `?email=${encodeURIComponent(recipientEmail)}&token=${unsubToken}`;
+  } catch (err) {
+    // If UNSUBSCRIBE_SECRET is not set, log and continue in preview mode
+    unsubUrl += `?email=${encodeURIComponent(recipientEmail)}`;
+  }
   const currentDateStr = new Date().toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return `
@@ -29,7 +29,7 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Singapore Home Intel Weekly Watchlist</title>
   <style>
-    body { margin: 0; padding: 0; background-color: #FFFAFO; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #36454F; -webkit-font-smoothing: antialiased; }
+    body { margin: 0; padding: 0; background-color: #FFFAF0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #36454F; -webkit-font-smoothing: antialiased; }
     .wrapper { width: 100%; max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid rgba(54,69,79,0.12); border-radius: 16px; overflow: hidden; }
     .header { background: linear-gradient(135deg, #4F7942 0%, #3B5D31 100%); padding: 32px 24px; text-align: center; color: #FFFFFF; }
     .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
@@ -223,12 +223,22 @@ async function main() {
 
   for (const sub of subscribers) {
     const personalizedHtml = buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail: sub.email, baseUrl });
+    let unsubUrl = `${baseUrl}/api/leads/unsubscribe?email=${encodeURIComponent(sub.email)}`;
+    try {
+      const unsubToken = generateUnsubscribeToken(sub.email);
+      unsubUrl += `&token=${unsubToken}`;
+    } catch (e) {}
+
     try {
       await resend.emails.send({
         from: fromEmail,
         to: sub.email,
         subject: `Weekly SG Property Yield Watchlist: Top Condos & SORA Rate Update`,
-        html: personalizedHtml
+        html: personalizedHtml,
+        headers: {
+          'List-Unsubscribe': `<${unsubUrl}>, <mailto:unsubscribe@homeintel.sg>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+        }
       });
       successCount++;
     } catch (sendErr) {

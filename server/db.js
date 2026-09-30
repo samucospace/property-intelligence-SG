@@ -1,12 +1,26 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { runMigrations } from './migrations/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, 'property.db');
+const dbPath = process.env.DB_PATH || path.join(__dirname, 'property.db');
 
+// Ensure database directory exists
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+// Primary connection for general web app read queries
 const db = new sqlite3.Database(dbPath);
+db.serialize(() => {
+  db.run('PRAGMA journal_mode = WAL;');
+  db.run('PRAGMA busy_timeout = 5000;');
+  db.run('PRAGMA foreign_keys = ON;');
+});
 
 export function dbRun(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -35,110 +49,89 @@ export function dbGet(sql, params = []) {
   });
 }
 
+/**
+ * Creates an isolated, dedicated database connection.
+ * Used by batch ingestion and migrations so long-running operations
+ * do not block or interfere with main web server requests.
+ * @param {string} [customPath]
+ * @returns {object} Connection object with promisified run, get, all, close methods
+ */
+export function createConnection(customPath = dbPath) {
+  const conn = new sqlite3.Database(customPath);
+  conn.serialize(() => {
+    conn.run('PRAGMA journal_mode = WAL;');
+    conn.run('PRAGMA busy_timeout = 5000;');
+    conn.run('PRAGMA foreign_keys = ON;');
+  });
+
+  return {
+    raw: conn,
+    run(sql, params = []) {
+      return new Promise((resolve, reject) => {
+        conn.run(sql, params, function (err) {
+          if (err) reject(err);
+          else resolve(this);
+        });
+      });
+    },
+    get(sql, params = []) {
+      return new Promise((resolve, reject) => {
+        conn.get(sql, params, (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+    },
+    all(sql, params = []) {
+      return new Promise((resolve, reject) => {
+        conn.all(sql, params, (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        });
+      });
+    },
+    close() {
+      return new Promise((resolve, reject) => {
+        conn.close((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    }
+  };
+}
+
+/**
+ * Executes a function inside an immediate SQLite transaction.
+ * Rolls back automatically on error.
+ * @param {object} conn Connection object with run method (or defaults to dbRun)
+ * @param {Function} fn Async callback to execute inside the transaction
+ * @returns {Promise<any>}
+ */
+export async function withTransaction(conn, fn) {
+  const run = conn?.run ? conn.run.bind(conn) : dbRun;
+  await run('BEGIN IMMEDIATE');
+  try {
+    const result = await fn();
+    await run('COMMIT');
+    return result;
+  } catch (err) {
+    await run('ROLLBACK').catch(() => {});
+    throw err;
+  }
+}
+
+/**
+ * Initializes database by executing pending versioned migrations.
+ */
 export async function initDb() {
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS projects (
-      project_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_name TEXT NOT NULL UNIQUE,
-      street_name TEXT NOT NULL,
-      postal_district TEXT NOT NULL,
-      market_segment TEXT NOT NULL,
-      planning_area TEXT,
-      latitude REAL,
-      longitude REAL,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS property_transactions (
-      transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL,
-      area_sqm REAL NOT NULL,
-      area_sqft REAL NOT NULL,
-      price_sgd REAL NOT NULL,
-      psqm_sgd REAL NOT NULL,
-      psft_sgd REAL NOT NULL,
-      contract_date TEXT NOT NULL,
-      floor_range TEXT,
-      tenure TEXT,
-      type_of_sale TEXT,
-      property_type TEXT,
-      raw_hash TEXT UNIQUE,
-      FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE CASCADE
-    );
-  `);
-
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS sora_rates (
-      reference_month TEXT PRIMARY KEY,
-      sora_1m REAL NOT NULL,
-      sora_3m REAL NOT NULL,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS amenities (
-      amenity_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      category TEXT NOT NULL,
-      name TEXT NOT NULL,
-      latitude REAL NOT NULL,
-      longitude REAL NOT NULL,
-      details TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS rental_transactions (
-      rental_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL,
-      area_sqm REAL NOT NULL,
-      area_sqft REAL NOT NULL,
-      rent_sgd REAL NOT NULL,
-      rent_psqm REAL NOT NULL,
-      rent_psft REAL NOT NULL,
-      lease_date TEXT NOT NULL,
-      bedroom_count TEXT,
-      floor_area_range TEXT,
-      property_type TEXT,
-      raw_hash TEXT UNIQUE,
-      FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE CASCADE
-    );
-  `);
-
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS leads (
-      lead_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      email TEXT NOT NULL,
-      phone TEXT,
-      lead_type TEXT NOT NULL,
-      enquiry_type TEXT,
-      project_interest TEXT,
-      pdpa_consent INTEGER DEFAULT 1,
-      details TEXT,
-      unsubscribed_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  try { await dbRun(`ALTER TABLE leads ADD COLUMN name TEXT`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE leads ADD COLUMN enquiry_type TEXT`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE leads ADD COLUMN pdpa_consent INTEGER DEFAULT 1`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE leads ADD COLUMN unsubscribed_at DATETIME`); } catch (e) {}
-
-  await dbRun(`CREATE INDEX IF NOT EXISTS idx_transactions_date ON property_transactions(contract_date DESC);`);
-  await dbRun(`CREATE INDEX IF NOT EXISTS idx_transactions_project ON property_transactions(project_id);`);
-  await dbRun(`CREATE INDEX IF NOT EXISTS idx_rentals_date ON rental_transactions(lease_date DESC);`);
-  await dbRun(`CREATE INDEX IF NOT EXISTS idx_rentals_project ON rental_transactions(project_id);`);
-  await dbRun(`CREATE INDEX IF NOT EXISTS idx_rentals_bedroom ON rental_transactions(bedroom_count);`);
-  await dbRun(`CREATE INDEX IF NOT EXISTS idx_projects_district ON projects(postal_district);`);
-  await dbRun(`CREATE INDEX IF NOT EXISTS idx_projects_street ON projects(street_name);`);
-  await dbRun(`CREATE INDEX IF NOT EXISTS idx_projects_planning_area ON projects(planning_area);`);
-  await dbRun(`CREATE INDEX IF NOT EXISTS idx_amenities_category ON amenities(category);`);
-
-  console.log('Database initialized successfully.');
+  const conn = createConnection();
+  try {
+    await runMigrations(conn);
+    console.log('Database initialized and migrations applied successfully.');
+  } finally {
+    await conn.close();
+  }
 }
 
 export default db;

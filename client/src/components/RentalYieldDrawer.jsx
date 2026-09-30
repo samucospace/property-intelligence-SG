@@ -8,15 +8,20 @@ export default function RentalYieldDrawer({ isOpen, onClose, project }) {
   const rentRate = project.medianRentPsft;
 
   // Yield Tier Color & Label
-  const yieldVal = project.grossYield || 0;
-  let yieldBadgeColor = '#CB6D51'; // Low / Trophy
-  let yieldLabel = 'Low / Trophy Yield (< 3.25%)';
-  if (yieldVal >= 4.25) {
-    yieldBadgeColor = '#10B981';
-    yieldLabel = 'High Cashflow Yield (≥ 4.25%)';
-  } else if (yieldVal >= 3.25) {
-    yieldBadgeColor = '#D97706';
-    yieldLabel = 'Moderate Balanced Yield (3.25% - 4.25%)';
+  const yieldVal = project.grossYield;
+  let yieldBadgeColor = '#94A3B8';
+  let yieldLabel = 'N/A — no recent sales';
+  if (yieldVal != null) {
+    if (yieldVal >= 4.25) {
+      yieldBadgeColor = '#10B981';
+      yieldLabel = 'High Cashflow Yield (≥ 4.25%)';
+    } else if (yieldVal >= 3.25) {
+      yieldBadgeColor = '#D97706';
+      yieldLabel = 'Moderate Balanced Yield (3.25% - 4.25%)';
+    } else {
+      yieldBadgeColor = '#CB6D51';
+      yieldLabel = 'Low / Trophy Yield (< 3.25%)';
+    }
   }
 
   return (
@@ -76,8 +81,16 @@ export default function RentalYieldDrawer({ isOpen, onClose, project }) {
             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: '1.6' }}>
               <strong>Gross Yield Formula:</strong><br />
               (Annual Rent / Purchase Transaction Price) × 100%<br />
-              = (${(project.medianRent * 12 || 0).toLocaleString()} / ${project.medianSaleValuation ? project.medianSaleValuation.toLocaleString() : '0'}) × 100%<br />
-              = <span style={{ fontWeight: 800, color: yieldBadgeColor }}>{project.grossYield || 0}%</span>
+              {project.medianSaleValuation ? (
+                <>
+                  = (${(project.medianRent * 12 || 0).toLocaleString()} / ${project.medianSaleValuation.toLocaleString()}) × 100%<br />
+                  = <span style={{ fontWeight: 800, color: yieldBadgeColor }}>{project.grossYield}%</span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                  No qualifying recent sale transactions available to compute gross yield.
+                </span>
+              )}
             </div>
           </div>
 

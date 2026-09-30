@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import '../config.js';
 import { initDb } from '../db.js';
 import { fetchUraData } from '../ingestion.js';
 
@@ -14,6 +14,14 @@ async function main() {
   await initDb();
   const result = await fetchUraData(accessKey);
   console.log(`[${new Date().toISOString()}] Ingestion completed:`, result);
+
+  if (result.status !== 'success' || (result.salesBatchErrors && result.salesBatchErrors.length > 0) || (result.rentalQuarterErrors && result.rentalQuarterErrors.length > 0)) {
+    console.error(`[${new Date().toISOString()}] Ingestion finished with errors. Exiting non-zero.`);
+    if (result.salesBatchErrors?.length > 0) console.error('Sales batch errors:', result.salesBatchErrors);
+    if (result.rentalQuarterErrors?.length > 0) console.error('Rental quarter errors:', result.rentalQuarterErrors);
+    process.exit(1);
+  }
+
   process.exit(0);
 }
 
