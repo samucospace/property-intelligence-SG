@@ -359,7 +359,7 @@ export default function MonetizationBanner({ variant = 'agent', currentProject =
                       style={{ marginTop: '2px', accentColor: 'var(--color-primary-green)' }}
                     />
                     <span>
-                      <strong>PDPA Consent (Singapore Personal Data Protection Act 2012):</strong> I consent to the collection, use, and disclosure of my contact details by Singapore Property Intel to connect me with its appointed Council for Estate Agencies (CEA) licensed property representative for real estate advisory and transaction price assistance.
+                      <strong>PDPA Consent (Singapore Personal Data Protection Act 2012):</strong> I consent to the collection, use, and disclosure of my contact details by Singapore Home Intel to connect me with its appointed Council for Estate Agencies (CEA) licensed property representative for real estate advisory and transaction price assistance.
                     </span>
                   </label>
                 </div>

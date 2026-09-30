@@ -1,6 +1,6 @@
-# Singapore Property Intel (`property-intelligence-SG`)
+# Singapore Home Intel (`homeintel.sg`)
 
-An institutional-grade Singapore private residential transaction price intelligence engine, rental yield tracker, and livability analytics portal powered by official **Urban Redevelopment Authority (URA) Data Service** transaction caveats and **SLA OneMap** spatial data.
+An institutional-grade Singapore private residential transaction price intelligence engine, rental yield tracker, and livability analytics portal powered by official **Urban Redevelopment Authority (URA) Data Service** transaction caveats and **SLA OneMap** spatial data. Available at [homeintel.sg](https://homeintel.sg).
 
 The platform includes built-in programmatic SEO, a verified Council for Estate Agencies (CEA) partner lead-generation engine, an automated weekly investor newsletter via Resend, and single-command Docker/PM2 production deployment with automated HTTPS.
 
@@ -153,8 +153,8 @@ cp server/.env.example server/.env
 | `ADMIN_API_KEY` | **Yes (Prod)** | - | Secret key protecting `/api/ingest/*` and generating unsubscribe tokens. |
 | `URA_ACCESS_KEY` | **Yes (Sync)** | - | Your official URA Data Service Access Key from developer.gov.sg. |
 | `RESEND_API_KEY` | Optional | - | Resend API key for automated weekly newsletter dispatch. |
-| `NEWSLETTER_FROM_EMAIL`| Optional | - | Sender email (e.g. `Property Intelligence SG <digest@yourdomain.sg>`). |
-| `BASE_URL` | Optional | `http://localhost:3001`| Base domain used in sitemaps and email links (e.g. `https://yourdomain.com`). |
+| `NEWSLETTER_FROM_EMAIL`| Optional | - | Sender email (e.g. `Singapore Home Intel <digest@homeintel.sg>`). |
+| `BASE_URL` | Optional | `http://localhost:3001`| Base domain used in sitemaps and email links (e.g. `https://homeintel.sg`). |
 
 ---
 
@@ -265,7 +265,7 @@ Add the automated maintenance tasks using `crontab -e`:
 
 - **Singapore Open Data Licence (SODL)**: Property transaction caveats and rental statistics are sourced from the Urban Redevelopment Authority (URA) Data Service, accessed under the terms of the [Singapore Open Data Licence](https://data.gov.sg/open-data-licence).
 - **Personal Data Protection Act 2012 (PDPA)**: All email collections and lead submissions require explicit affirmative consent and include 1-click opt-out rights.
-- **Estate Agents Act & CEA Disclosures**: Singapore Property Intel is an independent technology platform and does not perform estate agency work. Advisory and transaction assistance are provided exclusively by licensed real estate salespersons registered with the Council for Estate Agencies (CEA).
+- **Estate Agents Act & CEA Disclosures**: Singapore Home Intel is an independent technology platform and does not perform estate agency work. Advisory and transaction assistance are provided exclusively by licensed real estate salespersons registered with the Council for Estate Agencies (CEA).
 - **Transaction Price Notice**: Transaction price summaries and $/sqft trends are algorithmic computations for informational purposes only, and do not constitute formal appraisals under the Singapore Institute of Surveyors and Valuers (SISV).
 
 ---

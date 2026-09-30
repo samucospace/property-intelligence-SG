@@ -1,4 +1,4 @@
-# Product & Technical Specification: Singapore Property Intel (Fixed & Final)
+# Product & Technical Specification: Singapore Home Intel (Fixed & Final)
 
 ## 1. Executive Summary
 **Objective:** Build a web application that ingests Singapore private residential property transaction data via the URA Data Service API, stores and normalizes historical transactions in a local database (SQLite/PostgreSQL), and provides an interactive dashboard for property owners and investors to track transaction prices ($ total and $/sqft) across developments, streets, planning areas, postal districts, and custom geographical radii.

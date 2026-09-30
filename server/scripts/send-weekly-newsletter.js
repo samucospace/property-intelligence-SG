@@ -27,7 +27,7 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Property Intelligence SG Weekly Watchlist</title>
+  <title>Singapore Home Intel Weekly Watchlist</title>
   <style>
     body { margin: 0; padding: 0; background-color: #FFFAFO; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #36454F; -webkit-font-smoothing: antialiased; }
     .wrapper { width: 100%; max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid rgba(54,69,79,0.12); border-radius: 16px; overflow: hidden; }
@@ -54,8 +54,8 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
     <div class="wrapper">
       <!-- Header -->
       <div class="header">
-        <h1>Property Intelligence SG</h1>
-        <p>Official Singapore Private Property Valuation & Yield Watchlist • ${currentDateStr}</p>
+        <h1>Singapore Home Intel</h1>
+        <p>Official Singapore Real Estate Transaction Price & Yield Watchlist • ${currentDateStr}</p>
       </div>
 
       <div class="content">
@@ -123,7 +123,7 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
         <!-- Sponsor Slot (Monetization Slot 2) -->
         <div class="sponsor-box">
           <strong>Featured Partner:</strong> Private Property Conveyancing & Home Refinancing Advisory.<br>
-          <span style="color: #94A3B8;">Interested in sponsoring the Weekly Singapore Property Digest? Inquire at sponsor@propertyintelligence.sg</span>
+          <span style="color: #94A3B8;">Interested in sponsoring the Weekly Singapore Property Digest? Inquire at sponsor@homeintel.sg</span>
         </div>
       </div>
 
@@ -133,7 +133,7 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
           <strong>Data Attribution:</strong> Official property transaction caveats and rental contracts sourced from the Urban Redevelopment Authority (URA) under the Singapore Open Data Licence. Benchmark rates reflect MAS SORA.
         </p>
         <p style="margin: 0 0 8px;">
-          <strong>Singapore PDPA Compliance:</strong> You are receiving this weekly digest because you subscribed via Property Intelligence SG. We respect your privacy and never sell personal data.
+          <strong>Singapore PDPA Compliance:</strong> You are receiving this weekly digest because you subscribed via Singapore Home Intel (homeintel.sg). We respect your privacy and never sell personal data.
         </p>
         <p style="margin: 12px 0 0;">
           <a href="${unsubUrl}">Click here to 1-Click Unsubscribe</a> from this list.
@@ -149,8 +149,8 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
 async function main() {
   const isPreview = process.argv.includes('--preview') || process.argv.includes('--dry-run');
   const resendApiKey = process.env.RESEND_API_KEY;
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
-  const fromEmail = process.env.NEWSLETTER_FROM_EMAIL || 'Property Intelligence SG <onboarding@resend.dev>';
+  const baseUrl = process.env.BASE_URL || 'https://homeintel.sg';
+  const fromEmail = process.env.NEWSLETTER_FROM_EMAIL || 'Singapore Home Intel <digest@homeintel.sg>';
 
   console.log(`[${new Date().toISOString()}] Initializing Weekly Automated Newsletter Dispatch...`);
   await initDb();
