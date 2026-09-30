@@ -153,7 +153,10 @@ cp server/.env.example server/.env
 | `NODE_ENV` | No | `development` | Set to `production` on live webservers. |
 | `ADMIN_API_KEY` | **Yes (Prod)** | - | Secret key (min 32 chars) protecting `/api/ingest/*` and `/api/admin/*`. |
 | `UNSUBSCRIBE_SECRET`| **Yes (Prod)** | - | HMAC secret for verifying RFC 8058 1-click unsubscribe links. |
+| `LEGACY_UNSUB_UNTIL`| Optional | - | Cut-off date (YYYY-MM-DD) for accepting legacy SHA-256 tokens. |
 | `DB_PATH` | No | `./property.db`| File path to SQLite database. |
+| `BACKUP_DIR` | No | `./backups` | Target directory for online SQLite database backups. |
+| `BACKUP_RETENTION_DAYS` | No | `30` | Backup retention threshold in days. |
 | `TZ` | No | `Asia/Singapore` | Application timezone for cron jobs and timestamp parsing. |
 | `URA_ACCESS_KEY` | **Yes (Sync)** | - | Your official URA Data Service Access Key from developer.gov.sg. |
 | `RESEND_API_KEY` | Optional | - | Resend API key for double opt-in confirmation and newsletter dispatch. |
@@ -168,7 +171,7 @@ cp server/.env.example server/.env
 ### Public Analytics & Search
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/health` | Health check endpoint returning `{ status: 'ok', timestamp }`. |
+| `GET` | `/api/health` | Deep health check querying database; returns `{ status: 'ok', db: 'connected', timestamp }` (HTTP 503 on database error). |
 | `GET` | `/api/search/suggestions?q=...` | Fast autocomplete matching project names, streets, and districts. |
 | `POST` | `/api/analytics/price-trends` | Aggregates price trends ($/sqft), time series, and scatter points. |
 | `POST` | `/api/analytics/rental-yields` | Aggregates rental contracts and gross rental yields. |
@@ -221,6 +224,37 @@ node server/scripts/send-weekly-newsletter.js
 ```
 *(Requires `RESEND_API_KEY` in `server/.env`).*
 
+### 3. Monthly PDPA Lead Retention Cleanup
+Purges unconverted agent advisory leads older than 12 months under PDPA data retention policies:
+```bash
+node server/scripts/cleanup-leads.js
+```
+
+### 4. Daily Online SQLite Database Backup
+Performs an online, non-blocking snapshot using `VACUUM INTO`, verifies snapshot health with `PRAGMA integrity_check`, and purges backups older than 30 days:
+```bash
+node server/scripts/backup-db.js
+```
+
+---
+
+## 🧪 Automated Testing Suite (Vitest)
+
+The platform includes comprehensive unit and integration test suites:
+```bash
+# Run all test suites
+npm test
+
+# Run server Vitest suite directly
+npm --prefix server test
+```
+
+### Test Coverage Matrix
+* **`queryEngine.test.js`**: Exact median math (odd, even, sparse), `LIKE` wildcard escaping, chronological month sequences, gross annual yield math, date boundary validation (2000–2100, 10-year span, project limit), and tenure classification.
+* **`security.test.js`**: Constant-time comparison (`safeEqual`), HTML escaping (`escapeHtml`), HMAC-SHA256 unsubscribe token validation (verifying malformed, forged, and non-ASCII tokens fail safely without 500 errors), legacy token cut-off grace periods, and fail-closed admin guard checks.
+* **`ingestion.test.js`**: SVY21 projection origin and benchmark coordinate accuracy, Haversine distance, postal district normalization (`01`–`28`), 6-digit postal sector resolving, landed housing pattern matching, dynamic quarter generation, and SQLite transaction rollbacks (`withTransaction`).
+* **`leads.test.js`**: Mandatory PDPA consent enforcement, honeypot spam bot trapping, name/email length bounds, Singapore phone validation regex, and SQLite schema migrations + `ON CONFLICT` deduplication.
+
 ---
 
 ## 🚢 Production Deployment Guide
@@ -238,13 +272,14 @@ node server/scripts/send-weekly-newsletter.js
 3. **Configure environment and domain**:
    - Fill in `server/.env`.
    - Update `Caddyfile` with your live domain name.
-   - Uncomment the `caddy:` block in `docker-compose.yml`.
+   - Set required variables: `ADMIN_API_KEY`, `UNSUBSCRIBE_SECRET`, `URA_ACCESS_KEY`, `TZ=Asia/Singapore`.
 4. **Launch with automated HTTPS**:
    ```bash
    docker compose up -d --build
    ```
 
 ### Option B: Bare Linux VPS with PM2
+The provided `ecosystem.config.cjs` manages the unified web app alongside built-in scheduled background cron jobs respecting `TZ=Asia/Singapore`:
 ```bash
 # Build frontend
 npm run build
@@ -252,19 +287,25 @@ npm run build
 # Install production dependencies
 cd server && npm install --omit=dev
 
-# Start with PM2
+# Start application server and background cron jobs
 pm2 start ecosystem.config.cjs
 pm2 save
 ```
 
-### Server Crontab Setup
-Add the automated maintenance tasks using `crontab -e`:
+### Scheduled Maintenance Crontab (Docker Environments)
+If running under Docker, add the scheduled maintenance tasks to host crontab (`crontab -e`):
 ```bash
-# Sync official URA caveats every Sunday at 3:00 AM SGT
-0 3 * * 0 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/sync-ura.js >> /var/log/ura-sync.log 2>&1
+# Daily SQLite online backup at 4:00 AM SGT
+0 4 * * * docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/backup-db.js >> /var/log/db-backup.log 2>&1
 
-# Dispatch weekly property digest every Saturday at 9:00 AM SGT
-0 9 * * 6 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/send-weekly-newsletter.js >> /var/log/newsletter.log 2>&1
+# Sync official URA caveats every Sunday at 2:00 AM SGT
+0 2 * * 0 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/sync-ura.js >> /var/log/ura-sync.log 2>&1
+
+# Dispatch weekly property digest every Monday at 8:00 AM SGT
+0 8 * * 1 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/send-weekly-newsletter.js >> /var/log/newsletter.log 2>&1
+
+# Monthly PDPA lead retention cleanup on the 1st of every month at 3:00 AM SGT
+0 3 1 * * docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/cleanup-leads.js >> /var/log/leads-cleanup.log 2>&1
 ```
 
 ---
