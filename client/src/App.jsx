@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { Building2, Database, Key, Percent, Layers, Calendar, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Building2, Database, Key, Percent, Layers, Calendar, ExternalLink, ShieldCheck, Info, FileText } from 'lucide-react';
 import SearchHeader from './components/SearchHeader';
 import PropertyMap from './components/PropertyMap';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -12,15 +12,28 @@ import MonetizationBanner from './components/MonetizationBanner';
 import { getDefaultDateRange } from './utils/dateUtils';
 
 export default function App() {
-  const [viewMode, setViewMode] = useState('sale'); // 'sale' or 'rental'
+  // Read initial view mode from URL ?mode=rental or default to 'sale'
+  const [viewMode, setViewMode] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('mode') === 'rental' ? 'rental' : 'sale';
+  });
+
   const unitType = 'sqft'; // Use per square feet only
+
+  // Step 4.3.1: Read URL parameters on load (?project=, ?district=, ?street=, ?area=)
   const [filters, setFilters] = useState(() => {
     const { dateFrom, dateTo } = getDefaultDateRange(5);
+    const params = new URLSearchParams(window.location.search);
+    const urlProject = params.get('project');
+    const urlDistrict = params.get('district');
+    const urlStreet = params.get('street');
+    const urlArea = params.get('area') || params.get('planningArea');
+
     return {
-      projects: [],
-      street: null,
-      district: null,
-      planningArea: null,
+      projects: urlProject ? [urlProject] : [],
+      street: urlStreet || null,
+      district: urlDistrict || null,
+      planningArea: urlArea || null,
       bedroomCount: 'all',
       radiusKm: null,
       centerCoords: null,
@@ -46,12 +59,76 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
 
   // Livability & Rental Detail Drawer states
   const [selectedDrawerProject, setSelectedDrawerProject] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedRentalProject, setSelectedRentalProject] = useState(null);
   const [isRentalDrawerOpen, setIsRentalDrawerOpen] = useState(false);
+
+  // Step 4.3.1: Handle ?enquire=1 and ?q= on initial load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('enquire') === '1') {
+      setIsEnquiryModalOpen(true);
+    }
+
+    const qParam = params.get('q');
+    if (qParam && qParam.trim()) {
+      axios.get(`/api/search/suggestions?q=${encodeURIComponent(qParam.trim())}`)
+        .then(res => {
+          const data = res.data;
+          if (data.projects && data.projects.length > 0) {
+            const match = data.projects[0];
+            const lat = match.lat != null ? parseFloat(match.lat) : null;
+            const lng = match.lng != null ? parseFloat(match.lng) : null;
+            setFilters(prev => ({
+              ...prev,
+              projects: [match.name],
+              centerCoords: !isNaN(lat) && !isNaN(lng) && lat && lng ? { lat, lng } : null
+            }));
+          } else if (data.streets && data.streets.length > 0) {
+            setFilters(prev => ({ ...prev, street: data.streets[0] }));
+          } else if (data.districts && data.districts.length > 0) {
+            setFilters(prev => ({ ...prev, district: data.districts[0] }));
+          } else if (data.planningAreas && data.planningAreas.length > 0) {
+            setFilters(prev => ({ ...prev, planningArea: data.planningAreas[0] }));
+          }
+        })
+        .catch(err => console.error('Error resolving search query param q:', err));
+    }
+  }, []);
+
+  // Step 4.3.1: Sync filters and viewMode to URL via history.replaceState
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const params = new URLSearchParams();
+    if (filters.projects && filters.projects.length === 1) {
+      params.set('project', filters.projects[0]);
+    }
+    if (filters.district) {
+      params.set('district', filters.district);
+    }
+    if (filters.street) {
+      params.set('street', filters.street);
+    }
+    if (filters.planningArea) {
+      params.set('area', filters.planningArea);
+    }
+    if (viewMode === 'rental') {
+      params.set('mode', 'rental');
+    }
+    const newSearch = params.toString();
+    const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }, [filters.projects, filters.district, filters.street, filters.planningArea, viewMode]);
 
   const handleOpenLivabilityDrawer = async (projData) => {
     const proj = projData?.project || projData;
@@ -80,7 +157,16 @@ export default function App() {
     }
   };
 
+  // Step 4.2.2: AbortController in fetchAnalytics to eliminate out-of-order race conditions
+  const abortControllerRef = useRef(null);
+
   const fetchAnalytics = useCallback(async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     try {
       const endpoint = viewMode === 'rental' ? '/api/analytics/rental-yields' : '/api/analytics/price-trends';
@@ -89,17 +175,26 @@ export default function App() {
           ...filters,
           unitType: 'sqft'
         }
+      }, {
+        signal: controller.signal
       });
       setAnalyticsData(res.data);
     } catch (err) {
-      console.error(`Error loading ${viewMode} property analytics:`, err);
+      if (!axios.isCancel(err) && err.name !== 'CanceledError') {
+        console.error(`Error loading ${viewMode} property analytics:`, err);
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [filters, viewMode]);
 
   useEffect(() => {
     fetchAnalytics();
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
   }, [fetchAnalytics]);
 
   const summary = analyticsData.summary || {};
@@ -255,8 +350,12 @@ export default function App() {
           </div>
         )}
 
-        {/* High-Intent Native Monetization: Mortgage Comparison */}
-        <MonetizationBanner variant="mortgage" />
+        {/* High-Intent Native Monetization: Accredited CEA Agent Advisory */}
+        <MonetizationBanner
+          variant="agent"
+          isEnquiryModalOpen={isEnquiryModalOpen}
+          onToggleEnquiryModal={setIsEnquiryModalOpen}
+        />
 
         {/* Main Grid: Charts & GIS Map */}
         <div className="dashboard-grid">
@@ -468,9 +567,9 @@ export default function App() {
               Singapore Home Intel
             </div>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <a href="#about" onClick={(e) => { e.preventDefault(); alert("Singapore Home Intel delivers transparent transaction prices, tenancy yields, and livability analytics for private properties in Singapore."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>About</a>
+              <a href="#about" onClick={(e) => { e.preventDefault(); setShowAboutModal(true); }} style={{ color: 'var(--color-primary-green)', fontWeight: 600, textDecoration: 'none' }}>About</a>
               <a href="#privacy" onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ color: 'var(--color-primary-green)', fontWeight: 600, textDecoration: 'none' }}>Privacy Policy & PDPA Notice</a>
-              <a href="#terms" onClick={(e) => { e.preventDefault(); alert("Terms of Service: All transaction price analytics and rental indices are computational estimates based on historical caveats and publicly available benchmark rates."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>Terms of Service</a>
+              <a href="#terms" onClick={(e) => { e.preventDefault(); setShowTermsModal(true); }} style={{ color: 'var(--color-primary-green)', fontWeight: 600, textDecoration: 'none' }}>Terms of Service</a>
               <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary-green)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 Singapore Open Data Licence <ExternalLink size={12} />
               </a>
@@ -478,10 +577,10 @@ export default function App() {
           </div>
           <div style={{ borderTop: '1px solid rgba(54, 69, 79, 0.08)', paddingTop: '12px', fontSize: '0.75rem', color: '#8898AA' }}>
             <p>
-              <strong>Data Attribution:</strong> Singapore private residential transaction caveats and quarterly rental contracts are sourced from the <strong>Urban Redevelopment Authority (URA) Data Service</strong>, accessed under the terms of the <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Singapore Open Data Licence</a>. Spatial amenities and coordinates utilize SVY21 conversion derived from Singapore Land Authority (SLA) OneMap and OpenStreetMap data.
+              <strong>Data Attribution & Integrity:</strong> Private residential transaction caveats and quarterly rental contracts are sourced from the <strong>Urban Redevelopment Authority (URA) Data Service</strong> under the <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Singapore Open Data Licence</a>. Geocoding utilizes SVY21 coordinate conversion from the Singapore Land Authority (SLA) OneMap API. Spatial amenities include OpenStreetMap data (&copy; OpenStreetMap contributors, ODbL). Note: URA rental records provide approximate floor area ranges, and developments without specific coordinates are located at postal district centroids.
             </p>
             <p style={{ marginTop: '6px' }}>
-              <strong>Disclaimer:</strong> This website is an independent analytical service and is not affiliated with, sponsored by, or endorsed by the Urban Redevelopment Authority (URA), the Singapore Land Authority (SLA), or the Government of Singapore. All property transaction price indicators, rental yields, and livability indexes are computed algorithmically for research and educational purposes only.
+              <strong>Disclaimer:</strong> Singapore Home Intel is an independent research platform and is not affiliated with, sponsored by, or endorsed by the Urban Redevelopment Authority (URA), the Singapore Land Authority (SLA), or the Government of Singapore. All property valuation benchmarks, rental yields, and livability indices are computational estimates intended for analytical and informational purposes only.
             </p>
           </div>
         </div>
@@ -508,6 +607,75 @@ export default function App() {
         onIngestionComplete={fetchAnalytics}
       />
 
+      {/* About Modal */}
+      {showAboutModal && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '580px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: 'var(--color-text-charcoal)' }}>
+                <Info size={20} color="var(--color-primary-green)" />
+                About Singapore Home Intel
+              </h3>
+              <ExternalLink size={18} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setShowAboutModal(false)} />
+            </div>
+
+            <div style={{ fontSize: '0.84rem', color: 'var(--color-text-charcoal)', lineHeight: '1.6', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <p>
+                <strong>Singapore Home Intel</strong> provides property buyers, homeowners, and investors with transparent, algorithmically verified transaction price analytics, gross rental yields, and walkable livability indices across Singapore private residential properties.
+              </p>
+              <p>
+                <strong>Methodology:</strong> Every metric is derived directly from official government caveats released via the URA Data Service, matched against OneMap SVY21 geospatial coordinates and neighborhood amenities. Rolling 24-month medians protect against anomalous single-transaction spikes.
+              </p>
+              <p>
+                For questions, partnership inquiries, or feedback, email us at <a href="mailto:contact@homeintel.sg" style={{ color: 'var(--color-primary-green)', fontWeight: 600 }}>contact@homeintel.sg</a>.
+              </p>
+            </div>
+
+            <div style={{ textAlign: 'right', marginTop: '16px' }}>
+              <button className="btn btn-primary" onClick={() => setShowAboutModal(false)} style={{ fontSize: '0.82rem' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Terms of Service Modal */}
+      {showTermsModal && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '620px', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: 'var(--color-text-charcoal)' }}>
+                <FileText size={20} color="var(--color-primary-green)" />
+                Terms of Service
+              </h3>
+              <ExternalLink size={18} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setShowTermsModal(false)} />
+            </div>
+
+            <div style={{ fontSize: '0.82rem', color: 'var(--color-text-charcoal)', lineHeight: '1.6', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <p>
+                <strong>1. Nature of Computational Estimates</strong><br />
+                All transaction price summaries, gross rental yield metrics, and GIS livability scores are computational calculations based upon historical data. They do not constitute certified professional appraisals, financial advice, or formal property valuations under Singapore law.
+              </p>
+              <p>
+                <strong>2. Independent Verification</strong><br />
+                Users must independently verify property facts, caveats, loan requirements, and encumbrances with Singapore Land Authority (SLA) title searches and accredited Council for Estate Agencies (CEA) property representatives before executing financial transactions.
+              </p>
+              <p>
+                <strong>3. Limitation of Liability</strong><br />
+                Singapore Home Intel and its operators shall not be liable for any financial decisions, losses, or commitments made based on information presented on this platform.
+              </p>
+            </div>
+
+            <div style={{ textAlign: 'right', marginTop: '16px' }}>
+              <button className="btn btn-primary" onClick={() => setShowTermsModal(false)} style={{ fontSize: '0.82rem' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Singapore PDPA & Privacy Policy Modal */}
       {showPrivacyModal && (
         <div className="modal-overlay">
@@ -529,7 +697,7 @@ export default function App() {
               <p>
                 <strong>2. Collection of Personal Data</strong><br />
                 We only collect personal information when you explicitly choose to provide it:
-                <br />• <strong>Property Deal Watchlist (Newsletter):</strong> Email address for delivering weekly analytical property market digests.
+                <br />• <strong>Property Deal Watchlist (Newsletter):</strong> Email address for delivering weekly analytical property market digests upon double opt-in verification.
                 <br />• <strong>Real Estate Advisory Requests:</strong> Name, email address, WhatsApp/phone number, and property development of interest.
                 <br /><em>Note: We never ask for or collect NRIC, FIN, or confidential banking numbers.</em>
               </p>
@@ -538,17 +706,17 @@ export default function App() {
                 <strong>3. Purpose of Processing & CEA Agent Introductions</strong><br />
                 Your data is processed strictly for the purpose for which it was provided:
                 <br />• To deliver weekly property analytical briefings upon your opt-in consent.
-                <br />• To connect you with our appointed Council for Estate Agencies (CEA) licensed property representative for advisory and on-the-ground transaction price assistance.
+                <br />• To connect you with our appointed Council for Estate Agencies (CEA) licensed property representative (ERA Realty Network / Lic: L3002382K) for advisory and on-the-ground transaction price assistance.
               </p>
 
               <p>
                 <strong>4. Protection Against Telemarketing & Third Parties</strong><br />
-                We do not sell, rent, trade, or distribute your personal data to mass telemarketers or external advertisers.
+                We do not sell, rent, trade, or distribute your personal data to mass telemarketers or external advertisers. Unconverted enquiry records are automatically purged after 12 months.
               </p>
 
               <p>
                 <strong>5. Your Rights: Consent Withdrawal & Data Access</strong><br />
-                Under the PDPA, you may at any time withdraw your consent for future communications or request access to and correction of your personal data. All newsletters include a 1-click unsubscribe option. For inquiries, contact our Data Protection representative at <strong>dpo@propertyintelligence.sg</strong>.
+                Under the PDPA, you may at any time withdraw your consent for future communications or request access to and correction of your personal data. All newsletters include a 1-click unsubscribe option. For inquiries, contact our Data Protection representative at <strong>dpo@homeintel.sg</strong>.
               </p>
             </div>
 

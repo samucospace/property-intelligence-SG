@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import axios from 'axios';
-import { MapPin, Navigation, Compass, Layers, Train, GraduationCap, Utensils, ShoppingBag, Trees } from 'lucide-react';
+import { MapPin, Navigation, Compass, Layers, Train, GraduationCap, Utensils, ShoppingBag, Trees, AlertTriangle } from 'lucide-react';
 import LivabilityBadge from './LivabilityBadge';
 
 // Custom Map Marker Icons using SVG Data URIs
-function createCustomIcon(color) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 24 24" fill="${color}" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="#ffffff"/></svg>`;
+function createCustomIcon(color, isApproximate = false) {
+  const stroke = isApproximate ? '#D97706' : '#ffffff';
+  const strokeDash = isApproximate ? 'stroke-dasharray="2,2"' : '';
+  const innerDot = isApproximate
+    ? '<circle cx="12" cy="10" r="4" fill="#D97706"/><circle cx="12" cy="10" r="2" fill="#ffffff"/>'
+    : '<circle cx="12" cy="10" r="3" fill="#ffffff"/>';
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 24 24" fill="${color}" stroke="${stroke}" stroke-width="1.8" ${strokeDash} stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" opacity="${isApproximate ? '0.85' : '1'}"/><g>${innerDot}</g></svg>`;
   return L.icon({
     iconUrl: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
     iconSize: [28, 36],
@@ -338,105 +345,129 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
             })()
           )}
 
-          {/* Development Property Markers */}
-          {mapProjects && mapProjects.length > 0 && mapProjects.map((p) => {
-            const pLat = parseFloat(p.lat);
-            const pLng = parseFloat(p.lng);
-            if (isNaN(pLat) || isNaN(pLng)) return null;
+          {/* Development Property Markers with MarkerClusterGroup for smooth clustering (Step 4.1) */}
+          <MarkerClusterGroup chunkedLoading maxClusterRadius={50}>
+            {mapProjects && mapProjects.length > 0 && mapProjects.map((p) => {
+              const pLat = parseFloat(p.lat);
+              const pLng = parseFloat(p.lng);
+              if (isNaN(pLat) || isNaN(pLng)) return null;
 
-            // In rental mode, color code icon by Gross Rental Yield Tier
-            let icon = p.segment === 'CCR' ? greenIcon : p.segment === 'RCR' ? terracottaIcon : tealIcon;
-            if (viewMode === 'rental') {
-              const y = p.grossYield || 0;
-              if (y >= 4.25) icon = createCustomIcon('#10B981'); // High Yield Green
-              else if (y >= 3.25) icon = createCustomIcon('#D97706'); // Moderate Yield Amber
-              else icon = createCustomIcon('#CB6D51'); // Low / Trophy Yield Terracotta
-            }
+              const isApproximate = p.locationQuality === 'district_centre' || p.isApproximate === true;
 
-            const priceRate = p.medianPsft;
+              // In rental mode, color code icon by Gross Rental Yield Tier
+              let baseColor = p.segment === 'CCR' ? '#4F7942' : p.segment === 'RCR' ? '#CB6D51' : '#00B080';
+              if (viewMode === 'rental') {
+                const y = p.grossYield || 0;
+                if (y >= 4.25) baseColor = '#10B981'; // High Yield Green
+                else if (y >= 3.25) baseColor = '#D97706'; // Moderate Yield Amber
+                else baseColor = '#CB6D51'; // Low / Trophy Yield Terracotta
+              }
 
-            return (
-              <Marker
-                key={p.id}
-                position={[pLat, pLng]}
-                icon={icon}
-                eventHandlers={{
-                  click: () => {
-                    setActiveProperty(p);
-                    handleSelectProjectOnMap(p.name);
-                  }
-                }}
-              >
-                <Popup>
-                  <div style={{ padding: '4px', maxWidth: '240px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-charcoal)', marginBottom: '4px' }}>
-                      {p.name}
+              const icon = createCustomIcon(baseColor, isApproximate);
+              const priceRate = p.medianPsft;
+
+              return (
+                <Marker
+                  key={p.id}
+                  position={[pLat, pLng]}
+                  icon={icon}
+                  eventHandlers={{
+                    click: () => {
+                      setActiveProperty(p);
+                      handleSelectProjectOnMap(p.name);
+                    }
+                  }}
+                >
+                  <Popup>
+                    <div style={{ padding: '4px', maxWidth: '240px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-charcoal)', marginBottom: '4px' }}>
+                        {p.name}
+                      </div>
+
+                      {isApproximate && (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          background: '#FEF3C7',
+                          color: '#B45309',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          marginBottom: '6px'
+                        }}>
+                          <AlertTriangle size={11} color="#B45309" />
+                          Approximate (District Centroid)
+                        </div>
+                      )}
+
+                      <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginBottom: '6px' }}>
+                        {p.street} • District {p.district} ({p.segment})
+                      </div>
+
+                      {viewMode === 'rental' ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', background: '#FFFBEB', padding: '6px 8px', borderRadius: '6px', border: '1px solid #FCD34D' }}>
+                          <div>
+                            <div style={{ fontSize: '0.7rem', color: '#92400E', fontWeight: 600 }}>Median Rent</div>
+                            <div style={{ fontWeight: 700, color: 'var(--color-primary-green)', fontSize: '0.85rem' }}>
+                              ${p.medianRent ? p.medianRent.toLocaleString() : '0'} /mo
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#92400E', fontWeight: 600 }}>Gross Yield</div>
+                            <div style={{ fontWeight: 800, color: p.grossYield >= 4.25 ? '#10B981' : p.grossYield >= 3.25 ? '#D97706' : '#CB6D51', fontSize: '0.85rem' }}>
+                              {p.grossYield ? `${p.grossYield}%` : 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', background: '#F8FAFC', padding: '6px 8px', borderRadius: '6px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Median Rate</div>
+                            <div style={{ fontWeight: 700, color: 'var(--color-primary-green)', fontSize: '0.85rem' }}>
+                              ${priceRate ? priceRate.toLocaleString() : '0'} /sqft
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Transactions</div>
+                            <div style={{ fontWeight: 700, color: 'var(--color-text-charcoal)', fontSize: '0.85rem' }}>
+                              {p.txCount || 0}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Livability Badge */}
+                      {p.livability && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                          <LivabilityBadge
+                            livability={p.livability}
+                            size="small"
+                            onClick={() => onOpenLivabilityDrawer({ project: p, livability: p.livability })}
+                          />
+                          <button
+                            onClick={() => onOpenLivabilityDrawer({ project: p, livability: p.livability })}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--color-primary-green)',
+                              fontWeight: 600,
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              textDecoration: 'underline'
+                            }}
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginBottom: '6px' }}>
-                      {p.street} • District {p.district} ({p.segment})
-                    </div>
-
-                    {viewMode === 'rental' ? (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', background: '#FFFBEB', padding: '6px 8px', borderRadius: '6px', border: '1px solid #FCD34D' }}>
-                        <div>
-                          <div style={{ fontSize: '0.7rem', color: '#92400E', fontWeight: 600 }}>Median Rent</div>
-                          <div style={{ fontWeight: 700, color: 'var(--color-primary-green)', fontSize: '0.85rem' }}>
-                            ${p.medianRent ? p.medianRent.toLocaleString() : '0'} /mo
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '0.7rem', color: '#92400E', fontWeight: 600 }}>Gross Yield</div>
-                          <div style={{ fontWeight: 800, color: p.grossYield >= 4.25 ? '#10B981' : p.grossYield >= 3.25 ? '#D97706' : '#CB6D51', fontSize: '0.85rem' }}>
-                            {p.grossYield ? `${p.grossYield}%` : 'N/A'}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', background: '#F8FAFC', padding: '6px 8px', borderRadius: '6px' }}>
-                        <div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Median Rate</div>
-                          <div style={{ fontWeight: 700, color: 'var(--color-primary-green)', fontSize: '0.85rem' }}>
-                            ${priceRate ? priceRate.toLocaleString() : '0'} /sqft
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Transactions</div>
-                          <div style={{ fontWeight: 700, color: 'var(--color-text-charcoal)', fontSize: '0.85rem' }}>
-                            {p.txCount || 0}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Livability Badge */}
-                    {p.livability && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                        <LivabilityBadge
-                          livability={p.livability}
-                          size="small"
-                          onClick={() => onOpenLivabilityDrawer({ project: p, livability: p.livability })}
-                        />
-                        <button
-                          onClick={() => onOpenLivabilityDrawer({ project: p, livability: p.livability })}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--color-primary-green)',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            textDecoration: 'underline'
-                          }}
-                        >
-                          View Details
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          })}
+                  </Popup>
+                </Marker>
+              );
+            })}
+          </MarkerClusterGroup>
 
           {/* GIS Amenity POI Markers */}
           {amenities && amenities.length > 0 && amenities.map((a, idx) => {

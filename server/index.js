@@ -5,8 +5,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Resend } from 'resend';
 import { initDb, dbGet, dbAll, dbRun } from './db.js';
 import { fetchUraData, importRealUraData, seedSoraRates } from './ingestion.js';
 import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics, initSaleValuationsCache, invalidateSaleValuationsCache, invalidateAnalyticsCache } from './queryEngine.js';
@@ -71,6 +73,15 @@ const analyticsLimiter = rateLimit({
   message: { error: 'Too many analytics queries from this IP, please try again later.' }
 });
 app.use('/api/analytics', analyticsLimiter);
+
+// Step 4.5.1: Dedicated rate limiter for lead submissions (5 req / 1 hr per IP)
+const leadsLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many enquiry submissions from this IP. Please try again later.' }
+});
 
 // Step 3.4.1: Input Validation Middleware for Analytics Endpoints
 const DATE_REGEX = /^\d{4}-(0[1-9]|1[0-2])(-\d{2})?$/;
@@ -175,14 +186,16 @@ app.get('/sitemap.xml', async (req, res, next) => {
     const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
     const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
 
-    const projects = await dbAll(`SELECT project_name, updated_at FROM projects ORDER BY project_name ASC LIMIT 5000`);
+    // Step 4.3.4: Point to canonical project URLs and include lastmod from projects.updated_at
+    const projects = await dbAll(`SELECT project_name, updated_at FROM projects WHERE is_landed_aggregate = 0 ORDER BY project_name ASC LIMIT 5000`);
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
     xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
     xml += `  <url>\n    <loc>${baseUrl}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
 
     for (const p of projects) {
       const encoded = encodeURIComponent(p.project_name);
-      xml += `  <url>\n    <loc>${baseUrl}/?project=${encoded}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+      const lastmod = p.updated_at ? new Date(p.updated_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      xml += `  <url>\n    <loc>${baseUrl}/?project=${encoded}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
     }
     xml += `</urlset>`;
 
@@ -193,28 +206,262 @@ app.get('/sitemap.xml', async (req, res, next) => {
   }
 });
 
-// 1b. Lead Capture (Agent Advisory & Weekly Newsletter)
-app.post('/api/leads/submit', async (req, res, next) => {
+// 1b. Lead Capture with Honeypot, Length Limits, Double Opt-In & Agent Delivery (Steps 4.4 & 4.5)
+app.post('/api/leads/submit', leadsLimiter, async (req, res, next) => {
   try {
-    const { name, email, phone, leadType, enquiryType, projectInterest, pdpaConsent, details } = req.body;
-    if (!email || !email.includes('@')) {
-      return res.status(400).json({ error: 'A valid email address is required.' });
+    const { name, email, phone, leadType, enquiryType, projectInterest, pdpaConsent, details, website } = req.body;
+
+    // Honeypot check: spambots populate invisible 'website' field
+    if (website) {
+      console.warn('[Leads] Bot submission dropped via honeypot field');
+      return res.json({ status: 'success', message: 'Enquiry received.' });
     }
+
+    // Step 4.4.3: Reject unless pdpaConsent is explicitly true
+    if (pdpaConsent !== true) {
+      return res.status(400).json({ error: 'Explicit Singapore PDPA consent is required to proceed.' });
+    }
+
+    // Step 4.5.1: Maximum lengths and field validation
+    if (name && typeof name === 'string' && name.length > 100) {
+      return res.status(400).json({ error: 'Name must not exceed 100 characters.' });
+    }
+    if (!email || typeof email !== 'string' || email.length > 254) {
+      return res.status(400).json({ error: 'A valid email address is required (maximum 254 characters).' });
+    }
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const cleanEmail = email.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      return res.status(400).json({ error: 'Invalid email address format.' });
+    }
+
+    const cleanLeadType = leadType === 'newsletter' ? 'newsletter' : 'agent_advisory';
+
+    // Agent advisory validations
+    let cleanPhone = null;
+    if (cleanLeadType === 'agent_advisory') {
+      if (!phone || typeof phone !== 'string') {
+        return res.status(400).json({ error: 'A valid Singapore contact number is required for agent advisory.' });
+      }
+      cleanPhone = phone.trim();
+      const SG_PHONE_REGEX = /^(?:\+65\s?)?[689]\d{7}$/;
+      if (!SG_PHONE_REGEX.test(cleanPhone.replace(/\s+/g, ''))) {
+        return res.status(400).json({ error: 'Please provide a valid 8-digit Singapore phone number starting with 6, 8, or 9.' });
+      }
+      if (details && typeof details === 'string' && details.length > 2000) {
+        return res.status(400).json({ error: 'Enquiry details must not exceed 2000 characters.' });
+      }
+    }
+
+    if (cleanLeadType === 'newsletter') {
+      // Step 4.5.2 & 4.5.3: Double opt-in & prevent duplicate newsletter leads
+      const confirmToken = crypto.randomBytes(24).toString('hex');
+      const host = req.get('host');
+      const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+      const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
+      const confirmUrl = `${baseUrl}/api/newsletter/confirm?email=${encodeURIComponent(cleanEmail)}&token=${confirmToken}`;
+
+      await dbRun(
+        `INSERT INTO leads (name, email, lead_type, pdpa_consent, consent_version, consent_at, confirmation_token)
+         VALUES (?, ?, 'newsletter', 1, 'v1.0', CURRENT_TIMESTAMP, ?)
+         ON CONFLICT(email) WHERE lead_type = 'newsletter'
+         DO UPDATE SET
+           confirmation_token = excluded.confirmation_token,
+           pdpa_consent = 1,
+           consent_at = CURRENT_TIMESTAMP`,
+        [name ? name.trim().slice(0, 100) : null, cleanEmail, confirmToken]
+      );
+
+      // If Resend API key configured, send confirmation email; otherwise log link (auto-confirm in dev)
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          await resend.emails.send({
+            from: process.env.SENDER_EMAIL || 'Singapore Home Intel <digest@homeintel.sg>',
+            to: cleanEmail,
+            subject: 'Confirm your subscription - Singapore Home Intel Market Watchlist',
+            html: `
+              <div style="font-family: -apple-system, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; color: #1E293B;">
+                <h2 style="color: #4F7942; margin-top: 0;">Confirm Your Subscription</h2>
+                <p>Thank you for subscribing to Singapore Home Intel's weekly property intelligence briefing.</p>
+                <p>Please click the button below to confirm your email address and activate your subscription under Singapore PDPA guidelines:</p>
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${confirmUrl}" style="background-color: #4F7942; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Confirm Subscription</a>
+                </div>
+                <p style="font-size: 0.8rem; color: #64748B;">If you did not request this subscription, you can safely ignore this email.</p>
+              </div>
+            `
+          });
+        } catch (mailErr) {
+          console.error('[Newsletter] Error sending confirmation email via Resend:', mailErr);
+        }
+      } else {
+        console.log(`[Newsletter] Dev mode - Confirmation URL for ${cleanEmail}: ${confirmUrl}`);
+        if (process.env.NODE_ENV !== 'production') {
+          await dbRun(`UPDATE leads SET confirmed_at = CURRENT_TIMESTAMP WHERE email = ? AND lead_type = 'newsletter'`, [cleanEmail]);
+        }
+      }
+
+      return res.json({
+        status: 'success',
+        message: process.env.RESEND_API_KEY
+          ? 'Confirmation link sent to your email. Please check your inbox to confirm your subscription.'
+          : 'Subscribed successfully to weekly market briefs.'
+      });
+    }
+
+    // Agent Advisory Lead Submission
     await dbRun(
-      `INSERT INTO leads (name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, details)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO leads (name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, consent_version, consent_at, details)
+       VALUES (?, ?, ?, 'agent_advisory', ?, ?, 1, 'v1.0', CURRENT_TIMESTAMP, ?)`,
       [
-        name ? name.trim() : null,
-        email.trim().toLowerCase(),
-        phone ? phone.trim() : null,
-        leadType || 'agent_advisory',
-        enquiryType || 'General Enquiry',
-        projectInterest || null,
-        pdpaConsent ? 1 : 0,
-        details || null
+        name ? name.trim().slice(0, 100) : null,
+        cleanEmail,
+        cleanPhone,
+        enquiryType ? String(enquiryType).trim().slice(0, 50) : 'General Enquiry',
+        projectInterest ? String(projectInterest).trim().slice(0, 100) : null,
+        details ? String(details).trim().slice(0, 2000) : null
       ]
     );
-    res.json({ status: 'success', message: 'Enquiry received. An accredited CEA representative will be in touch.' });
+
+    // Step 4.5.4: Deliver lead to appointed agent
+    const agentEmail = process.env.AGENT_NOTIFICATION_EMAIL || process.env.AGENT_EMAIL;
+    if (process.env.RESEND_API_KEY && agentEmail) {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: process.env.SENDER_EMAIL || 'Singapore Home Intel Leads <leads@homeintel.sg>',
+          to: agentEmail,
+          subject: `[New Lead] ${enquiryType || 'Advisory'} Enquiry - ${projectInterest || 'General'}`,
+          html: `
+            <div style="font-family: -apple-system, sans-serif; padding: 20px; color: #334155;">
+              <h3 style="color: #4F7942;">New Real Estate Advisory Enquiry</h3>
+              <p><strong>Name:</strong> ${escapeHtml(name || 'Unspecified')}</p>
+              <p><strong>Email:</strong> ${escapeHtml(cleanEmail)}</p>
+              <p><strong>Phone:</strong> ${escapeHtml(cleanPhone)}</p>
+              <p><strong>Enquiry Type:</strong> ${escapeHtml(enquiryType || 'General')}</p>
+              <p><strong>Project Interest:</strong> ${escapeHtml(projectInterest || 'None')}</p>
+              <p><strong>Notes:</strong> ${escapeHtml(details || 'None')}</p>
+              <p style="font-size: 0.8rem; color: #64748B; margin-top: 20px;">Singapore PDPA consent confirmed at ${new Date().toISOString()}.</p>
+            </div>
+          `
+        });
+      } catch (agentMailErr) {
+        console.error('[Leads] Error notifying agent via Resend:', agentMailErr);
+      }
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Enquiry received. An accredited CEA representative (ERA Realty Network / Lic: L3002382K) will be in touch shortly.'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Step 4.5.3: Double Opt-In Email Confirmation Endpoint
+app.get('/api/newsletter/confirm', async (req, res, next) => {
+  try {
+    const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : '';
+    const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+
+    if (!email || !token) {
+      return res.status(400).send('Invalid confirmation request.');
+    }
+
+    const lead = await dbGet(
+      `SELECT lead_id, confirmation_token FROM leads WHERE email = ? AND lead_type = 'newsletter'`,
+      [email]
+    );
+
+    if (!lead || !lead.confirmation_token || lead.confirmation_token !== token) {
+      return res.status(403).send('Invalid or expired confirmation token.');
+    }
+
+    await dbRun(
+      `UPDATE leads SET confirmed_at = CURRENT_TIMESTAMP, unsubscribed_at = NULL, confirmation_token = NULL WHERE lead_id = ?`,
+      [lead.lead_id]
+    );
+
+    res.type('text/html').send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Subscription Confirmed - Singapore Home Intel</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #FAF6F0; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+          .card { background: #FFFFFF; border-radius: 16px; padding: 36px 32px; max-width: 480px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.06); text-align: center; }
+          h2 { color: #4F7942; margin-top: 0; font-size: 1.4rem; }
+          p { color: #64748B; font-size: 0.92rem; line-height: 1.5; }
+          .btn { display: inline-block; background: #4F7942; color: #FFFFFF; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-top: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>Subscription Confirmed!</h2>
+          <p>Thank you for verifying your email address. You are now subscribed to the weekly Singapore Home Intel property briefing under Singapore PDPA guidelines.</p>
+          <a href="/" class="btn">Explore Property Caveats</a>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Step 4.5.4: Admin Leads View & CSV Export (Protected by requireAdmin)
+app.get('/api/admin/leads', requireAdmin, async (req, res, next) => {
+  try {
+    const leads = await dbAll(
+      `SELECT lead_id, name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, consent_version, consent_at, confirmed_at, unsubscribed_at, created_at, details
+       FROM leads
+       ORDER BY created_at DESC
+       LIMIT 500`
+    );
+    res.json(leads);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/admin/leads/export.csv', async (req, res, next) => {
+  try {
+    const adminKey = process.env.ADMIN_API_KEY;
+    const providedKey = req.get('x-admin-key') || req.query.key;
+    if (!adminKey || adminKey.length < 32 || !providedKey || !safeEqual(providedKey, adminKey)) {
+      return res.status(401).send('Unauthorized: Valid admin key required.');
+    }
+
+    const leads = await dbAll(
+      `SELECT lead_id, name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, confirmed_at, created_at
+       FROM leads
+       ORDER BY created_at DESC`
+    );
+
+    let csv = 'ID,Name,Email,Phone,Type,Enquiry,Project,PDPA,ConfirmedAt,CreatedAt\n';
+    for (const l of leads) {
+      const row = [
+        l.lead_id,
+        `"${(l.name || '').replace(/"/g, '""')}"`,
+        `"${(l.email || '').replace(/"/g, '""')}"`,
+        `"${(l.phone || '').replace(/"/g, '""')}"`,
+        l.lead_type,
+        `"${(l.enquiry_type || '').replace(/"/g, '""')}"`,
+        `"${(l.project_interest || '').replace(/"/g, '""')}"`,
+        l.pdpa_consent,
+        l.confirmed_at || '',
+        l.created_at
+      ];
+      csv += row.join(',') + '\n';
+    }
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`leads-export-${new Date().toISOString().split('T')[0]}.csv`);
+    res.send(csv);
   } catch (err) {
     next(err);
   }
@@ -429,15 +676,88 @@ app.post('/api/ingest/ura', async (req, res, next) => {
 });
 
 // 10. Serve Static Frontend in Production
+// 10. Serve Static Frontend in Production
 const clientDist = path.join(__dirname, '../client/dist');
 app.use(express.static(clientDist));
 
-// Catch-all route to serve Vite index.html for SPA routing
-app.get('*', (req, res, next) => {
+// Step 4.5.5: Clean up expired unconverted agent advisory leads older than 12 months
+async function cleanupExpiredLeads() {
+  try {
+    const result = await dbRun(
+      `DELETE FROM leads
+       WHERE lead_type = 'agent_advisory'
+         AND created_at < date('now', '-12 months')`
+    );
+    if (result && result.changes > 0) {
+      console.log(`[Retention] Purged ${result.changes} unconverted agent advisory leads older than 12 months.`);
+    }
+  } catch (err) {
+    console.error('[Retention] Error cleaning up expired leads:', err);
+  }
+}
+
+// Catch-all route to serve Vite index.html with Dynamic Server-Side Meta Tags (Step 4.3.2)
+app.get('*', async (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
-  res.sendFile(path.join(clientDist, 'index.html'));
+
+  const indexPath = path.join(clientDist, 'index.html');
+  const fallbackPath = path.join(__dirname, '../client/index.html');
+  const targetHtmlPath = fs.existsSync(indexPath) ? indexPath : fallbackPath;
+
+  if (!fs.existsSync(targetHtmlPath)) {
+    return res.status(404).send('Application client files not found.');
+  }
+
+  const projectName = typeof req.query.project === 'string' ? req.query.project.trim() : null;
+  if (!projectName) {
+    return res.sendFile(targetHtmlPath);
+  }
+
+  try {
+    const project = await dbGet(
+      `SELECT project_name, street_name, postal_district, market_segment, planning_area
+       FROM projects
+       WHERE UPPER(project_name) = UPPER(?) LIMIT 1`,
+      [projectName]
+    );
+
+    if (!project) {
+      return res.sendFile(targetHtmlPath);
+    }
+
+    const host = req.get('host');
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
+    const canonicalUrl = `${baseUrl}/?project=${encodeURIComponent(project.project_name)}`;
+
+    const title = `${escapeHtml(project.project_name)} - Caveats, Yields & Livability | Singapore Home Intel`;
+    const desc = escapeHtml(
+      `Official URA transaction caveats, gross rental yields, and OneMap livability analysis for ${project.project_name} on ${project.street_name || ''} (District ${project.postal_district || 'N/A'}, ${project.market_segment || 'Singapore'}).`
+    );
+
+    let html = fs.readFileSync(targetHtmlPath, 'utf8');
+
+    html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
+    html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${desc}" />`);
+    html = html.replace(/<meta property="og:title" content=".*?" \/>/, `<meta property="og:title" content="${title}" />`);
+    html = html.replace(/<meta property="og:description" content=".*?" \/>/, `<meta property="og:description" content="${desc}" />`);
+    html = html.replace(/<meta property="og:url" content=".*?" \/>/, `<meta property="og:url" content="${canonicalUrl}" />`);
+    html = html.replace(/<meta name="twitter:title" content=".*?" \/>/, `<meta name="twitter:title" content="${title}" />`);
+    html = html.replace(/<meta name="twitter:description" content=".*?" \/>/, `<meta name="twitter:description" content="${desc}" />`);
+
+    if (html.includes('<link rel="canonical"')) {
+      html = html.replace(/<link rel="canonical" href=".*?" \/>/, `<link rel="canonical" href="${canonicalUrl}" />`);
+    } else {
+      html = html.replace('</head>', `  <link rel="canonical" href="${canonicalUrl}" />\n  </head>`);
+    }
+
+    res.type('text/html').send(html);
+  } catch (err) {
+    console.error('[SEO] Error injecting server-side meta tags:', err);
+    res.sendFile(targetHtmlPath);
+  }
 });
 
 // Step 3.4.6: Global Generic Error Handler with Request ID tracking
@@ -473,6 +793,7 @@ async function startServer() {
   console.log('Pre-warming livability and valuation caches...');
   await initLivabilityCache();
   await initSaleValuationsCache();
+  await cleanupExpiredLeads();
 
   app.listen(PORT, () => {
     console.log(`Backend server running on http://localhost:${PORT}`);

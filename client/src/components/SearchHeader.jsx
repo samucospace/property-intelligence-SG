@@ -9,24 +9,40 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Debounced search suggestions fetch
+  // Debounced search suggestions fetch with AbortController (Step 4.2.2)
+  const abortControllerRef = useRef(null);
+
   useEffect(() => {
     if (!searchTerm.trim()) {
       setSuggestions(null);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
       return;
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const timer = setTimeout(async () => {
       try {
-        const res = await axios.get(`/api/search/suggestions?q=${encodeURIComponent(searchTerm)}`);
+        const res = await axios.get(`/api/search/suggestions?q=${encodeURIComponent(searchTerm)}`, {
+          signal: controller.signal
+        });
         setSuggestions(res.data);
         setShowDropdown(true);
       } catch (err) {
-        console.error('Error fetching suggestions:', err);
+        if (!axios.isCancel(err) && err.name !== 'CanceledError') {
+          console.error('Error fetching suggestions:', err);
+        }
       }
     }, 200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [searchTerm]);
 
   // Click outside to close dropdown
@@ -42,10 +58,12 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
 
   const handleSelectProject = (projName) => {
     const match = suggestions?.projects?.find(p => p.name === projName);
+    const lat = match?.lat != null ? parseFloat(match.lat) : null;
+    const lng = match?.lng != null ? parseFloat(match.lng) : null;
     setFilters(prev => ({
       ...prev,
       projects: [projName],
-      centerCoords: match && match.lat && match.lng ? { lat: match.lat, lng: match.lng } : null
+      centerCoords: !isNaN(lat) && !isNaN(lng) && lat && lng ? { lat, lng } : null
     }));
     setSearchTerm('');
     setShowDropdown(false);

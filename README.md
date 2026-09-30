@@ -8,7 +8,7 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
 
 ## 🚀 Key Features
 
-- **100% Official Government Data Only**: Strictly operates on verified URA transaction caveats and rental agreements. Zero synthetic, fabricated, or mock data.
+- **Official Data Integrity & Transparent Geocoding**: Powered by official URA private residential caveats and rental contracts under the Singapore Open Data Licence, OneMap SVY21 coordinate geocoding, and OpenStreetMap amenities (ODbL, with attribution). Rental floor areas represent approximate contract ranges, and projects without exact coordinates are clearly designated at district centroids.
 - **Pre-Populated Database**: Includes ~3,400+ condominium developments, >128,000 official sales transaction caveats, and >405,000 rental contract records.
 - **Transaction Price Focus**: Clear focus on actual transaction prices rather than automated appraisals.
 - **Past 24-Month Headline Metric Cards**: Top summary cards specifically reflect current market conditions based on transactions recorded within the past 24 months.
@@ -26,6 +26,7 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
 - **Interactive GIS Map & Livability Scoring (SLA OneMap)**:
   - Powered by official **Singapore Land Authority (SLA) OneMap** basemap tiles (compliant with commercial use under the Singapore Open Data Licence).
   - Built-in style switcher supporting **Default (Color)**, **Grey (Minimalist)**, **Night (Dark Mode)**, and **Original** basemaps.
+  - Smooth marker clustering via `react-leaflet-cluster` for responsive rendering across thousands of developments.
   - Interactive radius circles (0.5km to 5km) and active property walking distance rings (400m / 5-min walk & 800m / 10-min walk).
   - Walking distance livability density scoring across MRT stations, primary schools, hawker centres, supermarkets, and parks.
 - **Comprehensive Singapore POI Amenities Dataset (399 POIs)**:
@@ -35,11 +36,11 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
   - Interactive rich amenity popups displaying exact addresses, stall counts, and specialties.
 - **Robust Geocoding & Spatial Fallback Engine**:
   - Automatically resolves project coordinates via SVY21 math, street-level spatial inheritance, and OneMap address geocoding.
-  - Corrects rental contract records to prevent unmapped developments from landing in fallback coordinates.
+  - Visual distinction for approximate district centroids.
 - **Verified CEA Agent Lead Referral**:
   - High-converting, native district specialist advisory banner and lead capture modal.
-  - Mandatory Singapore Personal Data Protection Act 2012 (PDPA) consent checkbox and Do Not Call (DNC) authorization.
-  - Persistent SQLite `leads` table and `/api/leads/submit` API.
+  - Mandatory Singapore Personal Data Protection Act 2012 (PDPA) consent checkbox (unticked by default) and double opt-in confirmation.
+  - Persistent SQLite `leads` table and `/api/leads/submit` API with bot honeypot protection and 12-month data retention policy.
 - **Automated Weekly Investor Newsletter**:
   - Dynamic weekly dispatch script (`server/scripts/send-weekly-newsletter.js`) querying `property.db` for top gross yields and recent caveats.
   - Integration with **Resend API**.
@@ -150,11 +151,15 @@ cp server/.env.example server/.env
 | :--- | :---: | :---: | :--- |
 | `PORT` | No | `3001` | The port Express listens on. |
 | `NODE_ENV` | No | `development` | Set to `production` on live webservers. |
-| `ADMIN_API_KEY` | **Yes (Prod)** | - | Secret key protecting `/api/ingest/*` and generating unsubscribe tokens. |
+| `ADMIN_API_KEY` | **Yes (Prod)** | - | Secret key (min 32 chars) protecting `/api/ingest/*` and `/api/admin/*`. |
+| `UNSUBSCRIBE_SECRET`| **Yes (Prod)** | - | HMAC secret for verifying RFC 8058 1-click unsubscribe links. |
+| `DB_PATH` | No | `./property.db`| File path to SQLite database. |
+| `TZ` | No | `Asia/Singapore` | Application timezone for cron jobs and timestamp parsing. |
 | `URA_ACCESS_KEY` | **Yes (Sync)** | - | Your official URA Data Service Access Key from developer.gov.sg. |
-| `RESEND_API_KEY` | Optional | - | Resend API key for automated weekly newsletter dispatch. |
-| `NEWSLETTER_FROM_EMAIL`| Optional | - | Sender email (e.g. `Singapore Home Intel <digest@homeintel.sg>`). |
-| `BASE_URL` | Optional | `http://localhost:3001`| Base domain used in sitemaps and email links (e.g. `https://homeintel.sg`). |
+| `RESEND_API_KEY` | Optional | - | Resend API key for double opt-in confirmation and newsletter dispatch. |
+| `SENDER_EMAIL` | Optional | `digest@homeintel.sg` | Sender email address for automated briefs. |
+| `AGENT_NOTIFICATION_EMAIL` | Optional | - | Recipient mailbox for instant CEA advisory lead alerts. |
+| `BASE_URL` | Optional | `http://localhost:3001`| Base domain used in sitemaps, confirmation links, and meta tags. |
 
 ---
 
@@ -175,19 +180,22 @@ cp server/.env.example server/.env
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/leads/submit` | Records CEA advisory lead or newsletter subscription with PDPA consent. |
-| `GET` | `/api/leads/unsubscribe` | 1-Click PDPA unsubscribe handler with cryptographic token validation. |
+| `GET` | `/api/newsletter/confirm` | Double opt-in email verification endpoint. |
+| `GET` / `POST` | `/api/leads/unsubscribe` | 1-Click PDPA unsubscribe handler with cryptographic HMAC validation. |
 
 ### Search Engine Optimization (SEO)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/sitemap.xml` | Dynamically generated XML sitemap indexing all ~3,400+ condominium URLs. |
+| `GET` | `/sitemap.xml` | Dynamically generated XML sitemap with `<lastmod>` indexing all 3,400+ developments. |
 | `GET` | `/robots.txt` | Crawler directives referencing `/sitemap.xml`. |
 
-### Ingestion Pipeline (Protected by `X-Admin-Key`)
+### Ingestion & Admin Pipeline (Protected by `X-Admin-Key`)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/ingest/ura` | Body: `{ "accessKey": "..." }` — Triggers official URA live token exchange & batch download. |
 | `POST` | `/api/ingest/import-data` | Body: `{ "jsonData": [...] }` — Ingests raw official URA JSON exports into SQLite. |
+| `GET` | `/api/admin/leads` | Lists recent leads and subscribers in JSON format. |
+| `GET` | `/api/admin/leads/export.csv` | Downloads lead submissions as CSV (supports header or `?key=` auth). |
 
 ---
 

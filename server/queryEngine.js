@@ -146,7 +146,8 @@ export async function getSearchSuggestions(q) {
   const term = `%${escaped}%`;
 
   const projects = await dbAll(
-    `SELECT project_id as id, project_name as name, street_name as street, postal_district as district, planning_area as planningArea
+    `SELECT project_id as id, project_name as name, street_name as street, postal_district as district, planning_area as planningArea,
+            latitude as lat, longitude as lng, geo_source as locationQuality
      FROM projects
      WHERE UPPER(project_name) LIKE ? ESCAPE '\\' OR UPPER(street_name) LIKE ? ESCAPE '\\'
      LIMIT 10`,
@@ -413,7 +414,7 @@ export async function getPriceAnalytics(filters = {}) {
        )
        SELECT p.project_id AS id, p.project_name AS name, p.street_name AS street,
               p.postal_district AS district, p.market_segment AS segment, p.planning_area AS planningArea,
-              p.latitude AS lat, p.longitude AS lng,
+              p.latitude AS lat, p.longitude AS lng, p.geo_source AS locationQuality,
               r.cnt AS txCount,
               ROUND(AVG(CASE WHEN r.rn IN ((r.cnt + 1)/2, (r.cnt + 2)/2) THEN r.psqm_sgd END)) AS medianPsqm,
               ROUND(AVG(CASE WHEN r.rn IN ((r.cnt + 1)/2, (r.cnt + 2)/2) THEN r.psft_sgd END)) AS medianPsft
@@ -682,8 +683,13 @@ export async function getRentalYieldAnalytics(filters = {}) {
     dbGet(
       `SELECT ROUND(AVG(b.rolling_24m_median_psft), 2) as medianSalePsft
        FROM project_benchmarks b
-       JOIN projects p ON b.project_id = p.project_id
-       ${sqlWhere} AND b.rolling_24m_median_psft IS NOT NULL`,
+       WHERE b.rolling_24m_median_psft IS NOT NULL
+         AND b.project_id IN (
+           SELECT DISTINCT r.project_id
+           FROM rental_transactions r
+           JOIN projects p ON r.project_id = p.project_id
+           ${sqlWhere}
+         )`,
       params
     ),
 
@@ -746,7 +752,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
        )
        SELECT p.project_id AS id, p.project_name AS name, p.street_name AS street,
               p.postal_district AS district, p.market_segment AS segment, p.planning_area AS planningArea,
-              p.latitude AS lat, p.longitude AS lng,
+              p.latitude AS lat, p.longitude AS lng, p.geo_source AS locationQuality,
               p.livability_score AS livabilityScore, p.livability_data AS livabilityData,
               r.cnt AS txCount,
               ROUND(AVG(CASE WHEN r.rn_rent IN ((r.cnt + 1)/2, (r.cnt + 2)/2) THEN r.rent_sgd END)) AS medianRent,
@@ -903,6 +909,7 @@ export async function getAllProjects(lifestyleWeights = null) {
   const projects = await dbAll(
     `SELECT p.project_id as id, p.project_name as name, p.street_name as street, p.postal_district as district,
             p.market_segment as segment, p.planning_area as planningArea, p.latitude as lat, p.longitude as lng,
+            p.geo_source as locationQuality,
             p.livability_score as livabilityScore, p.livability_data as livabilityData,
             p.tenure_class as tenureClass,
             COALESCE(b.sale_count, 0) as txCount,
@@ -953,6 +960,7 @@ export async function getAllProjects(lifestyleWeights = null) {
       planningArea: p.planningArea,
       lat: p.lat,
       lng: p.lng,
+      locationQuality: p.locationQuality,
       txCount: p.txCount,
       avgPsft: p.avgPsft,
       medianPrice: p.medianPrice,
