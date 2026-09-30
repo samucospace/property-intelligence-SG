@@ -134,4 +134,16 @@ export async function initDb() {
   }
 }
 
+/**
+ * Cleanly closes the primary database connection.
+ */
+export function closeDb() {
+  return new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
 export default db;

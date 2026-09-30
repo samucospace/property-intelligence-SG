@@ -2,10 +2,15 @@ import axios from 'axios';
 import crypto from 'crypto';
 import { dbRun, dbGet, dbAll, createConnection, withTransaction } from './db.js';
 import { generateRentalQuarters } from './utils/dateUtils.js';
-import { normalizeStreetName, isLandedDevelopment } from './utils/streetUtils.js';
+import { normalizeStreetName } from './utils/streetUtils.js';
 import { classifyTenure } from './utils/tenureUtils.js';
 import { normalizeBedroom } from './utils/bedroomUtils.js';
 import { refreshProjectBenchmarks } from './queryEngine.js';
+import { svy21ToWgs84, DISTRICT_CENTERS, getDistrictCenter } from './utils/geo.js';
+import { getOrCreateProject, cleanPostalDistrict, resolveProjectDistrict, isLandedDevelopment } from './utils/projectUpsert.js';
+
+// Re-export shared utilities for external modules and scripts (Step 5.1)
+export { svy21ToWgs84, getOrCreateProject, cleanPostalDistrict, resolveProjectDistrict, isLandedDevelopment };
 
 // Helper: MD5 Hash for deterministic transaction deduplication (Step 2.5: includes occurrenceIndex and all key fields)
 export function generateTxHash(projName, dateStr, price, area, floorRange, occurrenceIndex = 1, noOfUnits = 1, propertyType = '', district = '') {
@@ -19,141 +24,6 @@ export function generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCoun
   return crypto.createHash('md5').update(raw).digest('hex');
 }
 
-// 1. Precise SVY21 (Singapore Transverse Mercator) to WGS84 (Lat/Lng) Math Converter
-function calcM(lat, a, e2, e4, e6) {
-  return a * ((1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256) * lat -
-              (3 * e2 / 8 + 3 * e4 / 32 + 45 * e6 / 1024) * Math.sin(2 * lat) +
-              (15 * e4 / 256 + 45 * e6 / 1024) * Math.sin(4 * lat) -
-              (35 * e6 / 3072) * Math.sin(6 * lat));
-}
-
-export function svy21ToWgs84(N, E) {
-  if (!N || !E || isNaN(N) || isNaN(E)) return null;
-
-  const rad = Math.PI / 180;
-  const a = 6378137.0;
-  const f = 1 / 298.257223563;
-  const oLat = 1.366666666666667 * rad;
-  const oLon = 103.83333333333333 * rad;
-  const oN = 38744.572;
-  const oE = 28001.642;
-  const k = 1.0;
-
-  const b = a * (1 - f);
-  const e2 = (a * a - b * b) / (a * a);
-  const e4 = e2 * e2;
-  const e6 = e4 * e2;
-
-  const Mo = calcM(oLat, a, e2, e4, e6);
-  const M = Mo + (N - oN) / k;
-  const mu = M / (a * (1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256));
-
-  const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
-  const phi1 = mu + (3 * e1 / 2 - 27 * e1 * e1 * e1 / 32) * Math.sin(2 * mu) +
-    (21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32) * Math.sin(4 * mu) +
-    (151 * e1 * e1 * e1 / 96) * Math.sin(6 * mu);
-
-  const sinPhi1 = Math.sin(phi1);
-  const cosPhi1 = Math.cos(phi1);
-  const tanPhi1 = Math.tan(phi1);
-
-  const N1 = a / Math.sqrt(1 - e2 * sinPhi1 * sinPhi1);
-  const T1 = tanPhi1 * tanPhi1;
-  const C1 = (e2 / (1 - e2)) * cosPhi1 * cosPhi1;
-  const R1 = a * (1 - e2) / Math.pow(1 - e2 * sinPhi1 * sinPhi1, 1.5);
-  const D = (E - oE) / (N1 * k);
-
-  const lat = phi1 - (N1 * tanPhi1 / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * (e2 / (1 - e2))) * D * D * D * D / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * (e2 / (1 - e2)) - 3 * C1 * C1) * D * D * D * D * D * D / 720);
-  const lon = oLon + (D - (1 + 2 * T1 + C1) * D * D * D / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * (e2 / (1 - e2)) + 24 * T1 * T1) * D * D * D * D * D / 120) / cosPhi1;
-
-  return {
-    latitude: parseFloat((lat / rad).toFixed(6)),
-    longitude: parseFloat((lon / rad).toFixed(6))
-  };
-}
-
-// Postal District Center Coordinates Fallback Lookup (Approximate centroids for districts 01-28)
-const districtCenters = {
-  "01": { lat: 1.2801, lng: 103.8540 },
-  "02": { lat: 1.2764, lng: 103.8447 },
-  "03": { lat: 1.2880, lng: 103.8200 },
-  "04": { lat: 1.2655, lng: 103.8118 },
-  "05": { lat: 1.2980, lng: 103.7650 },
-  "06": { lat: 1.2912, lng: 103.8436 },
-  "07": { lat: 1.3000, lng: 103.8550 },
-  "08": { lat: 1.3120, lng: 103.8530 },
-  "09": { lat: 1.3030, lng: 103.8340 },
-  "10": { lat: 1.3138, lng: 103.7824 },
-  "11": { lat: 1.3180, lng: 103.8420 },
-  "12": { lat: 1.3280, lng: 103.8520 },
-  "13": { lat: 1.3350, lng: 103.8700 },
-  "14": { lat: 1.3180, lng: 103.8920 },
-  "15": { lat: 1.2995, lng: 103.8996 },
-  "16": { lat: 1.3068, lng: 103.9372 },
-  "17": { lat: 1.3500, lng: 103.9700 },
-  "18": { lat: 1.3732, lng: 103.9493 },
-  "19": { lat: 1.3850, lng: 103.8950 },
-  "20": { lat: 1.3524, lng: 103.8415 },
-  "21": { lat: 1.3400, lng: 103.7700 },
-  "22": { lat: 1.3380, lng: 103.7050 },
-  "23": { lat: 1.3650, lng: 103.7450 },
-  "24": { lat: 1.3900, lng: 103.7000 },
-  "25": { lat: 1.4350, lng: 103.7860 },
-  "26": { lat: 1.3950, lng: 103.8250 },
-  "27": { lat: 1.4250, lng: 103.8350 },
-  "28": { lat: 1.4050, lng: 103.8700 }
-};
-
-/**
- * Validates and normalizes postal district to 2-digit format ('01' - '28').
- * Returns null for invalid or segment codes (e.g. '00', 'CCR', 'RCR', 'OCR').
- * @param {string|number} val
- * @returns {string|null}
- */
-export function cleanPostalDistrict(val) {
-  if (!val) return null;
-  const s = String(val).trim();
-  const num = parseInt(s, 10);
-  if (!isNaN(num) && num >= 1 && num <= 28) {
-    return String(num).padStart(2, '0');
-  }
-  return null;
-}
-
-/**
- * Resolves canonical postal district from transaction-level or project-level records.
- * Uses the most frequent valid district ('01'-'28') across all transactions.
- * @param {object} rawProj
- * @returns {string|null}
- */
-export function resolveProjectDistrict(rawProj) {
-  const districtCounts = new Map();
-  const txList = rawProj.transaction || rawProj.transactions || rawProj.rental || rawProj.rentals || [];
-  for (const item of txList) {
-    const d = cleanPostalDistrict(item.district || item.postal_district);
-    if (d) {
-      districtCounts.set(d, (districtCounts.get(d) || 0) + 1);
-    }
-  }
-
-  const projD = cleanPostalDistrict(rawProj.district || rawProj.postal_district);
-  if (projD) {
-    districtCounts.set(projD, (districtCounts.get(projD) || 0) + 1);
-  }
-
-  if (districtCounts.size === 0) return null;
-
-  let bestDistrict = null;
-  let maxCount = -1;
-  for (const [d, count] of districtCounts.entries()) {
-    if (count > maxCount) {
-      maxCount = count;
-      bestDistrict = d;
-    }
-  }
-  return bestDistrict;
-}
-
 // Helper: Parse area range string (e.g. "1100-1200", ">3000", "<400") into numeric midpoint value
 export function parseAreaRange(rangeStr) {
   if (!rangeStr) return null;
@@ -161,82 +31,6 @@ export function parseAreaRange(rangeStr) {
   if (!nums || nums.length === 0) return null;
   if (nums.length >= 2) return (parseFloat(nums[0]) + parseFloat(nums[1])) / 2;
   return parseFloat(nums[0]);
-}
-
-/**
- * Canonical Project Resolver & Upsert Helper (Step 2.1 & 2.3 & 5.1)
- * Eliminates duplicate upsert code across sales, rental feeds, and bulk imports.
- * Matches strictly on (project_name, street_name).
- * Strictly enforces geocoding hierarchy: SVY21 -> OneMap -> District Centroid -> NULL (no street coordinate copying).
- */
-export async function getOrCreateProject(conn, rawProj) {
-  const projName = (rawProj.project || rawProj.project_name || 'Unknown Project').trim().toUpperCase();
-  const rawStreet = (rawProj.street || rawProj.street_name || 'Singapore').trim();
-  const street = normalizeStreetName(rawStreet);
-  const segment = rawProj.marketSegment || rawProj.market_segment || 'OCR';
-
-  let projRecord = await conn.get(
-    `SELECT project_id, postal_district, latitude, longitude, geo_source, planning_area FROM projects WHERE UPPER(project_name) = UPPER(?) AND UPPER(street_name) = UPPER(?)`,
-    [projName, street]
-  );
-
-  const resolvedDistrict = resolveProjectDistrict(rawProj);
-
-  if (!projRecord) {
-    let geo = null;
-    if (rawProj.x && rawProj.y) {
-      geo = svy21ToWgs84(parseFloat(rawProj.y), parseFloat(rawProj.x));
-    }
-
-    let lat = null, lng = null, geoSource = null;
-    // Step 2.3: Never fabricate planningArea from district; only store if provided by authority/payload
-    const planningArea = rawProj.planningArea || rawProj.planning_area || null;
-
-    if (geo) {
-      lat = geo.latitude;
-      lng = geo.longitude;
-      geoSource = 'svy21';
-    } else if (rawProj.latitude && rawProj.longitude) {
-      lat = parseFloat(rawProj.latitude);
-      lng = parseFloat(rawProj.longitude);
-      geoSource = 'onemap';
-    } else if (resolvedDistrict && districtCenters[resolvedDistrict]) {
-      lat = districtCenters[resolvedDistrict].lat;
-      lng = districtCenters[resolvedDistrict].lng;
-      geoSource = 'district_centre';
-    }
-
-    const isLanded = isLandedDevelopment(projName);
-    const insertRes = await conn.run(
-      `INSERT INTO projects (project_name, street_name, postal_district, market_segment, planning_area, latitude, longitude, geo_source, is_landed_aggregate)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [projName, street, resolvedDistrict, segment, planningArea, lat, lng, geoSource, isLanded ? 1 : 0]
-    );
-    return { projId: insertRes.lastID, projName, street, resolvedDistrict, isNew: true };
-  }
-
-  const projId = projRecord.project_id;
-  // If existing record was missing district or coordinates, enrich it if incoming record has higher fidelity
-  if (!projRecord.postal_district && resolvedDistrict) {
-    await conn.run(`UPDATE projects SET postal_district = ? WHERE project_id = ?`, [resolvedDistrict, projId]);
-  }
-  if ((projRecord.latitude == null || projRecord.geo_source === 'district_centre') && rawProj.x && rawProj.y) {
-    const geo = svy21ToWgs84(parseFloat(rawProj.y), parseFloat(rawProj.x));
-    if (geo) {
-      await conn.run(
-        `UPDATE projects SET latitude = ?, longitude = ?, geo_source = 'svy21' WHERE project_id = ?`,
-        [geo.latitude, geo.longitude, projId]
-      );
-    }
-  }
-
-  return {
-    projId,
-    projName,
-    street,
-    resolvedDistrict: projRecord.postal_district || resolvedDistrict,
-    isNew: false
-  };
 }
 
 // 2. Fetch live data from official URA API with SQLite TRANSACTION batching

@@ -2,22 +2,10 @@ import { dbAll, dbGet, createConnection, withTransaction } from './db.js';
 import { calculateLivabilityScore, getProjectLivability, getGradeLabel, getGradeColor, DEFAULT_WEIGHTS } from './livabilityEngine.js';
 import { getDefaultDateRange } from './utils/dateUtils.js';
 import { calculateMedian } from './utils/math.js';
-
-// Haversine distance in kilometers
-function haversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth radius km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+import { haversineDistance } from './utils/geo.js';
 
 // Generate an array of YYYY-MM strings for every month between startMonth and endMonth inclusive
-function generateMonthRange(startMonth, endMonth) {
+export function generateMonthRange(startMonth, endMonth) {
   const months = [];
   if (!startMonth || !endMonth) return months;
 

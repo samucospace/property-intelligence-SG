@@ -9,11 +9,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
-import { initDb, dbGet, dbAll, dbRun } from './db.js';
+import { initDb, dbGet, dbAll, dbRun, closeDb } from './db.js';
 import { fetchUraData, importRealUraData, seedSoraRates } from './ingestion.js';
 import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics, initSaleValuationsCache, invalidateSaleValuationsCache, invalidateAnalyticsCache } from './queryEngine.js';
 import { seedAmenities, calculateLivabilityScore, initLivabilityCache, invalidateLivabilityCache, getProjectLivability } from './livabilityEngine.js';
-import { safeEqual, escapeHtml, verifyUnsubscribeToken } from './utils/security.js';
+import { safeEqual, escapeHtml, verifyUnsubscribeToken, checkAdminKey } from './utils/security.js';
+import { validateFilters } from './utils/validation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -84,91 +85,33 @@ const leadsLimiter = rateLimit({
 });
 
 // Step 3.4.1: Input Validation Middleware for Analytics Endpoints
-const DATE_REGEX = /^\d{4}-(0[1-9]|1[0-2])(-\d{2})?$/;
-
 function validateAnalyticsFilters(req, res, next) {
   const filters = req.body?.filters || req.body || {};
-
-  // 1. Date format & bounds validation
-  if (filters.dateFrom) {
-    if (!DATE_REGEX.test(filters.dateFrom)) {
-      return res.status(400).json({ error: 'Invalid dateFrom format. Expected YYYY-MM or YYYY-MM-DD.' });
-    }
-    const year = parseInt(filters.dateFrom.slice(0, 4), 10);
-    if (year < 2000 || year > 2100) {
-      return res.status(400).json({ error: 'dateFrom year must be between 2000 and 2100.' });
-    }
+  const result = validateFilters(filters);
+  if (!result.valid) {
+    return res.status(400).json({ error: result.error });
   }
-
-  if (filters.dateTo) {
-    if (!DATE_REGEX.test(filters.dateTo)) {
-      return res.status(400).json({ error: 'Invalid dateTo format. Expected YYYY-MM or YYYY-MM-DD.' });
-    }
-    const year = parseInt(filters.dateTo.slice(0, 4), 10);
-    if (year < 2000 || year > 2100) {
-      return res.status(400).json({ error: 'dateTo year must be between 2000 and 2100.' });
-    }
-  }
-
-  if (filters.dateFrom && filters.dateTo) {
-    if (filters.dateFrom > filters.dateTo) {
-      return res.status(400).json({ error: 'dateFrom cannot be greater than dateTo.' });
-    }
-    const dFrom = new Date(filters.dateFrom);
-    const dTo = new Date(filters.dateTo);
-    const diffYears = (dTo - dFrom) / (1000 * 60 * 60 * 24 * 365.25);
-    if (diffYears > 10) {
-      return res.status(400).json({ error: 'Date range cannot exceed 10 years.' });
-    }
-  }
-
-  // 2. Cap projects list at 50 items
-  if (Array.isArray(filters.projects) && filters.projects.length > 50) {
-    return res.status(400).json({ error: 'Cannot query more than 50 projects simultaneously.' });
-  }
-
-  // 3. Numeric fields validation
-  if (filters.radiusKm != null && filters.radiusKm !== '') {
-    const r = parseFloat(filters.radiusKm);
-    if (isNaN(r) || r < 0.1 || r > 10) {
-      return res.status(400).json({ error: 'radiusKm must be a number between 0.1 and 10 km.' });
-    }
-  }
-
-  if (filters.priceMin != null && filters.priceMin !== '') {
-    const p = parseFloat(filters.priceMin);
-    if (isNaN(p) || p < 0) {
-      return res.status(400).json({ error: 'priceMin must be a non-negative number.' });
-    }
-  }
-
-  if (filters.priceMax != null && filters.priceMax !== '') {
-    const p = parseFloat(filters.priceMax);
-    if (isNaN(p) || p < 0) {
-      return res.status(400).json({ error: 'priceMax must be a non-negative number.' });
-    }
-  }
-
   next();
 }
 
 // Ingestion Admin Auth Guard (Fail-closed independent of NODE_ENV - Step 1.3)
 const requireAdmin = (req, res, next) => {
-  const adminKey = process.env.ADMIN_API_KEY;
-  if (!adminKey || adminKey.length < 32 || adminKey === 'secure_admin_key_please_change') {
-    return res.status(503).json({ error: 'Admin API disabled: ADMIN_API_KEY is not securely configured.' });
-  }
-  const clientKey = req.get('x-admin-key');
-  if (!clientKey || !safeEqual(clientKey, adminKey)) {
-    return res.status(401).json({ error: 'Unauthorized: Valid X-Admin-Key header required.' });
+  const check = checkAdminKey(process.env.ADMIN_API_KEY, req.get('x-admin-key'));
+  if (!check.ok) {
+    return res.status(check.status).json({ error: check.error });
   }
   next();
 };
 app.use('/api/ingest', requireAdmin);
 
-// 1. Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// 1. Health check (Step 5.5: Return 503 if database check fails)
+app.get('/api/health', async (req, res) => {
+  try {
+    await dbGet('SELECT 1');
+    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ status: 'unhealthy', error: 'Database check failed', timestamp: new Date().toISOString() });
+  }
 });
 
 // 1a. SEO: Robots.txt & Dynamic Sitemap
@@ -795,11 +738,38 @@ async function startServer() {
   await initSaleValuationsCache();
   await cleanupExpiredLeads();
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Backend server running on http://localhost:${PORT}`);
   });
+
+  // Step 5.5: Graceful shutdown on SIGTERM / SIGINT
+  const shutdown = async (signal) => {
+    console.log(`[Shutdown] Received ${signal}. Starting graceful shutdown...`);
+    server.close(async () => {
+      console.log('[Shutdown] HTTP listener closed.');
+      try {
+        await closeDb();
+        console.log('[Shutdown] Database connection cleanly closed.');
+        process.exit(0);
+      } catch (dbErr) {
+        console.error('[Shutdown] Error closing database connection:', dbErr);
+        process.exit(1);
+      }
+    });
+
+    // Hard exit after 10s if hanging
+    setTimeout(() => {
+      console.error('[Shutdown] Forceful shutdown after 10s timeout.');
+      process.exit(1);
+    }, 10000).unref();
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
+// Step 5.5: Ensure startup failure exits non-zero so PM2/Docker triggers restart
 startServer().catch(err => {
   console.error('Failed to start server:', err);
+  process.exit(1);
 });

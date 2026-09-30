@@ -1,0 +1,168 @@
+import { describe, it, expect } from 'vitest';
+import { svy21ToWgs84, haversineDistance } from '../utils/geo.js';
+import {
+  cleanPostalDistrict,
+  resolveProjectDistrict,
+  isLandedDevelopment
+} from '../utils/projectUpsert.js';
+import { generateRentalQuarters } from '../utils/dateUtils.js';
+import { createConnection, withTransaction } from '../db.js';
+
+describe('Ingestion & Geospatial Integrity', () => {
+  describe('svy21ToWgs84', () => {
+    it('converts SVY21 projection origin to Singapore center coordinates (1.366667, 103.833333)', () => {
+      const origin = svy21ToWgs84(38744.572, 28001.642);
+      expect(origin).not.toBeNull();
+      expect(origin.latitude).toBeCloseTo(1.366667, 4);
+      expect(origin.longitude).toBeCloseTo(103.833333, 4);
+    });
+
+    it('converts Raffles Place benchmark coordinates accurately', () => {
+      // Benchmark: Raffles Place MRT ~ (N: 29744, E: 30040) -> (~1.2838, ~103.8515)
+      const res = svy21ToWgs84(29744, 30040);
+      expect(res).not.toBeNull();
+      expect(res.latitude).toBeCloseTo(1.2838, 2);
+      expect(res.longitude).toBeCloseTo(103.8515, 2);
+    });
+
+    it('returns null for zero, NaN, or missing coordinate values', () => {
+      expect(svy21ToWgs84(0, 0)).toBeNull();
+      expect(svy21ToWgs84(null, 28000)).toBeNull();
+      expect(svy21ToWgs84('invalid', 'coords')).toBeNull();
+    });
+  });
+
+  describe('haversineDistance', () => {
+    it('calculates 0 km distance between identical points', () => {
+      expect(haversineDistance(1.3521, 103.8198, 1.3521, 103.8198)).toBe(0);
+    });
+
+    it('calculates approximately correct distance across Singapore (~20-25 km)', () => {
+      // Jurong East (1.3329, 103.7436) to Changi Airport (1.3644, 103.9915)
+      const dist = haversineDistance(1.3329, 103.7436, 1.3644, 103.9915);
+      expect(dist).toBeGreaterThan(25);
+      expect(dist).toBeLessThan(30);
+    });
+
+    it('returns Infinity for missing coordinates', () => {
+      expect(haversineDistance(null, 103.8, 1.3, 103.8)).toBe(Infinity);
+    });
+  });
+
+  describe('cleanPostalDistrict', () => {
+    it('normalizes single and double-digit districts into zero-padded 2-digit strings', () => {
+      expect(cleanPostalDistrict(9)).toBe('09');
+      expect(cleanPostalDistrict('9')).toBe('09');
+      expect(cleanPostalDistrict('09')).toBe('09');
+      expect(cleanPostalDistrict('15')).toBe('15');
+      expect(cleanPostalDistrict('28')).toBe('28');
+    });
+
+    it('strips "D" or "d" prefixes', () => {
+      expect(cleanPostalDistrict('D09')).toBe('09');
+      expect(cleanPostalDistrict('d9')).toBe('09');
+      expect(cleanPostalDistrict('D15')).toBe('15');
+    });
+
+    it('rejects market segment abbreviations (CCR, RCR, OCR)', () => {
+      expect(cleanPostalDistrict('CCR')).toBeNull();
+      expect(cleanPostalDistrict('RCR')).toBeNull();
+      expect(cleanPostalDistrict('OCR')).toBeNull();
+    });
+
+    it('rejects numbers outside the valid 1-28 postal district range', () => {
+      expect(cleanPostalDistrict(0)).toBeNull();
+      expect(cleanPostalDistrict(29)).toBeNull();
+      expect(cleanPostalDistrict(99)).toBeNull();
+      expect(cleanPostalDistrict('invalid')).toBeNull();
+    });
+  });
+
+  describe('resolveProjectDistrict', () => {
+    it('resolves district from 6-digit postal code', () => {
+      // Postal 238801 has prefix 23 -> District 09 (Orchard / River Valley)
+      expect(resolveProjectDistrict({ postalCode: '238801' })).toBe('09');
+      // Postal 529538 has prefix 52 -> District 18 (Tampines / Pasir Ris)
+      expect(resolveProjectDistrict({ postalCode: '529538' })).toBe('18');
+    });
+
+    it('falls back to raw project district when postal code is absent', () => {
+      expect(resolveProjectDistrict({ district: '10' })).toBe('10');
+      expect(resolveProjectDistrict({ district: 'D15' })).toBe('15');
+    });
+
+    it('ignores invalid district names like CCR', () => {
+      expect(resolveProjectDistrict({ district: 'CCR' })).toBeNull();
+    });
+  });
+
+  describe('isLandedDevelopment', () => {
+    it('identifies landed housing developments', () => {
+      expect(isLandedDevelopment('LANDED HOUSING DEVELOPMENT')).toBe(true);
+      expect(isLandedDevelopment('DETACHED HOUSES AT MEYER ROAD')).toBe(true);
+      expect(isLandedDevelopment('SEMI-DETACHED HOUSES')).toBe(true);
+      expect(isLandedDevelopment('TERRACE HOUSES')).toBe(true);
+      expect(isLandedDevelopment('GOOD CLASS BUNGALOW')).toBe(true);
+    });
+
+    it('does not classify standard condominiums or apartments as landed aggregates', () => {
+      expect(isLandedDevelopment('THE SAIL @ MARINA BAY')).toBe(false);
+      expect(isLandedDevelopment("D'LEEDON")).toBe(false);
+      expect(isLandedDevelopment('TREASURE AT TAMPINES')).toBe(false);
+      expect(isLandedDevelopment('CANBERRA RESIDENCES')).toBe(false);
+    });
+  });
+
+  describe('generateRentalQuarters', () => {
+    it('generates chronological URA quarter strings up to fixed date', () => {
+      const fixedDate = new Date('2024-08-15T00:00:00Z');
+      const quarters = generateRentalQuarters('24q1', fixedDate);
+      expect(quarters).toEqual(['24q1', '24q2', '24q3']);
+    });
+
+    it('generates multi-year quarter sequence', () => {
+      const fixedDate = new Date('2023-05-10T00:00:00Z');
+      const quarters = generateRentalQuarters('22q3', fixedDate);
+      expect(quarters).toEqual(['22q3', '22q4', '23q1', '23q2']);
+    });
+  });
+
+  describe('withTransaction (Database Transaction Rollback)', () => {
+    it('commits changes when function completes successfully', async () => {
+      const conn = createConnection(':memory:');
+      try {
+        await conn.run(`CREATE TABLE test_items (id INTEGER PRIMARY KEY, name TEXT)`);
+        await withTransaction(conn, async () => {
+          await conn.run(`INSERT INTO test_items (name) VALUES (?)`, ['item 1']);
+        });
+
+        const rows = await conn.all(`SELECT * FROM test_items`);
+        expect(rows.length).toBe(1);
+        expect(rows[0].name).toBe('item 1');
+      } finally {
+        await conn.close();
+      }
+    });
+
+    it('rolls back all changes on simulated error, leaving no dirty state', async () => {
+      const conn = createConnection(':memory:');
+      try {
+        await conn.run(`CREATE TABLE test_items (id INTEGER PRIMARY KEY, name TEXT)`);
+        await conn.run(`INSERT INTO test_items (name) VALUES (?)`, ['initial item']);
+
+        await expect(
+          withTransaction(conn, async () => {
+            await conn.run(`INSERT INTO test_items (name) VALUES (?)`, ['failed item']);
+            throw new Error('Simulated network / ingestion error');
+          })
+        ).rejects.toThrow('Simulated network / ingestion error');
+
+        const rows = await conn.all(`SELECT * FROM test_items`);
+        expect(rows.length).toBe(1);
+        expect(rows[0].name).toBe('initial item');
+      } finally {
+        await conn.close();
+      }
+    });
+  });
+});

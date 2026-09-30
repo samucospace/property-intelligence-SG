@@ -79,3 +79,22 @@ export function verifyUnsubscribeToken(email, token) {
 
   return false;
 }
+
+/**
+ * Validates admin credentials with fail-closed semantics (Step 1.3).
+ * Rejects undefined, empty, default placeholder, or short (< 32 char) keys.
+ */
+export function checkAdminKey(configuredKey, providedKey) {
+  if (
+    !configuredKey ||
+    typeof configuredKey !== 'string' ||
+    configuredKey.length < 32 ||
+    configuredKey === 'secure_admin_key_please_change'
+  ) {
+    return { ok: false, status: 503, error: 'Admin API disabled: ADMIN_API_KEY is not securely configured.' };
+  }
+  if (!providedKey || typeof providedKey !== 'string' || !safeEqual(providedKey, configuredKey)) {
+    return { ok: false, status: 401, error: 'Unauthorized: Valid X-Admin-Key header required.' };
+  }
+  return { ok: true };
+}

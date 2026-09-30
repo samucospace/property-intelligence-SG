@@ -1,20 +1,6 @@
 import { dbAll, dbRun, dbGet, createConnection, withTransaction } from './db.js';
 import { seedAmenitiesData } from './amenitiesData.js';
-
-export const AMENITIES_SEED_VERSION = 1;
-
-// Haversine distance in kilometers
-function haversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth radius km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+import { haversineDistance } from './utils/geo.js';
 
 // In-memory caches for startup pre-calculation (Phase 1.1)
 let parsedAmenitiesCache = null;
@@ -186,7 +172,7 @@ export async function calculateLivabilityScore(lat, lng, customWeights = null, p
   };
 
   allAmenities.forEach(a => {
-    const distKm = haversineKm(lat, lng, a.latitude, a.longitude);
+    const distKm = haversineDistance(lat, lng, a.latitude, a.longitude);
     const distMeters = Math.round(distKm * 1000);
     const walkTimeMins = Math.round(distMeters / 80); // ~80m/min walking speed
 
