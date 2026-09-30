@@ -194,22 +194,9 @@ export default function MonetizationBanner({ variant = 'agent', currentProject =
               <span style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--color-text-charcoal)' }}>
                 Thinking of Buying, Selling, or Leasing in this Area?
               </span>
-              <span style={{
-                background: '#D1FAE5',
-                color: '#065F46',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                <ShieldCheck size={12} /> Verified CEA Partner
-              </span>
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              Connect with our licensed district property specialist for on-the-ground unit transaction price reports, recent floor-tier pricing insights, and private advisory.
+              Connect with an agent for no-obligation on-the-ground intelligence and expert advice.
             </div>
           </div>
         </div>
@@ -227,7 +214,7 @@ export default function MonetizationBanner({ variant = 'agent', currentProject =
               boxShadow: '0 2px 8px rgba(79, 121, 66, 0.25)'
             }}
           >
-            Consult District Specialist (Free) <ArrowRight size={14} />
+            Connect with an Agent <ArrowRight size={14} />
           </button>
         </div>
       </div>
@@ -239,7 +226,7 @@ export default function MonetizationBanner({ variant = 'agent', currentProject =
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: 'var(--color-text-charcoal)' }}>
                 <UserCheck size={20} color="var(--color-primary-green)" />
-                Verified CEA Real Estate Specialist Advisory
+                Connect with an Agent
               </h3>
               <X size={18} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setShowModal(false)} />
             </div>
