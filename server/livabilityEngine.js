@@ -43,6 +43,65 @@ export async function getParsedAmenities() {
   return parsedAmenitiesCache;
 }
 
+// Grade Label & Color Helpers (Step 3.1)
+export function getGradeLabel(score) {
+  if (score == null) return 'Location unavailable';
+  if (score >= 80) return "Walker's Paradise";
+  if (score >= 65) return 'Highly Walkable';
+  if (score >= 50) return 'Somewhat Walkable';
+  return 'Car Dependent';
+}
+
+export function getGradeColor(score) {
+  if (score == null) return '#94A3B8';
+  if (score >= 80) return '#10B981';
+  if (score >= 65) return '#0EA5E9';
+  if (score >= 50) return '#F59E0B';
+  return '#6B7280';
+}
+
+// Pre-compute Livability Scores into projects table (Step 3.1)
+export async function precomputeAllProjectLivability(conn = null) {
+  const localConn = conn || createConnection();
+  const shouldClose = !conn;
+
+  try {
+    console.log('[Livability] Pre-computing livability scores into projects table...');
+    const amenities = await getParsedAmenities();
+    const projects = await localConn.all(`SELECT project_id, latitude, longitude FROM projects`);
+
+    await withTransaction(localConn, async () => {
+      for (const p of projects) {
+        if (!p.latitude || !p.longitude) {
+          await localConn.run(
+            `UPDATE projects SET livability_score = NULL, livability_data = NULL WHERE project_id = ?`,
+            [p.project_id]
+          );
+          continue;
+        }
+
+        const full = await calculateLivabilityScore(p.latitude, p.longitude, null, amenities, { trimmed: false });
+        const dataPayload = JSON.stringify({
+          subScores: full.subScores,
+          nearest: full.nearest
+        });
+
+        await localConn.run(
+          `UPDATE projects SET livability_score = ?, livability_data = ? WHERE project_id = ?`,
+          [full.score, dataPayload, p.project_id]
+        );
+      }
+    });
+
+    console.log(`[Livability] Successfully pre-computed livability for ${projects.length} projects.`);
+    invalidateLivabilityCache();
+  } finally {
+    if (shouldClose) {
+      await localConn.close();
+    }
+  }
+}
+
 // 1. Seed or synchronize Amenities Table
 export async function seedAmenities(forceRefresh = false) {
   const conn = createConnection();
@@ -73,6 +132,10 @@ export async function seedAmenities(forceRefresh = false) {
 
     console.log(`Successfully seeded ${seedAmenitiesData.length} amenities into database.`);
     invalidateLivabilityCache();
+
+    // Step 3.1: Pre-compute livability after amenity reseed
+    await precomputeAllProjectLivability(conn);
+
     return seedAmenitiesData.length;
   } finally {
     await conn.close();
@@ -217,23 +280,9 @@ export async function calculateLivabilityScore(lat, lng, customWeights = null, p
     subScores.park * weights.park
   );
 
-  // Determine Grade Label & Color
-  let label = 'Somewhat Walkable';
-  let color = '#D97706'; // Amber
-
-  if (totalScore >= 80) {
-    label = 'Walker\'s Paradise';
-    color = '#10B981'; // Emerald
-  } else if (totalScore >= 65) {
-    label = 'Highly Walkable';
-    color = '#0EA5E9'; // Teal/Blue
-  } else if (totalScore >= 50) {
-    label = 'Somewhat Walkable';
-    color = '#F59E0B'; // Amber
-  } else {
-    label = 'Car Dependent';
-    color = '#6B7280'; // Grey
-  }
+  // Determine Grade Label & Color using canonical helpers
+  const label = getGradeLabel(totalScore);
+  const color = getGradeColor(totalScore);
 
   if (options.trimmed) {
     return {
@@ -267,44 +316,77 @@ export function invalidateLivabilityCache() {
   trimmedLivabilityCache.clear();
 }
 
-// Initialize in-memory cache for all developments (called on server start)
+// Initialize livability on server start (ensures pre-computed scores exist in database)
 export async function initLivabilityCache() {
   invalidateLivabilityCache();
-  const amenities = await getParsedAmenities();
-  const projects = await dbAll(`SELECT project_id, latitude, longitude FROM projects WHERE latitude IS NOT NULL AND longitude IS NOT NULL`);
-
-  for (const p of projects) {
-    const full = await calculateLivabilityScore(p.latitude, p.longitude, null, amenities, { trimmed: false });
-    defaultLivabilityCache.set(p.project_id, full);
-    trimmedLivabilityCache.set(p.project_id, {
-      score: full.score,
-      label: full.label,
-      color: full.color,
-      subScores: full.subScores
-    });
+  const check = await dbGet(`SELECT COUNT(livability_score) as cnt FROM projects WHERE latitude IS NOT NULL AND longitude IS NOT NULL`);
+  if (!check || check.cnt === 0) {
+    await precomputeAllProjectLivability();
   }
 }
 
-// Fast access helper using in-memory cache
+// Fast access helper using pre-computed database fields (Step 3.1)
 export async function getProjectLivability(projectId, lat, lng, customWeights = null, { trimmed = false } = {}) {
-  if (!customWeights && projectId) {
-    if (trimmed && trimmedLivabilityCache.has(projectId)) {
-      return trimmedLivabilityCache.get(projectId);
-    }
-    if (!trimmed && defaultLivabilityCache.has(projectId)) {
-      return defaultLivabilityCache.get(projectId);
+  // 1. Try reading pre-computed livability from projects table
+  if (projectId) {
+    const row = await dbGet(
+      `SELECT livability_score, livability_data, latitude, longitude FROM projects WHERE project_id = ?`,
+      [projectId]
+    );
+
+    if (row && (row.livability_score !== null || row.livability_data !== null)) {
+      let data = {};
+      try {
+        data = typeof row.livability_data === 'string' ? JSON.parse(row.livability_data) : (row.livability_data || {});
+      } catch (e) {
+        data = {};
+      }
+
+      const subScores = data.subScores || { mrt: null, school: null, hawker: null, supermarket: null, park: null };
+      const nearest = data.nearest || {};
+
+      if (!customWeights) {
+        return {
+          score: row.livability_score,
+          label: getGradeLabel(row.livability_score),
+          color: getGradeColor(row.livability_score),
+          subScores,
+          ...(trimmed ? {} : { nearest, weights: DEFAULT_WEIGHTS })
+        };
+      }
+
+      // Step 3.1: Compute custom-weight scores from stored sub-scores (weighted sum, no distance scan)
+      const weights = normalizeWeights(customWeights);
+      if (row.livability_score === null) {
+        return {
+          score: null,
+          label: 'Location unavailable',
+          color: '#94A3B8',
+          subScores,
+          ...(trimmed ? {} : { nearest, weights })
+        };
+      }
+
+      const customScore = Math.round(
+        (subScores.mrt || 0) * weights.mrt +
+        (subScores.school || 0) * weights.school +
+        (subScores.hawker || 0) * weights.hawker +
+        (subScores.supermarket || 0) * weights.supermarket +
+        (subScores.park || 0) * weights.park
+      );
+
+      return {
+        score: customScore,
+        label: getGradeLabel(customScore),
+        color: getGradeColor(customScore),
+        subScores,
+        ...(trimmed ? {} : { nearest, weights })
+      };
     }
   }
 
-  const res = await calculateLivabilityScore(lat, lng, customWeights, null, { trimmed });
-  if (!customWeights && projectId) {
-    if (trimmed) {
-      trimmedLivabilityCache.set(projectId, res);
-    } else {
-      defaultLivabilityCache.set(projectId, res);
-    }
-  }
-  return res;
+  // 2. Fallback for on-the-fly calculation if not yet stored
+  return calculateLivabilityScore(lat, lng, customWeights, null, { trimmed });
 }
 
 function normalizeWeights(raw) {

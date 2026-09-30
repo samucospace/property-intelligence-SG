@@ -158,21 +158,43 @@ async function main() {
   // 1. Fetch Latest 3M SORA rate
   const sora = await dbGet(`SELECT reference_month, sora_3m, sora_1m FROM sora_rates ORDER BY reference_month DESC LIMIT 1`);
 
-  // 2. Fetch Top 5 Gross Rental Yield Condominiums
+  // 2. Fetch Top 5 Gross Rental Yield Condominiums (Step 3.2: CTE query without cartesian explosion)
   const topYields = await dbAll(`
+    WITH rent_stats AS (
+      SELECT project_id,
+             COUNT(*)       AS rental_count,
+             AVG(rent_sgd)  AS avg_rent,
+             AVG(rent_psft) AS avg_rent_psft
+      FROM rental_transactions
+      WHERE lease_date >= strftime('%Y-%m', 'now', '-12 months')
+        AND rent_psft IS NOT NULL
+      GROUP BY project_id
+      HAVING COUNT(*) >= 5
+    ),
+    sale_stats AS (
+      SELECT project_id,
+             COUNT(*)       AS sale_count,
+             AVG(price_sgd) AS avg_sale_price,
+             AVG(psft_sgd)  AS avg_sale_psft
+      FROM property_transactions
+      WHERE contract_date >= date('now', '-24 months')
+        AND (property_type IN ('Apartment', 'Condominium') OR property_type IS NULL)
+        AND (no_of_units = 1 OR no_of_units IS NULL)
+      GROUP BY project_id
+      HAVING COUNT(*) >= 3
+    )
     SELECT p.project_name, p.postal_district, p.market_segment,
-           COUNT(r.rental_id) as rental_count,
-           ROUND(AVG(r.rent_sgd), 0) as avg_rent,
-           ROUND(AVG(r.rent_psft), 2) as avg_psft,
-           ROUND(AVG(t.price_sgd), 0) as avg_sale_price,
-           ROUND((AVG(r.rent_sgd) * 12.0 / AVG(t.price_sgd)) * 100, 2) as gross_yield
+           r.rental_count,
+           ROUND(r.avg_rent, 0)       AS avg_rent,
+           ROUND(r.avg_rent_psft, 2)  AS avg_psft,
+           ROUND(s.avg_sale_price, 0) AS avg_sale_price,
+           ROUND(r.avg_rent_psft * 12.0 / s.avg_sale_psft * 100, 2) AS gross_yield
     FROM projects p
-    JOIN rental_transactions r ON p.project_id = r.project_id
-    JOIN property_transactions t ON p.project_id = t.project_id
-    GROUP BY p.project_id
-    HAVING COUNT(r.rental_id) >= 5 AND AVG(t.price_sgd) > 600000
+    JOIN rent_stats r ON r.project_id = p.project_id
+    JOIN sale_stats s ON s.project_id = p.project_id
+    WHERE p.is_landed_aggregate = 0
     ORDER BY gross_yield DESC
-    LIMIT 5
+    LIMIT 5;
   `);
 
   // 3. Fetch 3 Recent Notable Transactions

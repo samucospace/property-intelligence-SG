@@ -3,6 +3,9 @@ import crypto from 'crypto';
 import { dbRun, dbGet, dbAll, createConnection, withTransaction } from './db.js';
 import { generateRentalQuarters } from './utils/dateUtils.js';
 import { normalizeStreetName, isLandedDevelopment } from './utils/streetUtils.js';
+import { classifyTenure } from './utils/tenureUtils.js';
+import { normalizeBedroom } from './utils/bedroomUtils.js';
+import { refreshProjectBenchmarks } from './queryEngine.js';
 
 // Helper: MD5 Hash for deterministic transaction deduplication (Step 2.5: includes occurrenceIndex and all key fields)
 export function generateTxHash(projName, dateStr, price, area, floorRange, occurrenceIndex = 1, noOfUnits = 1, propertyType = '', district = '') {
@@ -329,8 +332,16 @@ export async function fetchUraData(accessKey) {
                 // Step 2.4: Store null instead of invented defaults
                 const floorRange = tx.floorRange || null;
                 const tenure = tx.tenure || null;
+                const tenureClass = classifyTenure(tenure);
                 const typeOfSale = tx.typeOfSale === '1' ? 'New Sale' : tx.typeOfSale === '2' ? 'Sub Sale' : (tx.typeOfSale === '3' ? 'Resale' : (tx.typeOfSale || null));
                 const propertyType = tx.propertyType || null;
+
+                if (tenureClass) {
+                  await conn.run(
+                    `UPDATE projects SET tenure_class = ? WHERE project_id = ? AND (tenure_class IS NULL OR (tenure_class != 'freehold' AND ? = 'freehold'))`,
+                    [tenureClass, projId, tenureClass]
+                  );
+                }
 
                 // Step 2.5: Occurrence tracking preserves genuine duplicate records with identical price/area
                 const sig = `${contractDate}|${priceSgd}|${areaSqm}|${floorRange || ''}|${noOfUnits}`;
@@ -342,9 +353,9 @@ export async function fetchUraData(accessKey) {
                 try {
                   await conn.run(
                     `INSERT INTO property_transactions 
-                     (project_id, area_sqm, area_sqft, price_sgd, psqm_sgd, psft_sgd, contract_date, floor_range, tenure, type_of_sale, property_type, no_of_units, raw_hash)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [projId, areaSqm, areaSqft, priceSgd, psqmSgd, psftSgd, contractDate, floorRange, tenure, typeOfSale, propertyType, noOfUnits, rawHash]
+                     (project_id, area_sqm, area_sqft, price_sgd, psqm_sgd, psft_sgd, contract_date, floor_range, tenure, type_of_sale, property_type, no_of_units, tenure_class, raw_hash)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [projId, areaSqm, areaSqft, priceSgd, psqmSgd, psftSgd, contractDate, floorRange, tenure, typeOfSale, propertyType, noOfUnits, tenureClass, rawHash]
                   );
                   batchInserted++;
                   totalIngested++;
@@ -436,7 +447,7 @@ export async function fetchUraData(accessKey) {
                   rentPsqm = parseFloat((rentSgd / sqm).toFixed(2));
                 }
 
-                const bedroomCount = r.noOfBedRoom ? `${r.noOfBedRoom}-Bedder` : null;
+                const bedroomCount = normalizeBedroom(r.noOfBedRoom);
                 const floorAreaRange = r.areaSqft ? `${r.areaSqft} sqft` : (r.areaSqm ? `${r.areaSqm} sqm` : null);
                 const propType = r.propertyType || null;
 
@@ -485,6 +496,9 @@ export async function fetchUraData(accessKey) {
     } catch (mErr) {
       console.warn('Median rental benchmark warning:', mErr.message);
     }
+
+    // Step 3.1: Automatically refresh project benchmarks after live ingestion
+    await refreshProjectBenchmarks(conn);
 
     return {
       status: salesBatchErrors.length === 0 && quarterErrors.length === 0 ? 'success' : 'partial_success',
@@ -557,8 +571,16 @@ export async function importRealUraData(jsonData) {
           const psftSgd = priceSgd / areaSqft;
           const floorRange = tx.floorRange || tx.floor_range || null;
           const tenure = tx.tenure || null;
+          const tenureClass = classifyTenure(tenure);
           const typeOfSale = tx.typeOfSale === '1' ? 'New Sale' : tx.typeOfSale === '2' ? 'Sub Sale' : (tx.typeOfSale === '3' ? 'Resale' : (tx.typeOfSale || null));
           const propertyType = tx.propertyType || tx.property_type || null;
+
+          if (tenureClass) {
+            await conn.run(
+              `UPDATE projects SET tenure_class = ? WHERE project_id = ? AND (tenure_class IS NULL OR (tenure_class != 'freehold' AND ? = 'freehold'))`,
+              [tenureClass, projId, tenureClass]
+            );
+          }
 
           const sig = `${contractDate}|${priceSgd}|${areaSqm}|${floorRange || ''}|${noOfUnits}`;
           const occurrenceIndex = (txOccurrenceTracker.get(sig) || 0) + 1;
@@ -569,9 +591,9 @@ export async function importRealUraData(jsonData) {
           try {
             await conn.run(
               `INSERT INTO property_transactions 
-               (project_id, area_sqm, area_sqft, price_sgd, psqm_sgd, psft_sgd, contract_date, floor_range, tenure, type_of_sale, property_type, no_of_units, raw_hash)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [projId, areaSqm, areaSqft, priceSgd, psqmSgd, psftSgd, contractDate, floorRange, tenure, typeOfSale, propertyType, noOfUnits, rawHash]
+               (project_id, area_sqm, area_sqft, price_sgd, psqm_sgd, psft_sgd, contract_date, floor_range, tenure, type_of_sale, property_type, no_of_units, tenure_class, raw_hash)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [projId, areaSqm, areaSqft, priceSgd, psqmSgd, psftSgd, contractDate, floorRange, tenure, typeOfSale, propertyType, noOfUnits, tenureClass, rawHash]
             );
             totalSalesIngested++;
           } catch (e) {
@@ -644,7 +666,7 @@ export async function importRealUraData(jsonData) {
             rentPsqm = parseFloat((rentSgd / sqm).toFixed(2));
           }
 
-          const bedroomCount = r.noOfBedRoom ? `${r.noOfBedRoom}-Bedder` : (r.bedroom_count || null);
+          const bedroomCount = normalizeBedroom(r.noOfBedRoom || r.bedroom_count);
           const floorAreaRange = r.areaSqft ? `${r.areaSqft} sqft` : (r.areaSqm ? `${r.areaSqm} sqm` : (r.floor_area_range || null));
           const propertyType = r.propertyType || r.property_type || null;
 
@@ -672,6 +694,9 @@ export async function importRealUraData(jsonData) {
         }
       }
     });
+
+    // Step 3.1: Automatically refresh project benchmarks after bulk import
+    await refreshProjectBenchmarks(conn);
 
     console.log(`Real URA Data Import complete: ${totalSalesIngested} sales (skipped ${skippedSalesNoDate} without date), ${totalRentalsIngested} rentals (skipped ${skippedRentalsNoDate} without date).`);
     return { status: 'success', totalSalesIngested, totalRentalsIngested, skippedSalesNoDate, skippedRentalsNoDate };

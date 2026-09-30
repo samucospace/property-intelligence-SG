@@ -19,8 +19,15 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Trust reverse proxy (Caddy / Nginx / Cloudflare)
+// Trust reverse proxy (Caddy / Nginx / Cloudflare - Step 1.4 & 3.4.3)
 app.set('trust proxy', 1);
+
+// Step 3.4.6: Request ID tracking middleware
+app.use((req, res, next) => {
+  req.id = crypto.randomUUID();
+  res.setHeader('X-Request-ID', req.id);
+  next();
+});
 
 // Security & Performance middlewares
 app.use(helmet({
@@ -41,7 +48,9 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+
+// Step 3.4.2: Strict 100kb body limit for public routes
+app.use(express.json({ limit: '100kb' }));
 
 // General Rate Limiter (300 requests per 15 minutes per IP)
 const apiLimiter = rateLimit({
@@ -53,7 +62,86 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// Ingestion Admin Auth Guard (Fail-closed independent of NODE_ENV)
+// Step 3.4.4: Stricter rate limiter for expensive analytics routes (120 req / 5 min)
+const analyticsLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many analytics queries from this IP, please try again later.' }
+});
+app.use('/api/analytics', analyticsLimiter);
+
+// Step 3.4.1: Input Validation Middleware for Analytics Endpoints
+const DATE_REGEX = /^\d{4}-(0[1-9]|1[0-2])(-\d{2})?$/;
+
+function validateAnalyticsFilters(req, res, next) {
+  const filters = req.body?.filters || req.body || {};
+
+  // 1. Date format & bounds validation
+  if (filters.dateFrom) {
+    if (!DATE_REGEX.test(filters.dateFrom)) {
+      return res.status(400).json({ error: 'Invalid dateFrom format. Expected YYYY-MM or YYYY-MM-DD.' });
+    }
+    const year = parseInt(filters.dateFrom.slice(0, 4), 10);
+    if (year < 2000 || year > 2100) {
+      return res.status(400).json({ error: 'dateFrom year must be between 2000 and 2100.' });
+    }
+  }
+
+  if (filters.dateTo) {
+    if (!DATE_REGEX.test(filters.dateTo)) {
+      return res.status(400).json({ error: 'Invalid dateTo format. Expected YYYY-MM or YYYY-MM-DD.' });
+    }
+    const year = parseInt(filters.dateTo.slice(0, 4), 10);
+    if (year < 2000 || year > 2100) {
+      return res.status(400).json({ error: 'dateTo year must be between 2000 and 2100.' });
+    }
+  }
+
+  if (filters.dateFrom && filters.dateTo) {
+    if (filters.dateFrom > filters.dateTo) {
+      return res.status(400).json({ error: 'dateFrom cannot be greater than dateTo.' });
+    }
+    const dFrom = new Date(filters.dateFrom);
+    const dTo = new Date(filters.dateTo);
+    const diffYears = (dTo - dFrom) / (1000 * 60 * 60 * 24 * 365.25);
+    if (diffYears > 10) {
+      return res.status(400).json({ error: 'Date range cannot exceed 10 years.' });
+    }
+  }
+
+  // 2. Cap projects list at 50 items
+  if (Array.isArray(filters.projects) && filters.projects.length > 50) {
+    return res.status(400).json({ error: 'Cannot query more than 50 projects simultaneously.' });
+  }
+
+  // 3. Numeric fields validation
+  if (filters.radiusKm != null && filters.radiusKm !== '') {
+    const r = parseFloat(filters.radiusKm);
+    if (isNaN(r) || r < 0.1 || r > 10) {
+      return res.status(400).json({ error: 'radiusKm must be a number between 0.1 and 10 km.' });
+    }
+  }
+
+  if (filters.priceMin != null && filters.priceMin !== '') {
+    const p = parseFloat(filters.priceMin);
+    if (isNaN(p) || p < 0) {
+      return res.status(400).json({ error: 'priceMin must be a non-negative number.' });
+    }
+  }
+
+  if (filters.priceMax != null && filters.priceMax !== '') {
+    const p = parseFloat(filters.priceMax);
+    if (isNaN(p) || p < 0) {
+      return res.status(400).json({ error: 'priceMax must be a non-negative number.' });
+    }
+  }
+
+  next();
+}
+
+// Ingestion Admin Auth Guard (Fail-closed independent of NODE_ENV - Step 1.3)
 const requireAdmin = (req, res, next) => {
   const adminKey = process.env.ADMIN_API_KEY;
   if (!adminKey || adminKey.length < 32 || adminKey === 'secure_admin_key_please_change') {
@@ -81,7 +169,7 @@ app.get('/robots.txt', (req, res) => {
   res.send(`User-agent: *\nAllow: /\n\nSitemap: ${baseUrl}/sitemap.xml\n`);
 });
 
-app.get('/sitemap.xml', async (req, res) => {
+app.get('/sitemap.xml', async (req, res, next) => {
   try {
     const host = req.get('host');
     const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
@@ -101,13 +189,12 @@ app.get('/sitemap.xml', async (req, res) => {
     res.header('Content-Type', 'application/xml');
     res.send(xml);
   } catch (err) {
-    console.error('Error generating sitemap:', err);
-    res.status(500).send('Error generating sitemap');
+    next(err);
   }
 });
 
 // 1b. Lead Capture (Agent Advisory & Weekly Newsletter)
-app.post('/api/leads/submit', async (req, res) => {
+app.post('/api/leads/submit', async (req, res, next) => {
   try {
     const { name, email, phone, leadType, enquiryType, projectInterest, pdpaConsent, details } = req.body;
     if (!email || !email.includes('@')) {
@@ -129,8 +216,7 @@ app.post('/api/leads/submit', async (req, res) => {
     );
     res.json({ status: 'success', message: 'Enquiry received. An accredited CEA representative will be in touch.' });
   } catch (err) {
-    console.error('Error submitting lead:', err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -195,9 +281,9 @@ const handleUnsubscribe = async (req, res, isPost = false) => {
       </html>
     `);
   } catch (err) {
-    console.error('Unsubscribe error:', err);
+    console.error(`[Error] [Request ID: ${req.id || 'unknown'}] Unsubscribe error:`, err);
     if (isPost) {
-      res.status(500).json({ error: 'An error occurred processing your request.' });
+      res.status(500).json({ error: 'An error occurred processing your request.', requestId: req.id });
     } else {
       res.status(500).send('An error occurred processing your request.');
     }
@@ -208,54 +294,54 @@ app.get('/api/leads/unsubscribe', (req, res) => handleUnsubscribe(req, res, fals
 app.post('/api/leads/unsubscribe', (req, res) => handleUnsubscribe(req, res, true));
 
 // 2. Search Autocomplete
-app.get('/api/search/suggestions', async (req, res) => {
+app.get('/api/search/suggestions', async (req, res, next) => {
   try {
     const q = req.query.q || '';
     const suggestions = await getSearchSuggestions(q);
     res.json(suggestions);
   } catch (err) {
-    console.error('Error fetching suggestions:', err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-// 3. Price Trends & Analytics Query
-app.post('/api/analytics/price-trends', async (req, res) => {
+// 3. Price Trends & Analytics Query (with input validation)
+app.post('/api/analytics/price-trends', validateAnalyticsFilters, async (req, res, next) => {
   try {
     const filters = req.body.filters || req.body || {};
     const analytics = await getPriceAnalytics(filters);
     res.json(analytics);
   } catch (err) {
-    console.error('Error fetching analytics:', err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-// 3b. Rental Prices & Gross Rental Yield Analytics POST
-app.post('/api/analytics/rental-yields', async (req, res) => {
+// 3b. Rental Prices & Gross Rental Yield Analytics (with input validation)
+app.post('/api/analytics/rental-yields', validateAnalyticsFilters, async (req, res, next) => {
   try {
     const filters = req.body.filters || req.body || {};
     const analytics = await getRentalYieldAnalytics(filters);
     res.json(analytics);
   } catch (err) {
-    console.error('Error fetching rental yield analytics:', err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // 4. All Projects overview
-app.get('/api/projects', async (req, res) => {
+app.get('/api/projects', async (req, res, next) => {
   try {
-    const projects = await getAllProjects();
+    let lifestyleWeights = null;
+    if (req.query.weights) {
+      try { lifestyleWeights = JSON.parse(req.query.weights); } catch (e) {}
+    }
+    const projects = await getAllProjects(lifestyleWeights);
     res.json(projects);
   } catch (err) {
-    console.error('Error fetching projects:', err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // 5. Get Project Livability Score & Amenity Details
-app.get('/api/projects/:id/livability', async (req, res) => {
+app.get('/api/projects/:id/livability', async (req, res, next) => {
   try {
     const projectId = req.params.id;
     const project = await dbGet(`SELECT * FROM projects WHERE project_id = ?`, [projectId]);
@@ -282,13 +368,12 @@ app.get('/api/projects/:id/livability', async (req, res) => {
       livability
     });
   } catch (err) {
-    console.error('Error calculating project livability:', err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // 6. Get All Amenities for GIS Map Rendering
-app.get('/api/amenities', async (req, res) => {
+app.get('/api/amenities', async (req, res, next) => {
   try {
     const { category } = req.query;
     let sql = `SELECT amenity_id as id, category, name, latitude as lat, longitude as lng, details FROM amenities`;
@@ -305,13 +390,12 @@ app.get('/api/amenities', async (req, res) => {
     });
     res.json(amenities);
   } catch (err) {
-    console.error('Error fetching amenities:', err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-// 7. Bulk Import Real URA Data Payload (JSON Array or Object)
-app.post('/api/ingest/import-data', async (req, res) => {
+// 7. Bulk Import Real URA Data Payload (Dedicated 50mb limit only on this admin route)
+app.post('/api/ingest/import-data', express.json({ limit: '50mb' }), async (req, res, next) => {
   try {
     const { jsonData } = req.body;
     if (!jsonData) {
@@ -323,13 +407,12 @@ app.post('/api/ingest/import-data', async (req, res) => {
     invalidateAnalyticsCache();
     res.json(result);
   } catch (err) {
-    console.error('Error importing real URA dataset:', err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // 8. Trigger Live URA Data Fetch
-app.post('/api/ingest/ura', async (req, res) => {
+app.post('/api/ingest/ura', async (req, res, next) => {
   try {
     const { accessKey } = req.body;
     if (!accessKey) {
@@ -341,8 +424,7 @@ app.post('/api/ingest/ura', async (req, res) => {
     invalidateAnalyticsCache();
     res.json(result);
   } catch (err) {
-    console.error('Error executing URA live fetch:', err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -356,6 +438,19 @@ app.get('*', (req, res, next) => {
     return next();
   }
   res.sendFile(path.join(clientDist, 'index.html'));
+});
+
+// Step 3.4.6: Global Generic Error Handler with Request ID tracking
+app.use((err, req, res, next) => {
+  const reqId = req.id || 'unknown';
+  console.error(`[Error] [Request ID: ${reqId}] ${req.method} ${req.originalUrl}:`, err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(err.status || 500).json({
+    error: 'An internal server error occurred.',
+    requestId: reqId
+  });
 });
 
 // Startup logic
@@ -387,5 +482,3 @@ async function startServer() {
 startServer().catch(err => {
   console.error('Failed to start server:', err);
 });
-
-
