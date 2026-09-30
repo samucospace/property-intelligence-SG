@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { Building2, Database, Key, Percent, Layers, Calendar, ExternalLink, ShieldCheck, Info, FileText } from 'lucide-react';
+import { Building2, Database, Key, Percent, Layers, Calendar, ExternalLink, ShieldCheck, Info, FileText, AlertCircle } from 'lucide-react';
 import SearchHeader from './components/SearchHeader';
 import PropertyMap from './components/PropertyMap';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -57,6 +57,7 @@ export default function App() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [errorFeedback, setErrorFeedback] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -109,22 +110,37 @@ export default function App() {
       isFirstRender.current = false;
       return;
     }
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(window.location.search);
     if (filters.projects && filters.projects.length === 1) {
       params.set('project', filters.projects[0]);
+    } else {
+      params.delete('project');
     }
     if (filters.district) {
       params.set('district', filters.district);
+    } else {
+      params.delete('district');
     }
     if (filters.street) {
       params.set('street', filters.street);
+    } else {
+      params.delete('street');
     }
     if (filters.planningArea) {
       params.set('area', filters.planningArea);
+    } else {
+      params.delete('area');
+      params.delete('planningArea');
     }
     if (viewMode === 'rental') {
       params.set('mode', 'rental');
+    } else {
+      params.delete('mode');
     }
+    // Clean up one-shot query parameters
+    params.delete('q');
+    params.delete('enquire');
+
     const newSearch = params.toString();
     const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
     window.history.replaceState({}, '', newUrl);
@@ -168,6 +184,7 @@ export default function App() {
     abortControllerRef.current = controller;
 
     setLoading(true);
+    setErrorFeedback(null);
     try {
       const endpoint = viewMode === 'rental' ? '/api/analytics/rental-yields' : '/api/analytics/price-trends';
       const res = await axios.post(endpoint, {
@@ -182,6 +199,7 @@ export default function App() {
     } catch (err) {
       if (!axios.isCancel(err) && err.name !== 'CanceledError') {
         console.error(`Error loading ${viewMode} property analytics:`, err);
+        setErrorFeedback(`Unable to load ${viewMode === 'rental' ? 'rental yield' : 'transaction price'} analytics. Please check your connection or retry.`);
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -260,6 +278,42 @@ export default function App() {
           viewMode={viewMode}
           setViewMode={setViewMode}
         />
+
+        {/* Analytics Load Error Banner */}
+        {errorFeedback && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            color: '#991B1B',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '16px',
+            fontSize: '0.9rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <AlertCircle size={18} />
+              <span>{errorFeedback}</span>
+            </div>
+            <button
+              onClick={() => fetchAnalytics()}
+              style={{
+                background: '#DC2626',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '0.82rem'
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Metrics Summary Cards */}
         {viewMode === 'rental' ? (

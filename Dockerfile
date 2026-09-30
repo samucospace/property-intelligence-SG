@@ -30,6 +30,12 @@ COPY server/ ./server/
 # Copy compiled frontend from Stage 1 into client/dist for Express static serving
 COPY --from=client-builder /app/client/dist ./client/dist
 
+# Set ownership to node user
+RUN chown -R node:node /app
+
+# Switch to non-root user
+USER node
+
 # Expose server port
 EXPOSE 3001
 

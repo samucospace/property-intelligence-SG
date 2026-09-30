@@ -87,12 +87,15 @@ describe('Security Utilities', () => {
       expect(verifyUnsubscribeToken(email, legacyToken)).toBe(true);
     });
 
-    it('rejects legacy SHA-256 tokens after the cut-off date has passed', () => {
+    it('rejects legacy SHA-256 tokens after the cut-off date has passed or when unset', () => {
       process.env.UNSUBSCRIBE_SECRET = testSecret;
       process.env.ADMIN_API_KEY = 'legacy_secret_key_for_hash';
       process.env.LEGACY_UNSUB_UNTIL = '2020-01-01'; // In the past
 
       const legacyToken = legacySha256Token(email, process.env.ADMIN_API_KEY);
+      expect(verifyUnsubscribeToken(email, legacyToken)).toBe(false);
+
+      delete process.env.LEGACY_UNSUB_UNTIL;
       expect(verifyUnsubscribeToken(email, legacyToken)).toBe(false);
     });
   });

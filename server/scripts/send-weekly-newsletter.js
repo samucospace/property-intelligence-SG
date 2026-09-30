@@ -62,7 +62,7 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
         <!-- Benchmark Indicator -->
         <div style="text-align: center;">
           <div class="sora-badge">
-            📊 MAS Benchmark: 3M SORA at ${sora?.sora_3m || '2.40'}% p.a.
+            📊 MAS Benchmark: 3M SORA at ${sora?.sora_3m || '2.40'}% p.a.${sora?.reference_month ? ` (as of ${sora.reference_month})` : ''}
           </div>
         </div>
 
@@ -238,6 +238,11 @@ async function main() {
     process.exit(0);
   }
 
+  if (!process.env.UNSUBSCRIBE_SECRET) {
+    console.error('Fatal: UNSUBSCRIBE_SECRET must be configured before dispatching live newsletters to ensure secure 1-click unsubscribe compliance.');
+    process.exit(1);
+  }
+
   // 5. Send Live Emails via Resend
   console.log(`Dispatching to ${subscribers.length} subscribers via Resend...`);
   const resend = new Resend(resendApiKey);
@@ -272,7 +277,7 @@ async function main() {
   }
 
   console.log(`Newsletter dispatch completed: ${successCount} sent successfully, ${failCount} failed.`);
-  process.exit(0);
+  process.exit(failCount > 0 ? 1 : 0);
 }
 
 main().catch(err => {

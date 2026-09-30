@@ -45,12 +45,13 @@ app.use(helmet({
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"]
     },
-    reportOnly: true
+    reportOnly: process.env.NODE_ENV !== 'production'
   },
   crossOriginEmbedderPolicy: false
 }));
 app.use(compression());
-app.use(cors());
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
+app.use(cors(allowedOrigin ? { origin: allowedOrigin } : {}));
 
 // Step 3.4.2: Strict 100kb body limit for public routes (exempting dedicated 50mb import-data route)
 app.use((req, res, next) => {
@@ -376,14 +377,18 @@ app.get('/api/admin/leads', requireAdmin, async (req, res, next) => {
   }
 });
 
-app.get('/api/admin/leads/export.csv', async (req, res, next) => {
-  try {
-    const adminKey = process.env.ADMIN_API_KEY;
-    const providedKey = req.get('x-admin-key') || req.query.key;
-    if (!adminKey || adminKey.length < 32 || !providedKey || !safeEqual(providedKey, adminKey)) {
-      return res.status(401).send('Unauthorized: Valid admin key required.');
-    }
+function sanitizeCsvCell(val) {
+  if (val == null) return '""';
+  let str = String(val);
+  // Mitigate CSV Formula Injection (CWE-1236): prefix cells starting with =, +, -, @, \t, \r with single quote
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = "'" + str;
+  }
+  return `"${str.replace(/"/g, '""')}"`;
+}
 
+app.get('/api/admin/leads/export.csv', requireAdmin, async (req, res, next) => {
+  try {
     const leads = await dbAll(
       `SELECT lead_id, name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, confirmed_at, created_at
        FROM leads
@@ -394,15 +399,15 @@ app.get('/api/admin/leads/export.csv', async (req, res, next) => {
     for (const l of leads) {
       const row = [
         l.lead_id,
-        `"${(l.name || '').replace(/"/g, '""')}"`,
-        `"${(l.email || '').replace(/"/g, '""')}"`,
-        `"${(l.phone || '').replace(/"/g, '""')}"`,
-        l.lead_type,
-        `"${(l.enquiry_type || '').replace(/"/g, '""')}"`,
-        `"${(l.project_interest || '').replace(/"/g, '""')}"`,
+        sanitizeCsvCell(l.name),
+        sanitizeCsvCell(l.email),
+        sanitizeCsvCell(l.phone),
+        sanitizeCsvCell(l.lead_type),
+        sanitizeCsvCell(l.enquiry_type),
+        sanitizeCsvCell(l.project_interest),
         l.pdpa_consent,
-        l.confirmed_at || '',
-        l.created_at
+        sanitizeCsvCell(l.confirmed_at),
+        sanitizeCsvCell(l.created_at)
       ];
       csv += row.join(',') + '\n';
     }

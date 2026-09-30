@@ -41,6 +41,31 @@ export function escapeLike(str) {
 let saleValuationsCache = new Map();
 const analyticsQueryCache = new Map();
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
+const MAX_CACHE_ENTRIES = 50; // Cap memory footprint (~50 MB max)
+
+function getAnalyticsCache(key) {
+  const entry = analyticsQueryCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp >= CACHE_TTL_MS) {
+    analyticsQueryCache.delete(key);
+    return null;
+  }
+  // Refresh recency for LRU
+  analyticsQueryCache.delete(key);
+  analyticsQueryCache.set(key, entry);
+  return entry.data;
+}
+
+function setAnalyticsCache(key, data) {
+  if (analyticsQueryCache.has(key)) {
+    analyticsQueryCache.delete(key);
+  } else if (analyticsQueryCache.size >= MAX_CACHE_ENTRIES) {
+    // Evict least-recently-used entry
+    const oldestKey = analyticsQueryCache.keys().next().value;
+    if (oldestKey) analyticsQueryCache.delete(oldestKey);
+  }
+  analyticsQueryCache.set(key, { data, timestamp: Date.now() });
+}
 
 /**
  * Loads pre-computed 24-month rolling median sale benchmarks into memory cache (Step 3.1).
@@ -191,9 +216,9 @@ export async function getSearchSuggestions(q) {
 // 2. Price Analytics & Filter Query Engine
 export async function getPriceAnalytics(filters = {}) {
   const cacheKey = 'price:' + JSON.stringify(filters);
-  const cached = analyticsQueryCache.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
-    return cached.data;
+  const cachedData = getAnalyticsCache(cacheKey);
+  if (cachedData) {
+    return cachedData;
   }
 
   const defaultDates = getDefaultDateRange(5);
@@ -303,10 +328,10 @@ export async function getPriceAnalytics(filters = {}) {
         scatterPoints: [],
         mapProjects: [],
         totalCount: 0,
-        page: Number(page) || 1,
+        page: Math.max(1, parseInt(page, 10) || 1),
         limit: Math.min(Math.max(Number(limit) || 100, 1), 500)
       };
-      analyticsQueryCache.set(cacheKey, { data: emptyResult, timestamp: Date.now() });
+      setAnalyticsCache(cacheKey, emptyResult);
       return emptyResult;
     }
     const placeholders = matchedIds.map(() => '?').join(',');
@@ -440,8 +465,10 @@ export async function getPriceAnalytics(filters = {}) {
     )
   ]);
 
+  const sanitizedPage = Math.max(1, parseInt(page, 10) || 1);
   const summary = {
-    totalVolume: countRow?.totalCount || 0,
+    totalVolume: summaryRow?.total_count || 0,
+    filteredVolume: countRow?.totalCount || 0,
     medianPrice: summaryRow?.medianPrice || 0,
     medianPsqm: summaryRow?.medianPsqm || 0,
     medianPsft: summaryRow?.medianPsft || 0,
@@ -544,20 +571,20 @@ export async function getPriceAnalytics(filters = {}) {
     scatterPoints: scatter,
     mapProjects,
     totalCount: countRow?.totalCount || 0,
-    page: Number(page) || 1,
+    page: sanitizedPage,
     limit: sanitizedLimit
   };
 
-  analyticsQueryCache.set(cacheKey, { data: result, timestamp: Date.now() });
+  setAnalyticsCache(cacheKey, result);
   return result;
 }
 
 // 3. Rental Yield Analytics Query Engine
 export async function getRentalYieldAnalytics(filters = {}) {
   const cacheKey = 'rental:' + JSON.stringify(filters);
-  const cached = analyticsQueryCache.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
-    return cached.data;
+  const cachedData = getAnalyticsCache(cacheKey);
+  if (cachedData) {
+    return cachedData;
   }
 
   const defaultDates = getDefaultDateRange(5);
@@ -667,10 +694,10 @@ export async function getRentalYieldAnalytics(filters = {}) {
         rentalCaveats: [],
         mapProjects: [],
         totalCount: 0,
-        page: Number(page) || 1,
+        page: Math.max(1, parseInt(page, 10) || 1),
         limit: Math.min(Math.max(Number(limit) || 100, 1), 500)
       };
-      analyticsQueryCache.set(cacheKey, { data: emptyResult, timestamp: Date.now() });
+      setAnalyticsCache(cacheKey, emptyResult);
       return emptyResult;
     }
     const placeholders = matchedIds.map(() => '?').join(',');
@@ -693,7 +720,8 @@ export async function getRentalYieldAnalytics(filters = {}) {
   const summarySqlWhere = 'WHERE ' + summaryWhereClauses.join(' AND ');
 
   const sanitizedLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
-  const offset = ((Number(page) || 1) - 1) * sanitizedLimit;
+  const sanitizedPage = Math.max(1, parseInt(page, 10) || 1);
+  const offset = (sanitizedPage - 1) * sanitizedLimit;
 
   const [countRow, summaryRow, matchingSaleStats, timeSeriesRows, bedroomRows, caveats, mapRows] = await Promise.all([
     // 1. Total Count
@@ -948,20 +976,20 @@ export async function getRentalYieldAnalytics(filters = {}) {
     rentalCaveats,
     mapProjects,
     totalCount: countRow?.totalCount || 0,
-    page: Number(page) || 1,
+    page: sanitizedPage,
     limit: sanitizedLimit
   };
 
-  analyticsQueryCache.set(cacheKey, { data: result, timestamp: Date.now() });
+  setAnalyticsCache(cacheKey, result);
   return result;
 }
 
 // 5. Get all projects overview for map initialize (Step 3.1 & 3.3.4)
 export async function getAllProjects(lifestyleWeights = null) {
   const cacheKey = 'allProjects:' + JSON.stringify(lifestyleWeights);
-  const cached = analyticsQueryCache.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
-    return cached.data;
+  const cachedData = getAnalyticsCache(cacheKey);
+  if (cachedData) {
+    return cachedData;
   }
 
   // Reads pre-computed benchmarks and livability directly in one lightning-fast query (< 10ms)
@@ -1033,6 +1061,6 @@ export async function getAllProjects(lifestyleWeights = null) {
     };
   });
 
-  analyticsQueryCache.set(cacheKey, { data: result, timestamp: Date.now() });
+  setAnalyticsCache(cacheKey, result);
   return result;
 }

@@ -49,7 +49,7 @@ export function legacySha256Token(email, secret = process.env.ADMIN_API_KEY || '
  */
 export function legacyTokensAccepted() {
   const cutOff = process.env.LEGACY_UNSUB_UNTIL;
-  if (!cutOff) return true;
+  if (!cutOff) return false;
   const cutOffDate = new Date(cutOff);
   return !isNaN(cutOffDate.getTime()) && Date.now() <= cutOffDate.getTime();
 }
