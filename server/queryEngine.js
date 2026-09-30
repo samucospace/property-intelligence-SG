@@ -103,11 +103,17 @@ export async function getPriceAnalytics(filters = {}) {
   let whereClauses = ['t.contract_date >= ? AND t.contract_date <= ?', 't.area_sqm >= ? AND t.area_sqm <= ?'];
   let params = [dateFrom, dateTo, sizeMinSqm, sizeMaxSqm];
 
-  // Specific project names
+  // Specific project IDs or names
   if (Array.isArray(projects) && projects.length > 0) {
+    const isIdList = projects.every(p => typeof p === 'number' || (typeof p === 'string' && /^\d+$/.test(p.trim())));
     const placeholders = projects.map(() => '?').join(',');
-    whereClauses.push(`p.project_name IN (${placeholders})`);
-    params.push(...projects);
+    if (isIdList) {
+      whereClauses.push(`p.project_id IN (${placeholders})`);
+      params.push(...projects.map(Number));
+    } else {
+      whereClauses.push(`UPPER(p.project_name) IN (${placeholders})`);
+      params.push(...projects.map(p => String(p).toUpperCase()));
+    }
   }
 
   // Street filter
@@ -360,9 +366,15 @@ export async function getRentalYieldAnalytics(filters = {}) {
   let params = [dateFrom.substring(0, 7), dateTo.substring(0, 7), sizeMinSqm, sizeMaxSqm];
 
   if (Array.isArray(projects) && projects.length > 0) {
+    const isIdList = projects.every(p => typeof p === 'number' || (typeof p === 'string' && /^\d+$/.test(p.trim())));
     const placeholders = projects.map(() => '?').join(',');
-    whereClauses.push(`UPPER(p.project_name) IN (${placeholders})`);
-    params.push(...projects.map(p => String(p).toUpperCase()));
+    if (isIdList) {
+      whereClauses.push(`p.project_id IN (${placeholders})`);
+      params.push(...projects.map(Number));
+    } else {
+      whereClauses.push(`UPPER(p.project_name) IN (${placeholders})`);
+      params.push(...projects.map(p => String(p).toUpperCase()));
+    }
   }
 
   if (street) {
