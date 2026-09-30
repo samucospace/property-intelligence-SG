@@ -156,7 +156,7 @@ The Query Engine filters developments within bounding box `[lat_min, lat_max, ln
    * Map click / radius slider (100m – 5km).
 
 2. **Key Metric Summary Cards (Strictly Past 24 Months):**
-   * Estimated Median Transaction Price (past 24 months).
+   * Median Transaction Price (past 24 months).
    * Median Rate ($/sqft).
    * Transaction Volume (Past 24M) & Average Transaction Price.
 

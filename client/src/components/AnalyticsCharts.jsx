@@ -85,7 +85,7 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
           {activeTab === 'trend' ? (
             timeSeries.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={timeSeries} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+                <ComposedChart data={timeSeries} margin={{ top: 10, right: 20, left: 15, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
                   <XAxis
                     dataKey="month"
@@ -95,8 +95,19 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                     minTickGap={25}
                     dy={8}
                   />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#64748B' }} unit=" $" />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#64748B' }} />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 11, fill: '#64748B' }}
+                    tickFormatter={(val) => `$${Number(val).toLocaleString()}`}
+                    width={65}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 11, fill: '#64748B' }}
+                    tickFormatter={(val) => Number(val).toLocaleString()}
+                    width={45}
+                  />
                   <Tooltip
                     formatter={(value, name) => {
                       if (value == null) return ['N/A', name === 'avgRent' ? 'Average Rent' : name];
@@ -119,11 +130,23 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
           ) : (
             bedroomBreakdown.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={bedroomBreakdown} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+                <ComposedChart data={bedroomBreakdown} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
                   <XAxis dataKey="bedroom" tick={{ fontSize: 12, fill: '#334155', fontWeight: 600 }} dy={8} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#10B981' }} unit="%" domain={[0, 8]} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#0EA5E9' }} unit=" $" />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 11, fill: '#10B981' }}
+                    tickFormatter={(val) => `${val}%`}
+                    domain={[0, 8]}
+                    width={40}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 11, fill: '#0EA5E9' }}
+                    tickFormatter={(val) => `$${Number(val).toLocaleString()}`}
+                    width={65}
+                  />
                   <Tooltip
                     formatter={(value, name) => {
                       if (name === 'avgYield') return [`${value}%`, 'Gross Yield'];

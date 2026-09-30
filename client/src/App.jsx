@@ -154,7 +154,7 @@ export default function App() {
         {viewMode === 'rental' ? (
           <div className="metrics-grid">
             <div className="metric-card terracotta">
-              <span className="metric-title">Estimated Median Rent</span>
+              <span className="metric-title">Median Rent</span>
               <div className="metric-value" style={{ color: 'var(--color-primary-terracotta)' }}>
                 ${summary.medianRent ? summary.medianRent.toLocaleString() : '0'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/mo</span>
               </div>
@@ -198,7 +198,7 @@ export default function App() {
         ) : (
           <div className="metrics-grid">
             <div className="metric-card">
-              <span className="metric-title">Estimated Median Transaction Price</span>
+              <span className="metric-title">Median Transaction Price</span>
               <div className="metric-value" style={{ color: 'var(--color-primary-green)' }}>
                 ${summary.medianPrice ? Math.round(summary.medianPrice).toLocaleString() : '0'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>SGD</span>
               </div>
