@@ -134,7 +134,7 @@ The Query Engine filters developments within bounding box `[lat_min, lat_max, ln
    Aggregates transaction metrics by Month or Quarter based on selected filters (projects, street, planning area, district, radius, floor area range in sqft, `priceMin`, `priceMax`, `tenure` ['all' | 'freehold' | 'leasehold'], and transaction dates).
    * Headline summary metrics are computed strictly over the **past 24 months** relative to the latest available dataset record.
 
-3. `POST /api/analytics/rental-yield`
+3. `POST /api/analytics/rental-yields`
    Returns rental yield metrics and rental contract history filtered by project, area, date range, rent price bounds, and property tenure.
 
 4. `POST /api/ingest/ura` (Guarded by `X-Admin-Key`)

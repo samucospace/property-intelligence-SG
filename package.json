@@ -1,7 +1,7 @@
 {
   "name": "property-intelligence-sg",
   "version": "1.0.0",
-  "description": "Singapore Private Property Valuation Engine using URA Data Service & OneMap",
+  "description": "Singapore Home Intel - Real Estate Transaction Price Engine using URA Data Service & OneMap",
   "scripts": {
     "build": "npm --prefix client run build",
     "start": "node server/index.js",

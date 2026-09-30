@@ -1,4 +1,4 @@
-markdown_content = """# Design System Specification: Habitat Real Estate App
+# Design System Specification: Singapore Home Intel
 
 > **Philosophy:** *Minimal, Friendly, Warm.*
 > The goal of this design system is to make finding a home feel welcoming, calm, and approachable. It strips away technical real estate jargon and dense layouts in favor of warm natural tones, generous breathing room, soft rounded geometry, and legible typography.
