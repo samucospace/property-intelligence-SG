@@ -45,9 +45,11 @@ const CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
 /**
  * Loads pre-computed 24-month rolling median sale benchmarks into memory cache (Step 3.1).
  * Loads in < 2ms directly from project_benchmarks table.
+ * @param {object} [conn] Optional database connection for transaction/test isolation
  */
-export async function initSaleValuationsCache() {
-  const rows = await dbAll(`
+export async function initSaleValuationsCache(conn = null) {
+  const queryFn = conn ? conn.all.bind(conn) : dbAll;
+  const rows = await queryFn(`
     SELECT project_id, rolling_24m_median_price as median_price, rolling_24m_median_psft as median_psft
     FROM project_benchmarks
   `);
@@ -60,9 +62,9 @@ export async function initSaleValuationsCache() {
   }
 }
 
-export async function invalidateSaleValuationsCache() {
+export async function invalidateSaleValuationsCache(conn = null) {
   analyticsQueryCache.clear();
-  await initSaleValuationsCache();
+  await initSaleValuationsCache(conn);
 }
 
 export function invalidateAnalyticsCache() {
@@ -126,7 +128,7 @@ export async function refreshProjectBenchmarks(conn = null) {
       `);
     });
 
-    await initSaleValuationsCache();
+    await initSaleValuationsCache(localConn);
     invalidateAnalyticsCache();
     console.log('[Benchmarks] Project benchmarks successfully updated.');
   } finally {
@@ -211,6 +213,7 @@ export async function getPriceAnalytics(filters = {}) {
     priceMax = null,
     tenure = 'all',
     propertyType = 'condo',
+    lifestyleWeights = null,
     page = 1,
     limit = 100
   } = filters;
@@ -425,6 +428,7 @@ export async function getPriceAnalytics(filters = {}) {
        SELECT p.project_id AS id, p.project_name AS name, p.street_name AS street,
               p.postal_district AS district, p.market_segment AS segment, p.planning_area AS planningArea,
               p.latitude AS lat, p.longitude AS lng, p.geo_source AS locationQuality,
+              p.livability_score AS livabilityScore, p.livability_data AS livabilityData,
               r.cnt AS txCount,
               ROUND(AVG(CASE WHEN r.rn IN ((r.cnt + 1)/2, (r.cnt + 2)/2) THEN r.psqm_sgd END)) AS medianPsqm,
               ROUND(AVG(CASE WHEN r.rn IN ((r.cnt + 1)/2, (r.cnt + 2)/2) THEN r.psft_sgd END)) AS medianPsft
@@ -477,21 +481,61 @@ export async function getPriceAnalytics(filters = {}) {
     projectId: d.projectId
   }));
 
-  const mapProjects = mapRows.map(p => ({
-    id: p.id,
-    name: p.name,
-    street: p.street,
-    district: p.district,
-    planningArea: p.planningArea,
-    segment: p.segment,
-    lat: p.lat,
-    lng: p.lng,
-    txCount: p.txCount,
-    medianPsqm: p.medianPsqm,
-    medianPsft: p.medianPsft,
-    locationQuality: p.locationQuality,
-    livability: getProjectLivability(p.id) || null
-  }));
+  const mapProjects = mapRows.map(p => {
+    let livScore = p.livabilityScore;
+    let livSubScores = { mrt: null, school: null, hawker: null, supermarket: null, park: null };
+    let livNearest = {};
+
+    if (p.livabilityData) {
+      try {
+        const parsedData = typeof p.livabilityData === 'string' ? JSON.parse(p.livabilityData) : p.livabilityData;
+        livSubScores = parsedData.subScores || livSubScores;
+        livNearest = parsedData.nearest || livNearest;
+      } catch (e) {}
+    }
+
+    if (lifestyleWeights && livScore !== null) {
+      const weights = {
+        mrt: (lifestyleWeights.mrt || 0),
+        school: (lifestyleWeights.school || 0),
+        hawker: (lifestyleWeights.hawker || 0),
+        supermarket: (lifestyleWeights.supermarket || 0),
+        park: (lifestyleWeights.park || 0)
+      };
+      const sum = weights.mrt + weights.school + weights.hawker + weights.supermarket + weights.park;
+      if (sum > 0) {
+        livScore = Math.round(
+          ((livSubScores.mrt || 0) * weights.mrt +
+           (livSubScores.school || 0) * weights.school +
+           (livSubScores.hawker || 0) * weights.hawker +
+           (livSubScores.supermarket || 0) * weights.supermarket +
+           (livSubScores.park || 0) * weights.park) / sum
+        );
+      }
+    }
+
+    return {
+      id: p.id,
+      name: p.name,
+      street: p.street,
+      district: p.district,
+      planningArea: p.planningArea,
+      segment: p.segment,
+      lat: p.lat,
+      lng: p.lng,
+      txCount: p.txCount,
+      medianPsqm: p.medianPsqm,
+      medianPsft: p.medianPsft,
+      locationQuality: p.locationQuality,
+      livability: {
+        score: livScore,
+        label: getGradeLabel(livScore),
+        color: getGradeColor(livScore),
+        subScores: livSubScores,
+        nearest: livNearest
+      }
+    };
+  });
 
   const result = {
     summary,
@@ -886,11 +930,13 @@ export async function getRentalYieldAnalytics(filters = {}) {
       medianRentPsft: p.medianRentPsft,
       medianSaleValuation: val.medianPrice,
       grossYield,
+      locationQuality: p.locationQuality,
       livability: {
         score: livScore,
         label: getGradeLabel(livScore),
         color: getGradeColor(livScore),
-        subScores: livSubScores
+        subScores: livSubScores,
+        nearest: livNearest
       }
     };
   });
