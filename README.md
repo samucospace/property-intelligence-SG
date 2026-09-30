@@ -9,7 +9,7 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
 ## 🚀 Key Features
 
 - **Official Data Integrity & Transparent Geocoding**: Powered by official URA private residential caveats and rental contracts under the Singapore Open Data Licence, OneMap SVY21 coordinate geocoding, and OpenStreetMap amenities (ODbL, with attribution). Rental floor areas represent approximate contract ranges, and projects without exact coordinates are clearly designated at district centroids.
-- **Pre-Populated Database**: Includes ~3,400+ condominium developments, >128,000 official sales transaction caveats, and >405,000 rental contract records.
+- **Pre-Populated Database**: Includes 5,900+ condominium developments, >133,000 official sales transaction caveats, and >450,000 rental contract records (582,000+ total transactions with 99.3% authoritative Singapore postal districts).
 - **Transaction Price Focus**: Clear focus on actual transaction prices rather than automated appraisals.
 - **Past 24-Month Headline Metric Cards**: Top summary cards specifically reflect current market conditions based on transactions recorded within the past 24 months.
 - **Per Square Feet (PSFT) Standard**: Uses per square feet ($/sqft) metrics throughout the app for intuitive market comparison.
@@ -47,15 +47,15 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
   - Secure cryptographic 1-click Singapore PDPA unsubscribe route (`/api/leads/unsubscribe`).
   - Local preview generator (`--preview`).
 - **Programmatic SEO & Social Previews**:
-  - Dynamic XML sitemap (`/sitemap.xml`) indexing all 3,400+ Singapore condominium developments.
+  - Dynamic XML sitemap (`/sitemap.xml`) indexing all 5,900+ Singapore condominium developments.
   - Search engine directives (`/robots.txt`).
-  - OpenGraph and Twitter Cards for social sharing (WhatsApp & Telegram property discussion groups).
+  - OpenGraph and Twitter Cards for social sharing with high-resolution 1200×630 asset (`/og-image.png`).
   - Schema.org JSON-LD structured data.
 - **Production Hardening**:
   - Single-port Express serving (Express serves compiled React/Vite assets from `client/dist`).
   - Security headers via **`helmet`**, payload compression via **`compression`**, and anti-scraping rate limiting via **`express-rate-limit`**.
-  - Protected `/api/ingest/*` endpoints guarded by `X-Admin-Key`.
-  - Multi-stage `Dockerfile`, `docker-compose.yml`, and `Caddyfile` with automated Let's Encrypt SSL.
+  - Protected `/api/ingest/*` and `/api/admin/*` endpoints guarded by timing-safe `requireAdmin`.
+  - Multi-stage `Dockerfile` running as non-root `USER node`, `docker-compose.yml`, and `Caddyfile` with automated Let's Encrypt SSL.
 
 ---
 
@@ -83,9 +83,9 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
              ▼                           ▼
 ┌──────────────────────────┐    ┌──────────────────────────┐
 │  SQLite (property.db)    │    │ External Integrations    │
-│  - 3,400+ Condominiums   │    │ - URA Data Service API   │
-│  - 128k+ Sales Caveats   │    │ - Resend Email Gateway   │
-│  - 405k+ Rental Leases   │    │ - SLA OneMap / OSM       │
+│  - 5,900+ Condominiums   │    │ - URA Data Service API   │
+│  - 133k+ Sales Caveats   │    │ - Resend Email Gateway   │
+│  - 450k+ Rental Leases   │    │ - SLA OneMap / OSM       │
 │  - Amenities & Leads     │    │                          │
 └──────────────────────────┘    └──────────────────────────┘
 ```
@@ -189,7 +189,7 @@ cp server/.env.example server/.env
 ### Search Engine Optimization (SEO)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/sitemap.xml` | Dynamically generated XML sitemap with `<lastmod>` indexing all 3,400+ developments. |
+| `GET` | `/sitemap.xml` | Dynamically generated XML sitemap with `<lastmod>` indexing all 5,900+ developments. |
 | `GET` | `/robots.txt` | Crawler directives referencing `/sitemap.xml`. |
 
 ### Ingestion & Admin Pipeline (Protected by `X-Admin-Key`)
@@ -198,7 +198,7 @@ cp server/.env.example server/.env
 | `POST` | `/api/ingest/ura` | Body: `{ "accessKey": "..." }` — Triggers official URA live token exchange & batch download. |
 | `POST` | `/api/ingest/import-data` | Body: `{ "jsonData": [...] }` — Ingests raw official URA JSON exports into SQLite. |
 | `GET` | `/api/admin/leads` | Lists recent leads and subscribers in JSON format. |
-| `GET` | `/api/admin/leads/export.csv` | Downloads lead submissions as CSV (supports header or `?key=` auth). |
+| `GET` | `/api/admin/leads/export.csv` | Downloads lead submissions as CSV (protected by timing-safe `requireAdmin` with CSV formula injection defense). |
 
 ---
 
@@ -236,6 +236,15 @@ Performs an online, non-blocking snapshot using `VACUUM INTO`, verifies snapshot
 node server/scripts/backup-db.js
 ```
 
+### 5. Automated Clean Database Rebuild & Verification
+Performs an automated clean-slate ingest from official URA APIs, seeds amenities, calculates postal districts, segregates non-landed developments, pre-computes livability, and calculates true 24-month rolling median benchmarks:
+```bash
+npm run rebuild-db
+# or directly:
+node server/scripts/rebuild-clean-db.js
+```
+*(Requires `URA_ACCESS_KEY` in `server/.env`).*
+
 ---
 
 ## 🧪 Automated Testing Suite (Vitest)
@@ -249,11 +258,12 @@ npm test
 npm --prefix server test
 ```
 
-### Test Coverage Matrix
-* **`queryEngine.test.js`**: Exact median math (odd, even, sparse), `LIKE` wildcard escaping, chronological month sequences, gross annual yield math, date boundary validation (2000–2100, 10-year span, project limit), and tenure classification.
-* **`security.test.js`**: Constant-time comparison (`safeEqual`), HTML escaping (`escapeHtml`), HMAC-SHA256 unsubscribe token validation (verifying malformed, forged, and non-ASCII tokens fail safely without 500 errors), legacy token cut-off grace periods, and fail-closed admin guard checks.
-* **`ingestion.test.js`**: SVY21 projection origin and benchmark coordinate accuracy, Haversine distance, postal district normalization (`01`–`28`), 6-digit postal sector resolving, landed housing pattern matching, dynamic quarter generation, and SQLite transaction rollbacks (`withTransaction`).
-* **`leads.test.js`**: Mandatory PDPA consent enforcement, honeypot spam bot trapping, name/email length bounds, Singapore phone validation regex, and SQLite schema migrations + `ON CONFLICT` deduplication.
+### Test Coverage Matrix (68 Passing Tests Across 5 Suites)
+* **`queryEngine.test.js`** (21 tests): Exact median math (odd, even, sparse), `LIKE` wildcard escaping, chronological month sequences, gross annual yield math, date boundary validation (2000–2100, 10-year span, project limit), and tenure classification.
+* **`security.test.js`** (15 tests): Constant-time comparison (`safeEqual`), HTML escaping (`escapeHtml`), HMAC-SHA256 unsubscribe token validation (verifying malformed, forged, and non-ASCII tokens fail safely without 500 errors), fail-closed legacy token cut-off grace periods, and fail-closed admin guard checks.
+* **`ingestion.test.js`** (22 tests): SVY21 projection origin and benchmark coordinate accuracy, Haversine distance, postal district normalization (`01`–`28`), 6-digit postal sector resolving, landed housing pattern matching, dynamic quarter generation, and SQLite transaction rollbacks (`withTransaction`).
+* **`leads.test.js`** (7 tests): Mandatory PDPA consent enforcement, honeypot spam bot trapping, name/email length bounds, Singapore phone validation regex, and SQLite schema migrations + `ON CONFLICT` deduplication.
+* **`migrations.test.js`** (3 tests): Full migration lifecycle execution (001 through 007) from an empty SQLite database in CI, constant default safety, and independent price/psft median benchmark calculations.
 
 ---
 
@@ -272,14 +282,14 @@ npm --prefix server test
 3. **Configure environment and domain**:
    - Fill in `server/.env`.
    - Update `Caddyfile` with your live domain name.
-   - Set required variables: `ADMIN_API_KEY`, `UNSUBSCRIBE_SECRET`, `URA_ACCESS_KEY`, `TZ=Asia/Singapore`.
+   - Set required variables: `ADMIN_API_KEY`, `UNSUBSCRIBE_SECRET`, `BASE_URL`, `URA_ACCESS_KEY`, `TZ=Asia/Singapore`.
 4. **Launch with automated HTTPS**:
    ```bash
    docker compose up -d --build
    ```
 
 ### Option B: Bare Linux VPS with PM2
-The provided `ecosystem.config.cjs` manages the unified web app alongside built-in scheduled background cron jobs respecting `TZ=Asia/Singapore`:
+The provided `ecosystem.config.cjs` manages the unified web app alongside built-in scheduled background cron jobs respecting `TZ=Asia/Singapore` in fork mode:
 ```bash
 # Build frontend
 npm run build
@@ -293,19 +303,19 @@ pm2 save
 ```
 
 ### Scheduled Maintenance Crontab (Docker Environments)
-If running under Docker, add the scheduled maintenance tasks to host crontab (`crontab -e`):
+If running under Docker, add the scheduled maintenance tasks to host crontab (`crontab -e`) using the `-T` flag to prevent TTY allocation issues under cron:
 ```bash
 # Daily SQLite online backup at 4:00 AM SGT
-0 4 * * * docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/backup-db.js >> /var/log/db-backup.log 2>&1
+0 4 * * * docker compose -f /root/property-intelligence-SG/docker-compose.yml exec -T app node server/scripts/backup-db.js >> /var/log/db-backup.log 2>&1
 
 # Sync official URA caveats every Sunday at 2:00 AM SGT
-0 2 * * 0 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/sync-ura.js >> /var/log/ura-sync.log 2>&1
+0 2 * * 0 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec -T app node server/scripts/sync-ura.js >> /var/log/ura-sync.log 2>&1
 
 # Dispatch weekly property digest every Monday at 8:00 AM SGT
-0 8 * * 1 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/send-weekly-newsletter.js >> /var/log/newsletter.log 2>&1
+0 8 * * 1 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec -T app node server/scripts/send-weekly-newsletter.js >> /var/log/newsletter.log 2>&1
 
 # Monthly PDPA lead retention cleanup on the 1st of every month at 3:00 AM SGT
-0 3 1 * * docker compose -f /root/property-intelligence-SG/docker-compose.yml exec app node server/scripts/cleanup-leads.js >> /var/log/leads-cleanup.log 2>&1
+0 3 1 * * docker compose -f /root/property-intelligence-SG/docker-compose.yml exec -T app node server/scripts/cleanup-leads.js >> /var/log/leads-cleanup.log 2>&1
 ```
 
 ---
