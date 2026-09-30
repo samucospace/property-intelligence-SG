@@ -12,7 +12,7 @@ import MonetizationBanner from './components/MonetizationBanner';
 
 export default function App() {
   const [viewMode, setViewMode] = useState('sale'); // 'sale' or 'rental'
-  const [unitType, setUnitType] = useState('sqm'); // 'sqm' or 'sqft'
+  const unitType = 'sqft'; // Use per square feet only
   const [filters, setFilters] = useState({
     projects: [],
     street: null,
@@ -24,11 +24,14 @@ export default function App() {
     dateFrom: '2021-01-01',
     dateTo: '2026-12-31',
     unitSizeMin: 0,
-    unitSizeMax: 10000
+    unitSizeMax: 10000,
+    priceMin: null,
+    priceMax: null,
+    tenure: 'all'
   });
 
   const [analyticsData, setAnalyticsData] = useState({
-    summary: { totalVolume: 0, medianPrice: 0, medianPsqm: 0, medianPsft: 0, minPrice: 0, maxPrice: 0 },
+    summary: { totalVolume: 0, medianPrice: 0, medianPsft: 0, minPrice: 0, maxPrice: 0 },
     timeSeries: [],
     scatterPoints: [],
     bedroomBreakdown: [],
@@ -68,7 +71,7 @@ export default function App() {
       const res = await axios.post(endpoint, {
         filters: {
           ...filters,
-          unitType
+          unitType: 'sqft'
         }
       });
       setAnalyticsData(res.data);
@@ -77,14 +80,13 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [filters, unitType, viewMode]);
+  }, [filters, viewMode]);
 
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
   const summary = analyticsData.summary || {};
-  const currentMedianRate = unitType === 'sqm' ? summary.medianPsqm : summary.medianPsft;
 
   // Calculate Average Livability Score across currently visible map projects
   const mapProjList = analyticsData.mapProjects || [];
@@ -109,7 +111,7 @@ export default function App() {
           <div className="brand-icon">
             <Building2 size={22} />
           </div>
-          <div className="brand-title">Singapore Home Intel</div>
+          <div className="brand-title">Singapore Property Intel</div>
         </div>
 
         <div className="header-actions">
@@ -144,7 +146,6 @@ export default function App() {
           filters={filters}
           setFilters={setFilters}
           unitType={unitType}
-          setUnitType={setUnitType}
           viewMode={viewMode}
           setViewMode={setViewMode}
         />
@@ -157,7 +158,7 @@ export default function App() {
               <div className="metric-value" style={{ color: 'var(--color-primary-terracotta)' }}>
                 ${summary.medianRent ? summary.medianRent.toLocaleString() : '0'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/mo</span>
               </div>
-              <span className="metric-sub">Based on {summary.totalLeases || 0} recorded lease agreements</span>
+              <span className="metric-sub">Past 24 months ({summary.totalLeases || 0} lease agreements)</span>
             </div>
 
             <div className="metric-card amber">
@@ -171,9 +172,9 @@ export default function App() {
             </div>
 
             <div className="metric-card teal">
-              <span className="metric-title">Median Rental Rate (${unitType.toUpperCase()})</span>
+              <span className="metric-title">Median Rental Rate ($/SQFT)</span>
               <div className="metric-value" style={{ color: 'var(--color-accent-teal)' }}>
-                ${unitType === 'sqm' ? (summary.medianRentPsqm || 0) : (summary.medianRentPsft || 0)} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/{unitType}/mo</span>
+                ${summary.medianRentPsft || 0} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/sqft/mo</span>
               </div>
               <span className="metric-sub">Rate range: ${summary.rentMinMaxRange?.min || 0} – ${summary.rentMinMaxRange?.max || 0}/mo</span>
             </div>
@@ -197,19 +198,19 @@ export default function App() {
         ) : (
           <div className="metrics-grid">
             <div className="metric-card">
-              <span className="metric-title">Estimated Median Valuation</span>
+              <span className="metric-title">Estimated Median Transaction Price</span>
               <div className="metric-value" style={{ color: 'var(--color-primary-green)' }}>
                 ${summary.medianPrice ? Math.round(summary.medianPrice).toLocaleString() : '0'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>SGD</span>
               </div>
-              <span className="metric-sub">Based on {summary.totalVolume || 0} transactions recorded</span>
+              <span className="metric-sub">Past 24 months ({summary.totalVolume || 0} transactions)</span>
             </div>
 
             <div className="metric-card teal">
-              <span className="metric-title">Median Unit Rate (${unitType.toUpperCase()})</span>
+              <span className="metric-title">Median Unit Rate ($/SQFT)</span>
               <div className="metric-value" style={{ color: 'var(--color-accent-teal)' }}>
-                ${currentMedianRate ? Math.round(currentMedianRate).toLocaleString() : '0'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/{unitType}</span>
+                ${summary.medianPsft ? Math.round(summary.medianPsft).toLocaleString() : '0'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/sqft</span>
               </div>
-              <span className="metric-sub">Equivalent: ${summary.medianPsft ? Math.round(summary.medianPsft).toLocaleString() : '0'} /sqft</span>
+              <span className="metric-sub">Past 24 months median rate</span>
             </div>
 
             <div className="metric-card terracotta">
@@ -233,7 +234,7 @@ export default function App() {
               <div className="metric-value" style={{ color: '#D97706', fontSize: '1.4rem' }}>
                 ${summary.minPrice ? (summary.minPrice / 1e6).toFixed(2) : '0'}M – ${summary.maxPrice ? (summary.maxPrice / 1e6).toFixed(2) : '0'}M
               </div>
-              <span className="metric-sub">Avg Sale Price: ${summary.averagePrice ? Math.round(summary.averagePrice).toLocaleString() : '0'}</span>
+              <span className="metric-sub">Avg Transaction Price: ${summary.averagePrice ? Math.round(summary.averagePrice).toLocaleString() : '0'}</span>
             </div>
           </div>
         )}
@@ -361,9 +362,9 @@ export default function App() {
                   <tr>
                     <th>Development</th>
                     <th>Livability Rating</th>
-                    <th>Contract Date</th>
+                    <th>Transaction Date</th>
                     <th>Sale Price (SGD)</th>
-                    <th>Rate (${unitType.toUpperCase()})</th>
+                    <th>Rate ($/SQFT)</th>
                     <th>Unit Size</th>
                     <th>Floor Tier</th>
                     <th>Type of Sale</th>
@@ -373,7 +374,6 @@ export default function App() {
                   {analyticsData.scatterPoints && analyticsData.scatterPoints.length > 0 ? (
                     analyticsData.scatterPoints.slice().reverse().map((tx, idx) => {
                       const matchProj = mapProjList.find(p => p && (p.id === tx.projectId || p.name === tx.projectName));
-                      const psqmVal = unitType === 'sqm' ? tx.psqm : tx.psft;
                       return (
                         <tr key={tx.id || idx}>
                           <td style={{ fontWeight: 600, color: 'var(--color-text-charcoal)' }}>{tx.projectName || 'Development'}</td>
@@ -393,9 +393,9 @@ export default function App() {
                             ${tx.priceSgd ? tx.priceSgd.toLocaleString() : '0'}
                           </td>
                           <td style={{ color: 'var(--color-accent-teal)', fontWeight: 600 }}>
-                            ${psqmVal ? psqmVal.toLocaleString() : '0'} /{unitType}
+                            ${tx.psft ? tx.psft.toLocaleString() : '0'} /sqft
                           </td>
-                          <td>{tx.areaSqm || 0} sqm ({tx.areaSqft || 0} sqft)</td>
+                          <td>{tx.areaSqft ? tx.areaSqft.toLocaleString() : 0} sqft</td>
                           <td>
                             <span style={{
                               background: 'var(--color-bg-sand)',
@@ -447,12 +447,12 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div style={{ fontWeight: 700, color: 'var(--color-text-charcoal)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Building2 size={18} color="var(--color-primary-green)" />
-              Singapore Home Intel
+              Singapore Property Intel
             </div>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <a href="#about" onClick={(e) => { e.preventDefault(); alert("Singapore Home Intel delivers transparent valuation, tenancy yields, and livability analytics for private properties in Singapore."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>About</a>
+              <a href="#about" onClick={(e) => { e.preventDefault(); alert("Singapore Property Intel delivers transparent transaction prices, tenancy yields, and livability analytics for private properties in Singapore."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>About</a>
               <a href="#privacy" onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ color: 'var(--color-primary-green)', fontWeight: 600, textDecoration: 'none' }}>Privacy Policy & PDPA Notice</a>
-              <a href="#terms" onClick={(e) => { e.preventDefault(); alert("Terms of Service: All valuation analytics and rental indices are computational estimates based on historical caveats and publicly available benchmark rates."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>Terms of Service</a>
+              <a href="#terms" onClick={(e) => { e.preventDefault(); alert("Terms of Service: All transaction price analytics and rental indices are computational estimates based on historical caveats and publicly available benchmark rates."); }} style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}>Terms of Service</a>
               <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary-green)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 Singapore Open Data Licence <ExternalLink size={12} />
               </a>
@@ -460,10 +460,10 @@ export default function App() {
           </div>
           <div style={{ borderTop: '1px solid rgba(54, 69, 79, 0.08)', paddingTop: '12px', fontSize: '0.75rem', color: '#8898AA' }}>
             <p>
-              <strong>Data Attribution:</strong> Singapore private residential transaction caveats and quarterly rental contracts are sourced from the <strong>Urban Redevelopment Authority (URA) Data Service</strong>, accessed under the terms of the <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Singapore Open Data Licence</a>. Historical interest benchmark rates reflect the Singapore Overnight Rate Average (SORA) published by the Monetary Authority of Singapore (MAS). Spatial amenities and coordinates utilize SVY21 conversion derived from Singapore Land Authority (SLA) OneMap and OpenStreetMap data.
+              <strong>Data Attribution:</strong> Singapore private residential transaction caveats and quarterly rental contracts are sourced from the <strong>Urban Redevelopment Authority (URA) Data Service</strong>, accessed under the terms of the <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Singapore Open Data Licence</a>. Spatial amenities and coordinates utilize SVY21 conversion derived from Singapore Land Authority (SLA) OneMap and OpenStreetMap data.
             </p>
             <p style={{ marginTop: '6px' }}>
-              <strong>Disclaimer:</strong> This website is an independent analytical service and is not affiliated with, sponsored by, or endorsed by the Urban Redevelopment Authority (URA), the Singapore Land Authority (SLA), or the Government of Singapore. All property valuation indicators, rental yields, and livability indexes are computed algorithmically for research and educational purposes only.
+              <strong>Disclaimer:</strong> This website is an independent analytical service and is not affiliated with, sponsored by, or endorsed by the Urban Redevelopment Authority (URA), the Singapore Land Authority (SLA), or the Government of Singapore. All property transaction price indicators, rental yields, and livability indexes are computed algorithmically for research and educational purposes only.
             </p>
           </div>
         </div>
@@ -481,7 +481,6 @@ export default function App() {
         isOpen={isRentalDrawerOpen}
         onClose={() => setIsRentalDrawerOpen(false)}
         project={selectedRentalProject}
-        unitType={unitType}
       />
 
       {/* Ingestion & Seed Modal */}
@@ -506,7 +505,7 @@ export default function App() {
             <div style={{ fontSize: '0.82rem', color: 'var(--color-text-charcoal)', lineHeight: '1.6', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <p>
                 <strong>1. Commitment to Singapore PDPA 2012</strong><br />
-                Singapore Home Intel is committed to safeguarding personal data in compliance with the <strong>Singapore Personal Data Protection Act 2012 (PDPA)</strong>. This notice explains how personal data is collected, used, disclosed, and protected.
+                Singapore Property Intel is committed to safeguarding personal data in compliance with the <strong>Singapore Personal Data Protection Act 2012 (PDPA)</strong>. This notice explains how personal data is collected, used, disclosed, and protected.
               </p>
 
               <p>
@@ -521,7 +520,7 @@ export default function App() {
                 <strong>3. Purpose of Processing & CEA Agent Introductions</strong><br />
                 Your data is processed strictly for the purpose for which it was provided:
                 <br />• To deliver weekly property analytical briefings upon your opt-in consent.
-                <br />• To connect you with our appointed Council for Estate Agencies (CEA) licensed property representative for advisory and on-the-ground valuation assistance.
+                <br />• To connect you with our appointed Council for Estate Agencies (CEA) licensed property representative for advisory and on-the-ground transaction price assistance.
               </p>
 
               <p>

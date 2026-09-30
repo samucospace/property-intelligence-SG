@@ -89,11 +89,14 @@ export async function getPriceAnalytics(filters = {}) {
     dateTo = '2026-12-31',
     unitSizeMin = 0,
     unitSizeMax = 10000,
-    unitType = 'sqm',
+    unitType = 'sqft',
+    priceMin = null,
+    priceMax = null,
+    tenure = 'all',
     lifestyleWeights = null
   } = filters;
 
-  // Calculate size in SQM for SQL filtering
+  // Calculate size in SQM for SQL filtering (stored in SQM)
   const sizeMinSqm = unitType === 'sqft' ? unitSizeMin / 10.7639 : unitSizeMin;
   const sizeMaxSqm = unitType === 'sqft' ? unitSizeMax / 10.7639 : unitSizeMax;
 
@@ -125,6 +128,23 @@ export async function getPriceAnalytics(filters = {}) {
     params.push(planningArea);
   }
 
+  // Min and Max Price filters
+  if (priceMin != null && priceMin !== '' && !isNaN(priceMin) && Number(priceMin) > 0) {
+    whereClauses.push('t.price_sgd >= ?');
+    params.push(Number(priceMin));
+  }
+  if (priceMax != null && priceMax !== '' && !isNaN(priceMax) && Number(priceMax) > 0) {
+    whereClauses.push('t.price_sgd <= ?');
+    params.push(Number(priceMax));
+  }
+
+  // Tenure filter (Freehold includes 999-yr / 9999-yr tenures)
+  if (tenure === 'freehold') {
+    whereClauses.push(`(UPPER(t.tenure) LIKE '%FREEHOLD%' OR t.tenure LIKE '999%' OR t.tenure LIKE '9999%' OR t.tenure LIKE '999999%' OR t.tenure LIKE '956%' OR t.tenure LIKE '947%' OR t.tenure LIKE '946%' OR t.tenure LIKE '929%' OR t.tenure LIKE '993%')`);
+  } else if (tenure === 'leasehold') {
+    whereClauses.push(`NOT (UPPER(t.tenure) LIKE '%FREEHOLD%' OR t.tenure LIKE '999%' OR t.tenure LIKE '9999%' OR t.tenure LIKE '999999%' OR t.tenure LIKE '956%' OR t.tenure LIKE '947%' OR t.tenure LIKE '946%' OR t.tenure LIKE '929%' OR t.tenure LIKE '993%')`);
+  }
+
   const sqlWhere = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
 
   // Retrieve raw transaction entries joined with project lat/lng
@@ -152,9 +172,9 @@ export async function getPriceAnalytics(filters = {}) {
     });
   }
 
-  // Compute Metrics Summary Cards
+  // Compute Metrics Summary Cards: strictly for the past 24 months
   let summary = {
-    totalVolume: filteredTx.length,
+    totalVolume: 0,
     medianPrice: 0,
     medianPsqm: 0,
     medianPsft: 0,
@@ -164,11 +184,23 @@ export async function getPriceAnalytics(filters = {}) {
   };
 
   if (filteredTx.length > 0) {
-    const sortedPrices = [...filteredTx].map(t => t.price_sgd).sort((a, b) => a - b);
-    const sortedPsqm = [...filteredTx].map(t => t.psqm_sgd).sort((a, b) => a - b);
-    const sortedPsft = [...filteredTx].map(t => t.psft_sgd).sort((a, b) => a - b);
+    // Determine cutoff date for the past 24 months relative to latest transaction in result set
+    const latestDate = filteredTx.reduce(
+      (max, t) => (t.contract_date > max ? t.contract_date : max),
+      filteredTx[0].contract_date
+    );
+    const d = new Date(latestDate);
+    d.setFullYear(d.getFullYear() - 2);
+    const cutoffDate = d.toISOString().slice(0, 10);
+    const past24mTx = filteredTx.filter(t => t.contract_date >= cutoffDate);
+    const headlineTx = past24mTx.length > 0 ? past24mTx : filteredTx;
+
+    const sortedPrices = [...headlineTx].map(t => t.price_sgd).sort((a, b) => a - b);
+    const sortedPsqm = [...headlineTx].map(t => t.psqm_sgd).sort((a, b) => a - b);
+    const sortedPsft = [...headlineTx].map(t => t.psft_sgd).sort((a, b) => a - b);
 
     const mid = Math.floor(sortedPrices.length / 2);
+    summary.totalVolume = headlineTx.length;
     summary.medianPrice = sortedPrices.length % 2 !== 0 ? sortedPrices[mid] : (sortedPrices[mid - 1] + sortedPrices[mid]) / 2;
     summary.medianPsqm = sortedPsqm.length % 2 !== 0 ? sortedPsqm[mid] : (sortedPsqm[mid - 1] + sortedPsqm[mid]) / 2;
     summary.medianPsft = sortedPsft.length % 2 !== 0 ? sortedPsft[mid] : (sortedPsft[mid - 1] + sortedPsft[mid]) / 2;
@@ -176,13 +208,6 @@ export async function getPriceAnalytics(filters = {}) {
     summary.maxPrice = sortedPrices[sortedPrices.length - 1];
     summary.averagePrice = sortedPrices.reduce((sum, p) => sum + p, 0) / sortedPrices.length;
   }
-
-  // Fetch SORA rates lookup
-  const soraRows = await dbAll(`SELECT reference_month, sora_1m, sora_3m FROM sora_rates`);
-  const soraMap = new Map();
-  soraRows.forEach(r => {
-    soraMap.set(r.reference_month, { sora1m: r.sora_1m, sora3m: r.sora_3m });
-  });
 
   // Time-series trend grouping (Monthly proportional scale)
   let timeSeries = [];
@@ -205,7 +230,6 @@ export async function getPriceAnalytics(filters = {}) {
 
     timeSeries = allMonths.map(mKey => {
       const data = monthlyMap.get(mKey);
-      const sora = soraMap.get(mKey) || { sora1m: null, sora3m: null };
 
       if (!data || data.psqmList.length === 0) {
         return {
@@ -215,9 +239,7 @@ export async function getPriceAnalytics(filters = {}) {
           avgPsqm: null,
           medianPsft: null,
           avgPsft: null,
-          medianPrice: null,
-          sora1m: sora.sora1m,
-          sora3m: sora.sora3m
+          medianPrice: null
         };
       }
 
@@ -233,9 +255,7 @@ export async function getPriceAnalytics(filters = {}) {
         avgPsqm: Math.round(sPsqm.reduce((a, b) => a + b, 0) / sPsqm.length),
         medianPsft: Math.round(sPsft.length % 2 !== 0 ? sPsft[mid] : (sPsft[mid - 1] + sPsft[mid]) / 2),
         avgPsft: Math.round(sPsft.reduce((a, b) => a + b, 0) / sPsft.length),
-        medianPrice: Math.round(sPrice.length % 2 !== 0 ? sPrice[mid] : (sPrice[mid - 1] + sPrice[mid]) / 2),
-        sora1m: sora.sora1m,
-        sora3m: sora.sora3m
+        medianPrice: Math.round(sPrice.length % 2 !== 0 ? sPrice[mid] : (sPrice[mid - 1] + sPrice[mid]) / 2)
       };
     });
   }
@@ -326,7 +346,10 @@ export async function getRentalYieldAnalytics(filters = {}) {
     bedroomCount = null,
     unitSizeMin = 0,
     unitSizeMax = 10000,
-    unitType = 'sqm',
+    unitType = 'sqft',
+    priceMin = null,
+    priceMax = null,
+    tenure = 'all',
     lifestyleWeights = null
   } = filters;
 
@@ -360,6 +383,23 @@ export async function getRentalYieldAnalytics(filters = {}) {
   if (bedroomCount && bedroomCount !== 'all') {
     whereClauses.push(`r.bedroom_count = ?`);
     params.push(bedroomCount);
+  }
+
+  // Min and Max Rent
+  if (priceMin != null && priceMin !== '' && !isNaN(priceMin) && Number(priceMin) > 0) {
+    whereClauses.push('r.rent_sgd >= ?');
+    params.push(Number(priceMin));
+  }
+  if (priceMax != null && priceMax !== '' && !isNaN(priceMax) && Number(priceMax) > 0) {
+    whereClauses.push('r.rent_sgd <= ?');
+    params.push(Number(priceMax));
+  }
+
+  // Tenure filter for rental transactions (Freehold vs Leasehold)
+  if (tenure === 'freehold') {
+    whereClauses.push(`EXISTS (SELECT 1 FROM property_transactions pt WHERE pt.project_id = p.project_id AND (UPPER(pt.tenure) LIKE '%FREEHOLD%' OR pt.tenure LIKE '999%' OR pt.tenure LIKE '9999%' OR pt.tenure LIKE '999999%' OR pt.tenure LIKE '956%' OR pt.tenure LIKE '947%' OR pt.tenure LIKE '946%' OR pt.tenure LIKE '929%' OR pt.tenure LIKE '993%'))`);
+  } else if (tenure === 'leasehold') {
+    whereClauses.push(`NOT EXISTS (SELECT 1 FROM property_transactions pt WHERE pt.project_id = p.project_id AND (UPPER(pt.tenure) LIKE '%FREEHOLD%' OR pt.tenure LIKE '999%' OR pt.tenure LIKE '9999%' OR pt.tenure LIKE '999999%' OR pt.tenure LIKE '956%' OR pt.tenure LIKE '947%' OR pt.tenure LIKE '946%' OR pt.tenure LIKE '929%' OR pt.tenure LIKE '993%'))`);
   }
 
   const sql = `
@@ -430,14 +470,29 @@ export async function getRentalYieldAnalytics(filters = {}) {
     return { medianPrice, medianPsft };
   };
 
-  const rentsSgd = rows.map(r => r.rent_sgd).sort((a, b) => a - b);
-  const rentsPsft = rows.map(r => r.rent_psft).sort((a, b) => a - b);
-  const rentsPsqm = rows.map(r => r.rent_psqm).sort((a, b) => a - b);
-  const mid = Math.floor(rentsSgd.length / 2);
+  // Restrict headline summary metrics to past 24 months
+  let headlineRows = rows;
+  if (rows.length > 0) {
+    const latestLease = rows.reduce(
+      (max, r) => (r.lease_date > max ? r.lease_date : max),
+      rows[0].lease_date
+    );
+    const [yr, mo] = latestLease.split('-').map(Number);
+    const cutoffLease = `${yr - 2}-${String(mo).padStart(2, '0')}`;
+    const past24mRows = rows.filter(r => r.lease_date >= cutoffLease);
+    if (past24mRows.length > 0) {
+      headlineRows = past24mRows;
+    }
+  }
 
-  const medianRent = rentsSgd.length % 2 !== 0 ? rentsSgd[mid] : Math.round((rentsSgd[mid - 1] + rentsSgd[mid]) / 2);
-  const medianRentPsft = rentsPsft.length % 2 !== 0 ? rentsPsft[mid] : parseFloat(((rentsPsft[mid - 1] + rentsPsft[mid]) / 2).toFixed(2));
-  const medianRentPsqm = rentsPsqm.length % 2 !== 0 ? rentsPsqm[mid] : parseFloat(((rentsPsqm[mid - 1] + rentsPsqm[mid]) / 2).toFixed(2));
+  const headlineRentsSgd = headlineRows.map(r => r.rent_sgd).sort((a, b) => a - b);
+  const headlineRentsPsft = headlineRows.map(r => r.rent_psft).sort((a, b) => a - b);
+  const headlineRentsPsqm = headlineRows.map(r => r.rent_psqm).sort((a, b) => a - b);
+  const hMid = Math.floor(headlineRentsSgd.length / 2);
+
+  const medianRent = headlineRentsSgd.length % 2 !== 0 ? headlineRentsSgd[hMid] : Math.round((headlineRentsSgd[hMid - 1] + headlineRentsSgd[hMid]) / 2);
+  const medianRentPsft = headlineRentsPsft.length % 2 !== 0 ? headlineRentsPsft[hMid] : parseFloat(((headlineRentsPsft[hMid - 1] + headlineRentsPsft[hMid]) / 2).toFixed(2));
+  const medianRentPsqm = headlineRentsPsqm.length % 2 !== 0 ? headlineRentsPsqm[hMid] : parseFloat(((headlineRentsPsqm[hMid - 1] + headlineRentsPsqm[hMid]) / 2).toFixed(2));
 
   // Compute Individual Lease Caveats & Estimated Gross Yield
   const rentalCaveats = rows.map(r => {
@@ -465,8 +520,11 @@ export async function getRentalYieldAnalytics(filters = {}) {
     };
   });
 
-  const totalYieldSum = rentalCaveats.reduce((sum, r) => sum + r.grossYield, 0);
-  const avgGrossYield = parseFloat((totalYieldSum / rentalCaveats.length).toFixed(2));
+  const headlineLeaseIds = new Set(headlineRows.map(h => h.rental_id));
+  const headlineCaveats = rentalCaveats.filter(r => headlineLeaseIds.has(r.rentalId));
+  const targetCaveats = headlineCaveats.length > 0 ? headlineCaveats : rentalCaveats;
+  const totalYieldSum = targetCaveats.reduce((sum, r) => sum + r.grossYield, 0);
+  const avgGrossYield = parseFloat((totalYieldSum / targetCaveats.length).toFixed(2));
 
   // Bedroom Breakdown Aggregation
   const bedroomGroups = new Map();
@@ -583,8 +641,8 @@ export async function getRentalYieldAnalytics(filters = {}) {
       medianRentPsft,
       medianRentPsqm,
       avgGrossYield,
-      totalLeases: rows.length,
-      rentMinMaxRange: { min: rentsSgd[0], max: rentsSgd[rentsSgd.length - 1] }
+      totalLeases: headlineRows.length,
+      rentMinMaxRange: { min: headlineRentsSgd[0], max: headlineRentsSgd[headlineRentsSgd.length - 1] }
     },
     timeSeries,
     bedroomBreakdown,

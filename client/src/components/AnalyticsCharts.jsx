@@ -13,9 +13,9 @@ import {
   Scatter,
   ZAxis
 } from 'recharts';
-import { TrendingUp, Layers, BarChart2, Percent } from 'lucide-react';
+import { TrendingUp, Layers, BarChart2 } from 'lucide-react';
 
-const CustomTooltip = ({ active, payload, label, unitType, show1mSora, show3mSora }) => {
+const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const hasTransactions = data.volume > 0;
@@ -33,7 +33,7 @@ const CustomTooltip = ({ active, payload, label, unitType, show1mSora, show3mSor
         {hasTransactions ? (
           <>
             <div style={{ color: '#00B080', margin: '3px 0' }}>
-              Median Rate: <strong>${(unitType === 'sqm' ? data.medianPsqm : data.medianPsft)?.toLocaleString()}</strong> /{unitType}
+              Median Rate: <strong>${data.medianPsft?.toLocaleString()}</strong> /sqft
             </div>
             <div style={{ color: '#4F7942', margin: '3px 0' }}>
               Median Price: <strong>${data.medianPrice?.toLocaleString()} SGD</strong>
@@ -47,26 +47,14 @@ const CustomTooltip = ({ active, payload, label, unitType, show1mSora, show3mSor
             No transaction caveats in this period
           </div>
         )}
-        {show1mSora && data.sora1m != null && (
-          <div style={{ color: '#7C3AED', margin: '3px 0' }}>
-            1M Compounded SORA: <strong>{data.sora1m}%</strong>
-          </div>
-        )}
-        {show3mSora && data.sora3m != null && (
-          <div style={{ color: '#DB2777', margin: '3px 0' }}>
-            3M Compounded SORA: <strong>{data.sora3m}%</strong>
-          </div>
-        )}
       </div>
     );
   }
   return null;
 };
 
-export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], bedroomBreakdown = [], unitType = 'sqm', viewMode = 'sale' }) {
+export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], bedroomBreakdown = [], unitType = 'sqft', viewMode = 'sale' }) {
   const [activeTab, setActiveTab] = useState('trend');
-  const [show1mSora, setShow1mSora] = useState(true);
-  const [show3mSora, setShow3mSora] = useState(true);
 
   if (viewMode === 'rental') {
     return (
@@ -165,51 +153,16 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
       <div className="card-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
         <h3 className="card-title">
           <TrendingUp size={18} color="var(--color-primary-green)" />
-          Property Valuation & Interest Rate Analytics
+          Property Transaction Price Analytics
         </h3>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {activeTab === 'trend' && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              background: 'var(--color-bg-sand)',
-              padding: '5px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--color-border-subtle)',
-              fontSize: '0.78rem'
-            }}>
-              <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Percent size={13} color="#7C3AED" /> SORA Overlay:
-              </span>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#7C3AED', userSelect: 'none', fontWeight: 600 }}>
-                <input
-                  type="checkbox"
-                  checked={show1mSora}
-                  onChange={(e) => setShow1mSora(e.target.checked)}
-                  style={{ accentColor: '#7C3AED', cursor: 'pointer' }}
-                />
-                <span>1M SORA</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#DB2777', userSelect: 'none', fontWeight: 600 }}>
-                <input
-                  type="checkbox"
-                  checked={show3mSora}
-                  onChange={(e) => setShow3mSora(e.target.checked)}
-                  style={{ accentColor: '#DB2777', cursor: 'pointer' }}
-                />
-                <span>3M SORA</span>
-              </label>
-            </div>
-          )}
-
           <div className="tab-buttons">
             <button
               className={`tab-btn ${activeTab === 'trend' ? 'active' : ''}`}
               onClick={() => setActiveTab('trend')}
             >
-              <BarChart2 size={13} style={{ display: 'inline', marginRight: '4px' }} /> Price & SORA Trend
+              <BarChart2 size={13} style={{ display: 'inline', marginRight: '4px' }} /> Price Trend
             </button>
             <button
               className={`tab-btn ${activeTab === 'floor' ? 'active' : ''}`}
@@ -236,7 +189,7 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                   minTickGap={25}
                 />
                 
-                {/* Left Y-Axis: Rate ($/sqm or $/sqft) */}
+                {/* Left Y-Axis: Rate ($/sqft) */}
                 <YAxis
                   yAxisId="left"
                   orientation="left"
@@ -255,20 +208,7 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                   domain={[0, 'auto']}
                 />
 
-                {/* Secondary Right Y-Axis: SORA Interest Rate (%) */}
-                {(show1mSora || show3mSora) && (
-                  <YAxis
-                    yAxisId="sora"
-                    orientation="right"
-                    stroke="#7C3AED"
-                    fontSize={11}
-                    tickFormatter={val => `${val}%`}
-                    domain={[0, 5]}
-                    dx={28}
-                  />
-                )}
-
-                <Tooltip content={<CustomTooltip unitType={unitType} show1mSora={show1mSora} show3mSora={show3mSora} />} />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '0.8rem', fontFamily: 'var(--font-heading)' }} />
 
                 <Bar
@@ -284,43 +224,14 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                 <Line
                   yAxisId="left"
                   type="monotone"
-                  dataKey={unitType === 'sqm' ? 'medianPsqm' : 'medianPsft'}
-                  name={`Median Rate ($/${unitType.toUpperCase()})`}
+                  dataKey="medianPsft"
+                  name="Median Rate ($/SQFT)"
                   stroke="#00B080"
                   strokeWidth={3}
                   connectNulls={true}
                   dot={{ r: 4, fill: '#00B080' }}
                   activeDot={{ r: 7 }}
                 />
-
-                {show1mSora && (
-                  <Line
-                    yAxisId="sora"
-                    type="monotone"
-                    dataKey="sora1m"
-                    name="1-Month SORA (1M SORA %)"
-                    stroke="#7C3AED"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    connectNulls={true}
-                    dot={{ r: 3, fill: '#7C3AED' }}
-                    activeDot={{ r: 6 }}
-                  />
-                )}
-
-                {show3mSora && (
-                  <Line
-                    yAxisId="sora"
-                    type="monotone"
-                    dataKey="sora3m"
-                    name="3-Month SORA (3M SORA %)"
-                    stroke="#DB2777"
-                    strokeWidth={2.5}
-                    connectNulls={true}
-                    dot={{ r: 3, fill: '#DB2777' }}
-                    activeDot={{ r: 6 }}
-                  />
-                )}
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
@@ -335,11 +246,11 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(54, 69, 79, 0.08)" />
                 <XAxis dataKey="floorRange" type="category" stroke="#6A7B82" fontSize={11} name="Floor Range" />
                 <YAxis
-                  dataKey={unitType === 'sqm' ? 'psqm' : 'psft'}
+                  dataKey="psft"
                   stroke="#4F7942"
                   fontSize={11}
                   tickFormatter={val => `$${val.toLocaleString()}`}
-                  name={`Rate ($/${unitType.toUpperCase()})`}
+                  name="Rate ($/SQFT)"
                 />
                 <ZAxis dataKey="priceSgd" range={[40, 300]} name="Total Price" />
                 <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
@@ -357,9 +268,9 @@ export default function AnalyticsCharts({ timeSeries = [], scatterPoints = [], b
                       }}>
                         <div style={{ fontWeight: 700, color: '#36454F', fontFamily: 'var(--font-heading)' }}>{data.projectName}</div>
                         <div style={{ color: '#6A7B82' }}>Floor: {data.floorRange} • {data.typeOfSale}</div>
-                        <div>Rate: <strong style={{ color: '#00B080' }}>${(unitType === 'sqm' ? data.psqm : data.psft)?.toLocaleString()}</strong> /{unitType}</div>
+                        <div>Rate: <strong style={{ color: '#00B080' }}>${data.psft?.toLocaleString()}</strong> /sqft</div>
                         <div>Total: <strong style={{ color: '#4F7942' }}>${data.priceSgd?.toLocaleString()} SGD</strong></div>
-                        <div style={{ color: '#6A7B82' }}>Size: {data.areaSqm} sqm ({data.areaSqft} sqft)</div>
+                        <div style={{ color: '#6A7B82' }}>Size: {data.areaSqft} sqft</div>
                       </div>
                     );
                   }

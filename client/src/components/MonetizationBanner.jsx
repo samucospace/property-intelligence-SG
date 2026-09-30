@@ -101,7 +101,7 @@ export default function MonetizationBanner({ variant = 'agent', currentProject =
                 Singapore Property Yield & Undervalued Caveats Watchlist
               </div>
               <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                Join investors receiving weekly analytical digests on private condos with top gross rental yields (&gt;4.2%) and below-valuation transactions.
+                Join investors receiving weekly analytical digests on private condos with top gross rental yields (&gt;4.2%) and below-market transaction prices.
               </div>
             </div>
           </div>
@@ -209,7 +209,7 @@ export default function MonetizationBanner({ variant = 'agent', currentProject =
               </span>
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              Connect with our licensed district property specialist for on-the-ground unit valuation reports, recent floor-tier pricing insights, and private advisory.
+              Connect with our licensed district property specialist for on-the-ground unit transaction price reports, recent floor-tier pricing insights, and private advisory.
             </div>
           </div>
         </div>
@@ -253,7 +253,7 @@ export default function MonetizationBanner({ variant = 'agent', currentProject =
                 <CheckCircle size={28} color="#10B981" style={{ margin: '0 auto 8px' }} />
                 <div style={{ fontWeight: 700, fontSize: '1rem' }}>Enquiry Received!</div>
                 <p style={{ margin: '6px 0 0', fontSize: '0.82rem', color: '#047857', lineHeight: '1.5' }}>
-                  Our CEA-registered district specialist will review your request and connect with you via WhatsApp or Email with customized valuation and transaction insights.
+                  Our CEA-registered district specialist will review your request and connect with you via WhatsApp or Email with customized transaction price and market insights.
                 </p>
                 <button
                   className="btn btn-primary"
@@ -359,7 +359,7 @@ export default function MonetizationBanner({ variant = 'agent', currentProject =
                       style={{ marginTop: '2px', accentColor: 'var(--color-primary-green)' }}
                     />
                     <span>
-                      <strong>PDPA Consent (Singapore Personal Data Protection Act 2012):</strong> I consent to the collection, use, and disclosure of my contact details by Property Intelligence SG to connect me with its appointed Council for Estate Agencies (CEA) licensed property representative for real estate advisory and valuation assistance.
+                      <strong>PDPA Consent (Singapore Personal Data Protection Act 2012):</strong> I consent to the collection, use, and disclosure of my contact details by Singapore Property Intel to connect me with its appointed Council for Estate Agencies (CEA) licensed property representative for real estate advisory and transaction price assistance.
                     </span>
                   </label>
                 </div>

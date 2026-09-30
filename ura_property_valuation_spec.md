@@ -1,7 +1,7 @@
-# Product & Technical Specification: Singapore Private Property Valuation Prototype (Fixed & Final)
+# Product & Technical Specification: Singapore Property Intel (Fixed & Final)
 
 ## 1. Executive Summary
-**Objective:** Build a web application that ingests Singapore private residential property transaction data via the URA Data Service API, stores and normalizes historical transactions in a local database (SQLite/PostgreSQL), and provides an interactive dashboard for property owners and investors to track market values ($ total and $/sqm or $/sqft) across developments, streets, planning areas, postal districts, and custom geographical radii.
+**Objective:** Build a web application that ingests Singapore private residential property transaction data via the URA Data Service API, stores and normalizes historical transactions in a local database (SQLite/PostgreSQL), and provides an interactive dashboard for property owners and investors to track transaction prices ($ total and $/sqft) across developments, streets, planning areas, postal districts, and custom geographical radii.
 
 ---
 
@@ -51,7 +51,7 @@ URA requires exchanging a static `AccessKey` for a dynamic daily token, and retr
 
 3. **Data Transformation Rules:**
    * **Date Parsing:** URA returns dates as `MMYY` (e.g., `0524` = May 2024). Transformed to ISO date format `2024-05-01`.
-   * **Unit Conversions:** `area_sqft = area_sqm * 10.7639`, `psft_sgd = price_sgd / area_sqft`.
+   * **Unit Conversions:** `area_sqft = area_sqm * 10.7639`, `psft_sgd = price_sgd / area_sqft`. Metric units ($/sqm) are omitted in user-facing views in favor of Singapore market-standard $/sqft.
 
 ### B. OneMap Geocoding & Location Resolution
 During project ingestion, the geocoder queries OneMap Search API (`https://www.onemap.gov.sg/api/common/elastic/search?searchVal={project_or_street}&returnGeom=Y&getAddrDetails=Y`) to resolve:
@@ -131,12 +131,16 @@ The Query Engine filters developments within bounding box `[lat_min, lat_max, ln
    ```
 
 2. `POST /api/analytics/price-trends`
-   Aggregates transaction metrics by Month or Quarter based on selected filters (projects, street, planning area, district, unit size sqm/sqft range, and radius).
+   Aggregates transaction metrics by Month or Quarter based on selected filters (projects, street, planning area, district, radius, floor area range in sqft, `priceMin`, `priceMax`, `tenure` ['all' | 'freehold' | 'leasehold'], and transaction dates).
+   * Headline summary metrics are computed strictly over the **past 24 months** relative to the latest available dataset record.
 
-3. `POST /api/ingest/ura` (Guarded by `X-Admin-Key`)
+3. `POST /api/analytics/rental-yield`
+   Returns rental yield metrics and rental contract history filtered by project, area, date range, rent price bounds, and property tenure.
+
+4. `POST /api/ingest/ura` (Guarded by `X-Admin-Key`)
    Triggers official URA live token exchange & multi-batch transaction download.
 
-4. `POST /api/ingest/import-data` (Guarded by `X-Admin-Key`)
+5. `POST /api/ingest/import-data` (Guarded by `X-Admin-Key`)
    Ingests raw official URA JSON exports into SQLite.
 
 ---
@@ -145,23 +149,27 @@ The Query Engine filters developments within bounding box `[lat_min, lat_max, ln
 
 1. **Unified Search & Dynamic Filter Header:**
    * Multi-select autocomplete bar for developments, streets, districts, and planning areas.
+   * Transaction date range filters ("Transaction date from", "Transaction date to").
+   * Price filters: Min Price and Max Price (or Min Rent / Max Rent in rental mode).
+   * Tenure filter: `All Tenures`, `Freehold / 999-yr`, and `Leasehold`.
+   * Unit size filter strictly in Sqft (Sqm removed).
    * Map click / radius slider (100m – 5km).
-   * Unit size slider & Sqm/Sqft toggle.
 
-2. **Key Metric Summary Cards:**
-   * Estimated Value (Median sale price over selected period).
-   * Median Rate ($/sqm and $/sqft).
-   * Total Transaction Volume & Price Range.
-   * Livability Score Index across filtered developments.
+2. **Key Metric Summary Cards (Strictly Past 24 Months):**
+   * Estimated Median Transaction Price (past 24 months).
+   * Median Rate ($/sqft).
+   * Transaction Volume (Past 24M) & Average Transaction Price.
 
 3. **Analytics & Trend Charts:**
-   * Price Trend Line Chart (Median $/sqm over time) paired with Sales Volume Bar Chart.
-   * Floor Level Scatter Plot (Price vs. Floor Range tier).
-   * Rental Yield vs. MAS 1M & 3M SORA benchmark comparison curves.
+   * Property Transaction Price Analytics: Price Trend Line Chart (Median $/sqft over time) paired with Sales Volume Bar Chart.
+   * Floor Level Scatter Plot (Transaction Price vs. Floor Range tier).
+   * Rental Yield Analysis (Gross yield % by development).
+   * Note: Interest rates and MAS SORA overlays are completely purged from the application.
 
 4. **Interactive GIS Property Map:**
    * Leaflet map displaying project markers color-coded by market segment (CCR, RCR, OCR).
-   * Interactive popup showing development summary & quick filter button.
+   * Interactive popup showing development summary with median $/sqft and quick filter button.
 
-5. **100% Official Data Integrity Policy:**
+5. **100% Official Data Integrity & Terminology Policy:**
+   * Strictly refers to numbers as **"transaction price"** rather than "valuation".
    * Strictly operates on official URA transaction caveats and rental agreements. All synthetic and mock data generators have been permanently purged from the system.

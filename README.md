@@ -1,6 +1,6 @@
-# Singapore Home Intel (`property-intelligence-SG`)
+# Singapore Property Intel (`property-intelligence-SG`)
 
-An institutional-grade Singapore private residential valuation engine, rental yield tracker, and livability analytics portal powered by official **Urban Redevelopment Authority (URA) Data Service** transaction caveats, **Monetary Authority of Singapore (MAS)** SORA benchmark interest rates, and **SLA OneMap** spatial data.
+An institutional-grade Singapore private residential transaction price intelligence engine, rental yield tracker, and livability analytics portal powered by official **Urban Redevelopment Authority (URA) Data Service** transaction caveats and **SLA OneMap** spatial data.
 
 The platform includes built-in programmatic SEO, a verified Council for Estate Agencies (CEA) partner lead-generation engine, an automated weekly investor newsletter via Resend, and single-command Docker/PM2 production deployment with automated HTTPS.
 
@@ -10,9 +10,19 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
 
 - **100% Official Government Data Only**: Strictly operates on verified URA transaction caveats and rental agreements. Zero synthetic, fabricated, or mock data.
 - **Pre-Populated Database**: Includes ~3,400+ condominium developments, >128,000 official sales transaction caveats, and >405,000 rental contract records.
+- **Transaction Price Focus**: Clear focus on actual transaction prices rather than automated appraisals.
+- **Past 24-Month Headline Metric Cards**: Top summary cards specifically reflect current market conditions based on transactions recorded within the past 24 months.
+- **Per Square Feet (PSFT) Standard**: Uses per square feet ($/sqft) metrics throughout the app for intuitive market comparison.
+- **Comprehensive Search Filters**:
+  - Development, street, postal district, and planning area autocomplete.
+  - Transaction date range (`Transaction date from` and `Transaction date to`).
+  - Min and max price/rent filters.
+  - Tenure filter (Freehold / 999-yr vs. Leasehold).
+  - Unit floor area filter (Sqft).
+  - Bedroom count filter (for rental analytics).
+  - Geographic radius circle filter (0.5km to 5km).
 - **Time-Proportional Chronological Axis Scaling**: Chart timelines across sales transactions, price indices, and rental trends are scaled proportionally across time. Inactive months with zero transactions retain their calendar tick with 0 volume, ensuring transaction pauses and market hiatuses are accurately depicted rather than compressed.
 - **Zero-Latency SVY21 Spatial Engine**: Pure mathematical conversion of Singapore Transverse Mercator (SVY21) coordinates to WGS84 (Lat/Lng) in 0ms without external geocoding API rate limits.
-- **SORA Benchmark Yield Analytics**: Compares gross rental yields against 1M & 3M compounded Singapore Overnight Rate Average (SORA) interest benchmarks published by MAS to visualize the investor yield spread.
 - **Interactive GIS Map & Livability Scoring (SLA OneMap)**:
   - Powered by official **Singapore Land Authority (SLA) OneMap** basemap tiles (compliant with commercial use under the Singapore Open Data Licence).
   - Built-in style switcher supporting **Default (Color)**, **Grey (Minimalist)**, **Night (Dark Mode)**, and **Original** basemaps.
@@ -73,9 +83,9 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
 ┌──────────────────────────┐    ┌──────────────────────────┐
 │  SQLite (property.db)    │    │ External Integrations    │
 │  - 3,400+ Condominiums   │    │ - URA Data Service API   │
-│  - 128k+ Sales Caveats   │    │ - MAS SORA Rates         │
-│  - 405k+ Rental Leases   │    │ - Resend Email Gateway   │
-│  - Amenities & Leads     │    │ - SLA OneMap / OSM       │
+│  - 128k+ Sales Caveats   │    │ - Resend Email Gateway   │
+│  - 405k+ Rental Leases   │    │ - SLA OneMap / OSM       │
+│  - Amenities & Leads     │    │                          │
 └──────────────────────────┘    └──────────────────────────┘
 ```
 
@@ -155,8 +165,8 @@ cp server/.env.example server/.env
 | :--- | :--- | :--- |
 | `GET` | `/api/health` | Health check endpoint returning `{ status: 'ok', timestamp }`. |
 | `GET` | `/api/search/suggestions?q=...` | Fast autocomplete matching project names, streets, and districts. |
-| `POST` | `/api/analytics/price-trends` | Aggregates price trends ($/sqm, $/sqft), time series, and scatter points. |
-| `POST` | `/api/analytics/rental-yields` | Aggregates rental contracts, gross rental yields, and SORA benchmarks. |
+| `POST` | `/api/analytics/price-trends` | Aggregates price trends ($/sqft), time series, and scatter points. |
+| `POST` | `/api/analytics/rental-yields` | Aggregates rental contracts and gross rental yields. |
 | `GET` | `/api/projects` | Overview list of all registered developments. |
 | `GET` | `/api/projects/:id/livability` | Computes project livability index and nearby amenity walking breakdown. |
 | `GET` | `/api/amenities` | Retrieves GIS map POIs (MRT stations, schools, supermarkets, parks). |
@@ -254,10 +264,9 @@ Add the automated maintenance tasks using `crontab -e`:
 ## ⚖️ Legal & Regulatory Disclosures
 
 - **Singapore Open Data Licence (SODL)**: Property transaction caveats and rental statistics are sourced from the Urban Redevelopment Authority (URA) Data Service, accessed under the terms of the [Singapore Open Data Licence](https://data.gov.sg/open-data-licence).
-- **Benchmark Interest Rates**: SORA benchmark data reflects published records from the Monetary Authority of Singapore (MAS).
 - **Personal Data Protection Act 2012 (PDPA)**: All email collections and lead submissions require explicit affirmative consent and include 1-click opt-out rights.
-- **Estate Agents Act & CEA Disclosures**: Singapore Home Intel is an independent technology platform and does not perform estate agency work. Advisory and transaction assistance are provided exclusively by licensed real estate salespersons registered with the Council for Estate Agencies (CEA).
-- **Valuation Notice**: Automated valuation estimates and $/sqft trends are algorithmic computations for informational purposes only, and do not constitute formal appraisals under the Singapore Institute of Surveyors and Valuers (SISV).
+- **Estate Agents Act & CEA Disclosures**: Singapore Property Intel is an independent technology platform and does not perform estate agency work. Advisory and transaction assistance are provided exclusively by licensed real estate salespersons registered with the Council for Estate Agencies (CEA).
+- **Transaction Price Notice**: Transaction price summaries and $/sqft trends are algorithmic computations for informational purposes only, and do not constitute formal appraisals under the Singapore Institute of Surveyors and Valuers (SISV).
 
 ---
 

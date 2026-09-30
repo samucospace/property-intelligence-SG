@@ -2,10 +2,10 @@ import React from 'react';
 import { X, Building, MapPin, Key, TrendingUp, Percent, Calendar } from 'lucide-react';
 import LivabilityBadge from './LivabilityBadge';
 
-export default function RentalYieldDrawer({ isOpen, onClose, project, unitType }) {
+export default function RentalYieldDrawer({ isOpen, onClose, project }) {
   if (!isOpen || !project) return null;
 
-  const rentRate = unitType === 'sqm' ? project.medianRentPsqm : project.medianRentPsft;
+  const rentRate = project.medianRentPsft;
 
   // Yield Tier Color & Label
   const yieldVal = project.grossYield || 0;
@@ -68,14 +68,14 @@ export default function RentalYieldDrawer({ isOpen, onClose, project, unitType }
             </div>
           </div>
 
-          {/* Valuation & Yield Formula Box */}
+          {/* Transaction Price & Yield Formula Box */}
           <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px', border: '1px solid #E2E8F0' }}>
             <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '8px', color: 'var(--color-text-charcoal)' }}>
               Gross Rental Yield Computation
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: '1.6' }}>
               <strong>Gross Yield Formula:</strong><br />
-              (Annual Rent / Purchase Valuation) × 100%<br />
+              (Annual Rent / Purchase Transaction Price) × 100%<br />
               = (${(project.medianRent * 12 || 0).toLocaleString()} / ${project.medianSaleValuation ? project.medianSaleValuation.toLocaleString() : '0'}) × 100%<br />
               = <span style={{ fontWeight: 800, color: yieldBadgeColor }}>{project.grossYield || 0}%</span>
             </div>

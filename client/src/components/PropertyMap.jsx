@@ -353,7 +353,7 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
               else icon = createCustomIcon('#CB6D51'); // Low / Trophy Yield Terracotta
             }
 
-            const priceRate = unitType === 'sqm' ? p.medianPsqm : p.medianPsft;
+            const priceRate = p.medianPsft;
 
             return (
               <Marker
@@ -396,7 +396,7 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Median Rate</div>
                           <div style={{ fontWeight: 700, color: 'var(--color-primary-green)', fontSize: '0.85rem' }}>
-                            ${priceRate ? priceRate.toLocaleString() : '0'} /{unitType}
+                            ${priceRate ? priceRate.toLocaleString() : '0'} /sqft
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>

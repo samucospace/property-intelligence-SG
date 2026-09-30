@@ -145,7 +145,7 @@ app.get('/api/leads/unsubscribe', async (req, res) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Unsubscribed | Property Intelligence SG</title>
+        <title>Unsubscribed | Singapore Property Intel</title>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #FFFAFO; color: #36454F; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 16px; }
           .card { background: #FFFFFF; border: 1px solid rgba(54,69,79,0.12); border-radius: 16px; padding: 40px 32px; max-width: 480px; text-align: center; box-shadow: 0 4px 20px rgba(54,69,79,0.06); }
@@ -159,8 +159,8 @@ app.get('/api/leads/unsubscribe', async (req, res) => {
         <div class="card">
           <div class="badge">Singapore PDPA Compliant Opt-Out</div>
           <h2>You Have Been Unsubscribed</h2>
-          <p>Your email <strong>${cleanEmail}</strong> has been removed from the Property Intelligence SG Weekly Watchlist. You will receive no further automated emails from this list.</p>
-          <p style="margin-top: 24px;"><a href="/">← Return to Valuation Portal</a></p>
+          <p>Your email <strong>${cleanEmail}</strong> has been removed from the Singapore Property Intel Weekly Watchlist. You will receive no further automated emails from this list.</p>
+          <p style="margin-top: 24px;"><a href="/">← Return to Singapore Property Intel</a></p>
         </div>
       </body>
       </html>

@@ -99,7 +99,10 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
       dateFrom: '2021-01-01',
       dateTo: '2026-12-31',
       unitSizeMin: 0,
-      unitSizeMax: 3000
+      unitSizeMax: 10000,
+      priceMin: null,
+      priceMax: null,
+      tenure: 'all'
     });
     setSearchTerm('');
   };
@@ -128,7 +131,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
                 gap: '6px'
               }}
             >
-              🏷️ Sale Valuation & Trends
+              🏷️ Sale Transaction Prices & Trends
             </button>
             <button
               onClick={() => setViewMode && setViewMode('rental')}
@@ -154,22 +157,6 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* Unit Toggle */}
-          <div className="tab-buttons">
-            <button
-              className={`tab-btn ${unitType === 'sqm' ? 'active' : ''}`}
-              onClick={() => setUnitType('sqm')}
-            >
-              $/SQM
-            </button>
-            <button
-              className={`tab-btn ${unitType === 'sqft' ? 'active' : ''}`}
-              onClick={() => setUnitType('sqft')}
-            >
-              $/SQFT
-            </button>
-          </div>
-
           <button className="btn" onClick={clearAllFilters} style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
             <X size={14} /> Clear Filters
           </button>
@@ -261,7 +248,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
 
         {/* Date From */}
         <div className="filter-group">
-          <label className="filter-label">Contract Date From</label>
+          <label className="filter-label">Transaction Date From</label>
           <input
             type="date"
             className="input-box"
@@ -272,12 +259,50 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
 
         {/* Date To */}
         <div className="filter-group">
-          <label className="filter-label">Contract Date To</label>
+          <label className="filter-label">Transaction Date To</label>
           <input
             type="date"
             className="input-box"
             value={filters.dateTo}
             onChange={e => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+          />
+        </div>
+
+        {/* Tenure Filter (Freehold vs Leasehold) */}
+        <div className="filter-group">
+          <label className="filter-label">Tenure</label>
+          <select
+            className="input-box"
+            value={filters.tenure || 'all'}
+            onChange={e => setFilters(prev => ({ ...prev, tenure: e.target.value }))}
+          >
+            <option value="all">All Tenures</option>
+            <option value="freehold">Freehold / 999-yr</option>
+            <option value="leasehold">Leasehold</option>
+          </select>
+        </div>
+
+        {/* Min Price / Rent */}
+        <div className="filter-group">
+          <label className="filter-label">{viewMode === 'rental' ? 'Min Rent ($/mo)' : 'Min Price ($ SGD)'}</label>
+          <input
+            type="number"
+            className="input-box"
+            placeholder={viewMode === 'rental' ? 'e.g. 2000' : 'e.g. 1000000'}
+            value={filters.priceMin ?? ''}
+            onChange={e => setFilters(prev => ({ ...prev, priceMin: e.target.value ? parseFloat(e.target.value) : null }))}
+          />
+        </div>
+
+        {/* Max Price / Rent */}
+        <div className="filter-group">
+          <label className="filter-label">{viewMode === 'rental' ? 'Max Rent ($/mo)' : 'Max Price ($ SGD)'}</label>
+          <input
+            type="number"
+            className="input-box"
+            placeholder={viewMode === 'rental' ? 'e.g. 8000' : 'e.g. 3500000'}
+            value={filters.priceMax ?? ''}
+            onChange={e => setFilters(prev => ({ ...prev, priceMax: e.target.value ? parseFloat(e.target.value) : null }))}
           />
         </div>
 
@@ -302,11 +327,11 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
 
         {/* Unit Size Min/Max */}
         <div className="filter-group">
-          <label className="filter-label">Floor Area Max ({unitType === 'sqm' ? 'Sqm' : 'Sqft'})</label>
+          <label className="filter-label">Floor Area Max (Sqft)</label>
           <input
             type="number"
             className="input-box"
-            placeholder={unitType === 'sqm' ? 'e.g. 200' : 'e.g. 2150'}
+            placeholder="e.g. 2500"
             value={filters.unitSizeMax || ''}
             onChange={e => setFilters(prev => ({ ...prev, unitSizeMax: parseFloat(e.target.value) || 10000 }))}
           />
@@ -344,6 +369,27 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
             <MapPin size={12} />
             <span>Area: {filters.planningArea}</span>
             <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, planningArea: null }))} />
+          </div>
+        )}
+
+        {filters.tenure && filters.tenure !== 'all' && (
+          <div className="pill" style={{ borderColor: 'var(--color-primary-green)', color: 'var(--color-primary-green)', background: '#ECFDF5' }}>
+            <span>Tenure: {filters.tenure === 'freehold' ? 'Freehold / 999-yr' : 'Leasehold'}</span>
+            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, tenure: 'all' }))} />
+          </div>
+        )}
+
+        {filters.priceMin != null && filters.priceMin !== '' && (
+          <div className="pill" style={{ borderColor: 'var(--color-accent-teal)', color: 'var(--color-accent-teal)', background: '#F0FDFA' }}>
+            <span>Min {viewMode === 'rental' ? 'Rent' : 'Price'}: ${Number(filters.priceMin).toLocaleString()}</span>
+            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, priceMin: null }))} />
+          </div>
+        )}
+
+        {filters.priceMax != null && filters.priceMax !== '' && (
+          <div className="pill" style={{ borderColor: 'var(--color-accent-teal)', color: 'var(--color-accent-teal)', background: '#F0FDFA' }}>
+            <span>Max {viewMode === 'rental' ? 'Rent' : 'Price'}: ${Number(filters.priceMax).toLocaleString()}</span>
+            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, priceMax: null }))} />
           </div>
         )}
 
