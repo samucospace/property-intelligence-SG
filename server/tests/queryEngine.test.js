@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateMedian } from '../utils/math.js';
-import { escapeLike, generateMonthRange } from '../queryEngine.js';
+import { escapeLike, generateMonthRange, normalizeAnalyticsCacheKey } from '../queryEngine.js';
 import { validateFilters } from '../utils/validation.js';
 import { classifyTenure } from '../utils/tenureUtils.js';
 
@@ -148,6 +148,34 @@ describe('Query Engine & Math Utilities', () => {
       expect(classifyTenure('')).toBeNull();
       expect(classifyTenure(null)).toBeNull();
       expect(classifyTenure('UNKNOWN')).toBeNull();
+    });
+  });
+
+  describe('normalizeAnalyticsCacheKey (ABU-01 Cache Hardening)', () => {
+    it('strips extraneous and randomized parameters to prevent cache-busting thrashing', () => {
+      const normalFilter = { district: '09', propertyType: 'condo' };
+      const attackedFilter = { district: '09', propertyType: 'condo', _rand: 0.123456, cacheBust: 'true' };
+
+      const keyNormal = normalizeAnalyticsCacheKey('price', normalFilter);
+      const keyAttacked = normalizeAnalyticsCacheKey('price', attackedFilter);
+
+      expect(keyNormal).toBe(keyAttacked);
+      expect(keyAttacked).not.toContain('_rand');
+      expect(keyAttacked).not.toContain('cacheBust');
+    });
+
+    it('produces identical deterministic keys regardless of object key order', () => {
+      const filter1 = { district: '10', propertyType: 'condo', tenure: 'freehold' };
+      const filter2 = { tenure: 'freehold', district: '10', propertyType: 'condo' };
+
+      expect(normalizeAnalyticsCacheKey('price', filter1)).toBe(normalizeAnalyticsCacheKey('price', filter2));
+    });
+
+    it('sorts project array elements to produce deterministic cache keys', () => {
+      const filter1 = { projects: ['The Sail', 'Marina One'] };
+      const filter2 = { projects: ['Marina One', 'The Sail'] };
+
+      expect(normalizeAnalyticsCacheKey('price', filter1)).toBe(normalizeAnalyticsCacheKey('price', filter2));
     });
   });
 });

@@ -68,6 +68,105 @@ function setAnalyticsCache(key, data) {
 }
 
 /**
+ * Normalizes filter inputs into a deterministic cache key.
+ * Strips arbitrary keys (e.g. _rand, cache-busting tokens) to prevent cache thrashing (ABU-01).
+ */
+export function normalizeAnalyticsCacheKey(prefix, filters = {}) {
+  const allowedKeys = [
+    'bedroomCount',
+    'centerCoords',
+    'dateFrom',
+    'dateTo',
+    'district',
+    'lifestyleWeights',
+    'limit',
+    'page',
+    'planningArea',
+    'priceMax',
+    'priceMin',
+    'projects',
+    'propertyType',
+    'radiusKm',
+    'street',
+    'tenure',
+    'unitSizeMax',
+    'unitSizeMin',
+    'unitType'
+  ];
+
+  const normalized = {};
+  for (const key of allowedKeys) {
+    const val = filters[key];
+    if (val !== undefined && val !== null && val !== '') {
+      if (key === 'projects' && Array.isArray(val)) {
+        normalized.projects = [...val].map(String).sort();
+      } else if (key === 'centerCoords' && typeof val === 'object') {
+        const lat = parseFloat(val.lat);
+        const lng = parseFloat(val.lng);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          normalized.centerCoords = { lat: lat.toFixed(4), lng: lng.toFixed(4) };
+        }
+      } else if (key === 'lifestyleWeights' && typeof val === 'object') {
+        normalized.lifestyleWeights = Object.keys(val).sort().reduce((acc, k) => {
+          acc[k] = val[k];
+          return acc;
+        }, {});
+      } else {
+        normalized[key] = val;
+      }
+    }
+  }
+
+  return `${prefix}:${JSON.stringify(normalized)}`;
+}
+
+/**
+ * Finds project IDs within radiusKm using SQLite bounding-box pre-filtering,
+ * exact haversine distance filtering, and a safety cap of maxProjects (ABU-01).
+ */
+export async function getMatchingProjectIdsByRadius(centerCoords, radiusKm, maxProjects = 200) {
+  if (!centerCoords || !centerCoords.lat || !centerCoords.lng || !radiusKm) {
+    return [];
+  }
+
+  const lat = parseFloat(centerCoords.lat);
+  const lng = parseFloat(centerCoords.lng);
+  const maxRadius = parseFloat(radiusKm);
+
+  if (isNaN(lat) || isNaN(lng) || isNaN(maxRadius) || maxRadius <= 0) {
+    return [];
+  }
+
+  // Singapore is at ~1.3°N. 1 deg latitude ~ 111 km. 1 deg longitude ~ 111 * cos(lat) km.
+  const latDelta = maxRadius / 111.0;
+  const radLat = (lat * Math.PI) / 180.0;
+  const lngDelta = maxRadius / (111.0 * Math.cos(radLat));
+
+  const latMin = lat - latDelta;
+  const latMax = lat + latDelta;
+  const lngMin = lng - lngDelta;
+  const lngMax = lng + lngDelta;
+
+  // Bounding box pre-filter in SQLite
+  const candidateProjects = await dbAll(
+    `SELECT project_id, latitude, longitude
+     FROM projects
+     WHERE latitude BETWEEN ? AND ?
+       AND longitude BETWEEN ? AND ?
+       AND (geo_source IS NULL OR geo_source != 'district_centre')`,
+    [latMin, latMax, lngMin, lngMax]
+  );
+
+  // Exact haversine filter & sort by distance, capped to maxProjects (default 200)
+  return candidateProjects
+    .map(p => ({ id: p.project_id, dist: haversineDistance(lat, lng, p.latitude, p.longitude) }))
+    .filter(p => p.dist <= maxRadius)
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, maxProjects)
+    .map(p => p.id);
+}
+
+/**
  * Loads pre-computed 24-month rolling median sale benchmarks into memory cache (Step 3.1).
  * Loads in < 2ms directly from project_benchmarks table.
  * @param {object} [conn] Optional database connection for transaction/test isolation
@@ -215,7 +314,7 @@ export async function getSearchSuggestions(q) {
 
 // 2. Price Analytics & Filter Query Engine
 export async function getPriceAnalytics(filters = {}) {
-  const cacheKey = 'price:' + JSON.stringify(filters);
+  const cacheKey = normalizeAnalyticsCacheKey('price', filters);
   const cachedData = getAnalyticsCache(cacheKey);
   if (cachedData) {
     return cachedData;
@@ -315,11 +414,7 @@ export async function getPriceAnalytics(filters = {}) {
 
   // Radius filter by project coordinates (excluding district centroids)
   if (radiusKm && centerCoords && centerCoords.lat && centerCoords.lng) {
-    const lat = parseFloat(centerCoords.lat);
-    const lng = parseFloat(centerCoords.lng);
-    const maxRadius = parseFloat(radiusKm);
-    const allProjs = await dbAll(`SELECT project_id, latitude, longitude FROM projects WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND (geo_source IS NULL OR geo_source != 'district_centre')`);
-    const matchedIds = allProjs.filter(p => haversineDistance(lat, lng, p.latitude, p.longitude) <= maxRadius).map(p => p.project_id);
+    const matchedIds = await getMatchingProjectIdsByRadius(centerCoords, radiusKm, 200);
     if (matchedIds.length === 0) {
       const emptyResult = {
         summary: { totalVolume: 0, medianPrice: 0, medianPsqm: 0, medianPsft: 0, minPrice: 0, maxPrice: 0, averagePrice: 0 },
@@ -581,7 +676,7 @@ export async function getPriceAnalytics(filters = {}) {
 
 // 3. Rental Yield Analytics Query Engine
 export async function getRentalYieldAnalytics(filters = {}) {
-  const cacheKey = 'rental:' + JSON.stringify(filters);
+  const cacheKey = normalizeAnalyticsCacheKey('rental', filters);
   const cachedData = getAnalyticsCache(cacheKey);
   if (cachedData) {
     return cachedData;
@@ -681,11 +776,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
 
   // Radius filter by project coordinates (excluding district centroids)
   if (radiusKm && centerCoords && centerCoords.lat && centerCoords.lng) {
-    const lat = parseFloat(centerCoords.lat);
-    const lng = parseFloat(centerCoords.lng);
-    const maxRadius = parseFloat(radiusKm);
-    const allProjs = await dbAll(`SELECT project_id, latitude, longitude FROM projects WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND (geo_source IS NULL OR geo_source != 'district_centre')`);
-    const matchedIds = allProjs.filter(p => haversineDistance(lat, lng, p.latitude, p.longitude) <= maxRadius).map(p => p.project_id);
+    const matchedIds = await getMatchingProjectIdsByRadius(centerCoords, radiusKm, 200);
     if (matchedIds.length === 0) {
       const emptyResult = {
         summary: { medianRent: 0, medianRentPsft: 0, medianRentPsqm: 0, avgGrossYield: null, totalLeases: 0, rentMinMaxRange: { min: 0, max: 0 } },

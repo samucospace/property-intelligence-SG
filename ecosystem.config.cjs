@@ -12,7 +12,8 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3001,
-        TZ: 'Asia/Singapore'
+        TZ: 'Asia/Singapore',
+        DB_PATH: process.env.DB_PATH || '/app/data/property.db'
       }
     },
 
@@ -28,7 +29,8 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: 'production',
-        TZ: 'Asia/Singapore'
+        TZ: 'Asia/Singapore',
+        DB_PATH: process.env.DB_PATH || '/app/data/property.db'
       }
     },
 
@@ -44,7 +46,8 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: 'production',
-        TZ: 'Asia/Singapore'
+        TZ: 'Asia/Singapore',
+        DB_PATH: process.env.DB_PATH || '/app/data/property.db'
       }
     },
 
@@ -60,7 +63,8 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: 'production',
-        TZ: 'Asia/Singapore'
+        TZ: 'Asia/Singapore',
+        DB_PATH: process.env.DB_PATH || '/app/data/property.db'
       }
     },
 
@@ -76,7 +80,8 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: 'production',
-        TZ: 'Asia/Singapore'
+        TZ: 'Asia/Singapore',
+        DB_PATH: process.env.DB_PATH || '/app/data/property.db'
       }
     }
   ]

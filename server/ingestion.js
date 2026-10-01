@@ -34,6 +34,39 @@ export function parseAreaRange(rangeStr) {
   return parseFloat(nums[0]);
 }
 
+// Step 2.3 / ING-01: Resilient Axios Client with 30s timeout and Exponential Backoff Retries
+export const uraClient = axios.create({
+  timeout: 30000,
+  headers: {
+    'User-Agent': 'SingaporeHomeIntel/1.0 (URA Data Sync Service)'
+  }
+});
+
+/**
+ * Outbound HTTP GET helper with exponential backoff retry (1s, 2s, 4s)
+ * on rate limits (429), gateway errors (502, 503, 504), and socket timeouts.
+ */
+export async function fetchWithRetry(url, options = {}, maxRetries = 3, client = uraClient) {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await client.get(url, options);
+    } catch (err) {
+      attempt++;
+      const status = err.response?.status;
+      const isRetryable =
+        attempt < maxRetries &&
+        (!status || status === 429 || status === 502 || status === 503 || status === 504 || err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT');
+      if (!isRetryable) {
+        throw err;
+      }
+      const delayMs = Math.pow(2, attempt - 1) * 1000;
+      console.warn(`[Ingestion] Outbound request failed (${err.message}). Retrying attempt ${attempt}/${maxRetries} after ${delayMs}ms...`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+}
+
 // 2. Fetch live data from official URA API with SQLite TRANSACTION batching
 export async function fetchUraData(accessKey) {
   if (!accessKey) {
@@ -45,10 +78,9 @@ export async function fetchUraData(accessKey) {
 
   // Step A: Get Token
   const tokenUrl = 'https://eservice.ura.gov.sg/uraDataService/insertNewToken/v1';
-  const tokenRes = await axios.get(tokenUrl, {
+  const tokenRes = await fetchWithRetry(tokenUrl, {
     headers: {
-      AccessKey: cleanKey,
-      'User-Agent': 'Mozilla/5.0'
+      AccessKey: cleanKey
     }
   });
 
@@ -75,11 +107,10 @@ export async function fetchUraData(accessKey) {
       const dataUrl = `https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1?service=PMI_Resi_Transaction&batch=${batch}`;
 
       try {
-        const batchRes = await axios.get(dataUrl, {
+        const batchRes = await fetchWithRetry(dataUrl, {
           headers: {
             AccessKey: cleanKey,
-            Token: dailyToken,
-            'User-Agent': 'Mozilla/5.0'
+            Token: dailyToken
           }
         });
 
@@ -187,8 +218,8 @@ export async function fetchUraData(accessKey) {
     for (const refPeriod of refPeriods) {
       try {
         const rentUrl = `https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1?service=PMI_Resi_Rental&refPeriod=${refPeriod}`;
-        const rentRes = await axios.get(rentUrl, {
-          headers: { AccessKey: cleanKey, Token: dailyToken, 'User-Agent': 'Mozilla/5.0' }
+        const rentRes = await fetchWithRetry(rentUrl, {
+          headers: { AccessKey: cleanKey, Token: dailyToken }
         });
 
         const rentBody = rentRes.data || {};

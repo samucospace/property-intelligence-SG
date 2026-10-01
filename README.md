@@ -151,7 +151,9 @@ cp server/.env.example server/.env
 | :--- | :---: | :---: | :--- |
 | `PORT` | No | `3001` | The port Express listens on. |
 | `NODE_ENV` | No | `development` | Set to `production` on live webservers. |
+| `ALLOWED_ORIGIN` | **Yes (Prod)** | - | Strict allowed CORS origins (e.g. `https://homeintel.sg`). Rejects wildcard in prod. |
 | `ADMIN_API_KEY` | **Yes (Prod)** | - | Secret key (min 32 chars) protecting `/api/ingest/*` and `/api/admin/*`. |
+| `BACKUP_ENCRYPTION_KEY` | Optional | - | Passphrase for AES-256-GCM authenticated database snapshot encryption. |
 | `UNSUBSCRIBE_SECRET`| **Yes (Prod)** | - | HMAC secret for verifying RFC 8058 1-click unsubscribe links. |
 | `LEGACY_UNSUB_UNTIL`| Optional | - | Cut-off date (YYYY-MM-DD) for accepting legacy SHA-256 tokens. |
 | `DB_PATH` | No | `./property.db`| File path to SQLite database. |
@@ -173,7 +175,7 @@ cp server/.env.example server/.env
 | :--- | :--- | :--- |
 | `GET` | `/api/health` | Deep health check querying database; returns `{ status: 'ok', db: 'connected', timestamp }` (HTTP 503 on database error). |
 | `GET` | `/api/search/suggestions?q=...` | Fast autocomplete matching project names, streets, and districts. |
-| `POST` | `/api/analytics/price-trends` | Aggregates price trends ($/sqft), time series, and scatter points. |
+| `POST` | `/api/analytics/price-trends` | Aggregates price trends ($/sqft), time series, and scatter points (cached with key normalization). |
 | `POST` | `/api/analytics/rental-yields` | Aggregates rental contracts and gross rental yields. |
 | `GET` | `/api/projects` | Overview list of all registered developments. |
 | `GET` | `/api/projects/:id/livability` | Computes project livability index and nearby amenity walking breakdown. |
@@ -182,23 +184,28 @@ cp server/.env.example server/.env
 ### Lead Capture & Singapore PDPA
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/leads/submit` | Records CEA advisory lead or newsletter subscription with PDPA consent. |
+| `POST` | `/api/leads/submit` | Records CEA advisory lead or newsletter subscription with PDPA consent (5-minute cooldown on verification dispatches). |
 | `GET` | `/api/newsletter/confirm` | Double opt-in email verification endpoint. |
 | `GET` / `POST` | `/api/leads/unsubscribe` | 1-Click PDPA unsubscribe handler with cryptographic HMAC validation. |
 
 ### Search Engine Optimization (SEO)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
+| `GET` | `/?project=...` | Server-rendered OpenGraph metadata with in-memory HTML template caching. |
 | `GET` | `/sitemap.xml` | Dynamically generated XML sitemap with `<lastmod>` indexing all 5,900+ developments. |
 | `GET` | `/robots.txt` | Crawler directives referencing `/sitemap.xml`. |
 
-### Ingestion & Admin Pipeline (Protected by `X-Admin-Key`)
+### Ingestion & Admin Pipeline (Guarded by `requireAdmin`)
+*Supports `Authorization: Bearer <sessionToken>`, `X-Admin-Session: <sessionToken>`, or direct `X-Admin-Key` header.*
+
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
+| `POST` | `/api/admin/login` | Body: `{ "adminKey": "..." }` — Issues expiring HMAC-SHA256 session token (rate-limited to 5 attempts / 15 min). |
+| `GET` | `/api/admin/leads` | Lists recent leads and subscribers in JSON format. |
+| `GET` | `/api/admin/leads/export.csv` | Downloads lead submissions as CSV (with CSV formula injection defense). |
+| `DELETE` | `/api/admin/leads/:id` | Permanently deletes a lead record under PDPA Section 25 / GDPR Article 17 Right-to-Erasure. |
 | `POST` | `/api/ingest/ura` | Body: `{ "accessKey": "..." }` — Triggers official URA live token exchange & batch download. |
 | `POST` | `/api/ingest/import-data` | Body: `{ "jsonData": [...] }` — Ingests raw official URA JSON exports into SQLite. |
-| `GET` | `/api/admin/leads` | Lists recent leads and subscribers in JSON format. |
-| `GET` | `/api/admin/leads/export.csv` | Downloads lead submissions as CSV (protected by timing-safe `requireAdmin` with CSV formula injection defense). |
 
 ---
 
@@ -207,14 +214,14 @@ cp server/.env.example server/.env
 All scripts are located in `server/scripts/`:
 
 ### 1. Weekly URA Data Synchronization
-Syncs official sales caveat batches 1–4 and quarterly rental contracts from URA:
+Syncs official sales caveat batches 1–4 and quarterly rental contracts from URA (with 30-second timeouts and 3x exponential backoff):
 ```bash
 node server/scripts/sync-ura.js
 ```
 *(Requires `URA_ACCESS_KEY` in `server/.env`).*
 
 ### 2. Weekly Automated Property Digest (Newsletter)
-Generates the HTML briefing and sends it to active subscribers via Resend:
+Generates the HTML briefing, sanitizes all interpolated data against HTML/XSS injection, tracks send state idempotently to prevent duplicate emails upon interruption, and throttles dispatches by 150ms per recipient:
 ```bash
 # Preview HTML locally without sending:
 node server/scripts/send-weekly-newsletter.js --preview
@@ -225,19 +232,23 @@ node server/scripts/send-weekly-newsletter.js
 *(Requires `RESEND_API_KEY` in `server/.env`).*
 
 ### 3. Monthly PDPA Lead Retention Cleanup
-Purges unconverted agent advisory leads older than 12 months under PDPA data retention policies:
+Enforces automated data retention under Singapore PDPA Section 25 and GDPR:
+- Purges unconfirmed newsletter signups older than 30 days.
+- Anonymizes unsubscribed leads older than 90 days (wipes personal details and converts email to SHA-256 suppression hash).
+- Purges unconverted agent advisory leads older than 12 months.
 ```bash
 node server/scripts/cleanup-leads.js
 ```
 
 ### 4. Daily Online SQLite Database Backup
-Performs an online, non-blocking snapshot using `VACUUM INTO`, verifies snapshot health with `PRAGMA integrity_check`, and purges backups older than 30 days:
+Performs an online, non-blocking snapshot using `VACUUM INTO`, verifies snapshot health with `PRAGMA integrity_check`, optionally encrypts the snapshot using AES-256-GCM (authenticated encryption), and purges backups older than 30 days:
 ```bash
 node server/scripts/backup-db.js
 ```
+*(Optionally configure `BACKUP_ENCRYPTION_KEY` in `server/.env`).*
 
 ### 5. Automated Clean Database Rebuild & Verification
-Performs an automated clean-slate ingest from official URA APIs, seeds amenities, calculates postal districts, segregates non-landed developments, pre-computes livability, and calculates true 24-month rolling median benchmarks:
+Performs an automated clean-slate ingest from official URA APIs, seeds amenities, calculates postal districts, segregates non-landed developments, pre-computes livability, and calculates true 24-month rolling median benchmarks. Includes an active-server concurrency guard and `PRAGMA wal_checkpoint(TRUNCATE)`:
 ```bash
 npm run rebuild-db
 # or directly:
@@ -258,12 +269,12 @@ npm test
 npm --prefix server test
 ```
 
-### Test Coverage Matrix (68 Passing Tests Across 5 Suites)
-* **`queryEngine.test.js`** (21 tests): Exact median math (odd, even, sparse), `LIKE` wildcard escaping, chronological month sequences, gross annual yield math, date boundary validation (2000–2100, 10-year span, project limit), and tenure classification.
-* **`security.test.js`** (15 tests): Constant-time comparison (`safeEqual`), HTML escaping (`escapeHtml`), HMAC-SHA256 unsubscribe token validation (verifying malformed, forged, and non-ASCII tokens fail safely without 500 errors), fail-closed legacy token cut-off grace periods, and fail-closed admin guard checks.
-* **`ingestion.test.js`** (22 tests): SVY21 projection origin and benchmark coordinate accuracy, Haversine distance, postal district normalization (`01`–`28`), 6-digit postal sector resolving, landed housing pattern matching, dynamic quarter generation, and SQLite transaction rollbacks (`withTransaction`).
-* **`leads.test.js`** (7 tests): Mandatory PDPA consent enforcement, honeypot spam bot trapping, name/email length bounds, Singapore phone validation regex, and SQLite schema migrations + `ON CONFLICT` deduplication.
-* **`migrations.test.js`** (3 tests): Full migration lifecycle execution (001 through 007) from an empty SQLite database in CI, constant default safety, and independent price/psft median benchmark calculations.
+### Test Coverage Matrix (101 Passing Tests Across 5 Suites)
+* **`security.test.js`** (38 tests): Constant-time comparison (`safeEqual`), HTML escaping (`escapeHtml`), HMAC-SHA256 unsubscribe token validation (verifying malformed, forged, and non-ASCII tokens fail safely without 500 errors), legacy token cut-off grace periods, fail-closed admin key validation, admin session token lifecycle (`generateAdminSession`, `verifyAdminSession`, expiration, tamper rejection), `requireAdmin` middleware authorization guards (Bearer session, `X-Admin-Session`, and legacy `X-Admin-Key`), strict CORS origin evaluation, in-memory HTML SEO template caching, rebuild script active server port detection, and AES-256-GCM database backup encryption/decryption round-trip with GCM authentication tag tamper resistance.
+* **`ingestion.test.js`** (25 tests): SVY21 projection origin and benchmark coordinate accuracy, Haversine distance, postal district normalization (`01`–`28`), 6-digit postal sector resolving, landed housing pattern matching, dynamic quarter generation, transaction deduplication and SHA-256 record hashing, SQLite transaction rollbacks (`withTransaction`), and `fetchWithRetry` resilience testing with exponential backoff on transient 503 errors.
+* **`queryEngine.test.js`** (12 tests): Exact median math (odd, even, sparse), `LIKE` wildcard escaping, chronological month sequences, gross annual yield math, date boundary validation (2000–2100, 10-year span, project limit), tenure classification, and cache key normalization with SQL bounding-box pre-filtering and 200 project radius cap.
+* **`leads.test.js`** (11 tests): Mandatory PDPA consent enforcement, honeypot spam bot trapping, name/email length bounds, Singapore phone validation regex, SQLite schema migrations + `ON CONFLICT` deduplication, 5-minute verification email cooldown, send-state newsletter tracking, automated retention purging and suppression hashing (PRIV-01), and permanent Right-to-Erasure lead deletion (PDPA Section 25).
+* **`migrations.test.js`** (15 tests): Full migration lifecycle execution (001 through 008) from an empty SQLite database in CI, constant default safety, independent price/psft median benchmark calculations, and schema resilience columns.
 
 ---
 
@@ -282,11 +293,12 @@ npm --prefix server test
 3. **Configure environment and domain**:
    - Fill in `server/.env`.
    - Update `Caddyfile` with your live domain name.
-   - Set required variables: `ADMIN_API_KEY`, `UNSUBSCRIBE_SECRET`, `BASE_URL`, `URA_ACCESS_KEY`, `TZ=Asia/Singapore`.
+   - Set required variables: `ADMIN_API_KEY`, `UNSUBSCRIBE_SECRET`, `BASE_URL`, `URA_ACCESS_KEY`, `ALLOWED_ORIGIN`, `TZ=Asia/Singapore`.
 4. **Launch with automated HTTPS**:
    ```bash
    docker compose up -d --build
    ```
+   *The container runs `pm2-runtime ecosystem.config.cjs`, which starts both the unified Express web application and all 4 background cron jobs (database backups, URA sync, PDPA retention, and newsletters) under process supervision.*
 
 ### Option B: Bare Linux VPS with PM2
 The provided `ecosystem.config.cjs` manages the unified web app alongside built-in scheduled background cron jobs respecting `TZ=Asia/Singapore` in fork mode:

@@ -13,8 +13,9 @@ import { initDb, dbGet, dbAll, dbRun, closeDb } from './db.js';
 import { fetchUraData, importRealUraData, seedSoraRates } from './ingestion.js';
 import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics, initSaleValuationsCache, invalidateSaleValuationsCache, invalidateAnalyticsCache } from './queryEngine.js';
 import { seedAmenities, calculateLivabilityScore, initLivabilityCache, invalidateLivabilityCache, getProjectLivability } from './livabilityEngine.js';
-import { safeEqual, escapeHtml, verifyUnsubscribeToken, checkAdminKey } from './utils/security.js';
+import { safeEqual, escapeHtml, verifyUnsubscribeToken, checkAdminKey, generateAdminSession, verifyAdminSession, isPlaceholderSecret } from './utils/security.js';
 import { validateFilters } from './utils/validation.js';
+import { cleanupLeads } from './scripts/cleanup-leads.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,7 +52,16 @@ app.use(helmet({
 }));
 app.use(compression());
 const allowedOrigin = process.env.ALLOWED_ORIGIN;
-app.use(cors(allowedOrigin ? { origin: allowedOrigin } : {}));
+if (allowedOrigin) {
+  const allowedOrigins = allowedOrigin.split(',').map(s => s.trim()).filter(Boolean);
+  app.use(cors({
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'X-Admin-Key']
+  }));
+} else if (process.env.NODE_ENV !== 'production') {
+  app.use(cors()); // Allow all in local development only
+}
 
 // Step 3.4.2: Strict 100kb body limit for public routes (exempting dedicated 50mb import-data route)
 app.use((req, res, next) => {
@@ -100,15 +110,66 @@ function validateAnalyticsFilters(req, res, next) {
   next();
 }
 
-// Ingestion Admin Auth Guard (Fail-closed independent of NODE_ENV - Step 1.3)
-const requireAdmin = (req, res, next) => {
-  const check = checkAdminKey(process.env.ADMIN_API_KEY, req.get('x-admin-key'));
+// Ingestion & Admin Auth Guard (Fail-closed independent of NODE_ENV - Step 1.3 & IAM-01)
+export const requireAdmin = (req, res, next) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  if (!adminKey || adminKey.length < 32 || isPlaceholderSecret(adminKey)) {
+    return res.status(503).json({ error: 'Admin API disabled: ADMIN_API_KEY is not securely configured.' });
+  }
+
+  // 1. Check Bearer session token (IAM-01)
+  const authHeader = req.get('authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const sessionToken = authHeader.slice(7).trim();
+    if (verifyAdminSession(sessionToken, adminKey)) {
+      return next();
+    }
+  }
+
+  // 2. Check X-Admin-Session header (IAM-01)
+  const sessionHeader = req.get('x-admin-session');
+  if (sessionHeader && verifyAdminSession(sessionHeader.trim(), adminKey)) {
+    return next();
+  }
+
+  // 3. Fallback to direct X-Admin-Key header (for automated cron scripts / backward compatibility)
+  const directKey = req.get('x-admin-key');
+  const check = checkAdminKey(adminKey, directKey);
+  if (check.ok) {
+    return next();
+  }
+
+  return res.status(401).json({ error: 'Unauthorized: Valid admin session token or X-Admin-Key required.' });
+};
+app.use('/api/ingest', requireAdmin);
+
+// Admin Login Rate Limiter (5 attempts per 15 minutes to prevent brute forcing)
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many admin authentication attempts. Please try again after 15 minutes.' }
+});
+
+// Admin Session Login Endpoint (IAM-01)
+app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
+  const { adminKey } = req.body || {};
+  const configuredKey = process.env.ADMIN_API_KEY;
+
+  const check = checkAdminKey(configuredKey, adminKey);
   if (!check.ok) {
     return res.status(check.status).json({ error: check.error });
   }
-  next();
-};
-app.use('/api/ingest', requireAdmin);
+
+  const session = generateAdminSession(configuredKey);
+  console.log(`[Admin] Authenticated new admin session (expires at ${session.expiresAt}).`);
+  res.json({
+    status: 'success',
+    token: session.token,
+    expiresAt: session.expiresAt
+  });
+});
 
 // 1. Health check (Step 5.5: Return 503 if database check fails)
 app.get('/api/health', async (req, res) => {
@@ -203,6 +264,20 @@ app.post('/api/leads/submit', leadsLimiter, async (req, res, next) => {
     }
 
     if (cleanLeadType === 'newsletter') {
+      // Step 4.5.2 & ABU-02: Double opt-in cooldown (5 minutes / 300s) to prevent email bombing
+      const existingLead = await dbGet(
+        `SELECT (strftime('%s', 'now') - strftime('%s', last_confirmation_sent_at)) AS elapsed_seconds
+         FROM leads
+         WHERE email = ? AND lead_type = 'newsletter' AND last_confirmation_sent_at IS NOT NULL`,
+        [cleanEmail]
+      );
+      if (existingLead && existingLead.elapsed_seconds != null && existingLead.elapsed_seconds < 300) {
+        return res.json({
+          status: 'success',
+          message: 'Confirmation link already dispatched recently. Please check your inbox or wait 5 minutes before requesting another.'
+        });
+      }
+
       // Step 4.5.2 & 4.5.3: Double opt-in & prevent duplicate newsletter leads
       const confirmToken = crypto.randomBytes(24).toString('hex');
       const host = req.get('host');
@@ -211,11 +286,12 @@ app.post('/api/leads/submit', leadsLimiter, async (req, res, next) => {
       const confirmUrl = `${baseUrl}/api/newsletter/confirm?email=${encodeURIComponent(cleanEmail)}&token=${confirmToken}`;
 
       await dbRun(
-        `INSERT INTO leads (name, email, lead_type, pdpa_consent, consent_version, consent_at, confirmation_token)
-         VALUES (?, ?, 'newsletter', 1, 'v1.0', CURRENT_TIMESTAMP, ?)
+        `INSERT INTO leads (name, email, lead_type, pdpa_consent, consent_version, consent_at, confirmation_token, last_confirmation_sent_at)
+         VALUES (?, ?, 'newsletter', 1, 'v1.0', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
          ON CONFLICT(email) WHERE lead_type = 'newsletter'
          DO UPDATE SET
            confirmation_token = excluded.confirmation_token,
+           last_confirmation_sent_at = CURRENT_TIMESTAMP,
            pdpa_consent = 1,
            consent_at = CURRENT_TIMESTAMP`,
         [name ? name.trim().slice(0, 100) : null, cleanEmail, confirmToken]
@@ -415,6 +491,24 @@ app.get('/api/admin/leads/export.csv', requireAdmin, async (req, res, next) => {
     res.header('Content-Type', 'text/csv');
     res.attachment(`leads-export-${new Date().toISOString().split('T')[0]}.csv`);
     res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Step 3.1 / PRIV-01: Admin Right-to-Erasure Endpoint (PDPA Section 25 & GDPR Article 17)
+app.delete('/api/admin/leads/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const leadId = parseInt(req.params.id, 10);
+    if (isNaN(leadId) || leadId <= 0) {
+      return res.status(400).json({ error: 'Valid numeric lead ID required.' });
+    }
+    const result = await dbRun('DELETE FROM leads WHERE lead_id = ?', [leadId]);
+    if (!result || result.changes === 0) {
+      return res.status(404).json({ error: 'Lead record not found.' });
+    }
+    console.log(`[Admin] Lead ${leadId} permanently erased under Right-to-Erasure request.`);
+    res.json({ status: 'success', message: `Lead ${leadId} permanently erased.` });
   } catch (err) {
     next(err);
   }
@@ -633,20 +727,29 @@ app.post('/api/ingest/ura', async (req, res, next) => {
 const clientDist = path.join(__dirname, '../client/dist');
 app.use(express.static(clientDist, { index: false }));
 
-// Step 4.5.5: Clean up expired unconverted agent advisory leads older than 12 months
+// Step 4.5.5 & PRIV-01: Clean up expired leads according to PDPA & GDPR retention policies
 async function cleanupExpiredLeads() {
   try {
-    const result = await dbRun(
-      `DELETE FROM leads
-       WHERE lead_type = 'agent_advisory'
-         AND created_at < date('now', '-12 months')`
-    );
-    if (result && result.changes > 0) {
-      console.log(`[Retention] Purged ${result.changes} unconverted agent advisory leads older than 12 months.`);
-    }
+    await cleanupLeads();
   } catch (err) {
     console.error('[Retention] Error cleaning up expired leads:', err);
   }
+}
+
+// Step 4.3.2 / PERF-01: Cache base index.html template in memory to eliminate synchronous disk I/O on hot-path SEO requests
+let cachedIndexHtml = null;
+let cachedIndexPath = null;
+
+export function getIndexHtmlTemplate(targetPath) {
+  if (process.env.NODE_ENV === 'production' && cachedIndexHtml && cachedIndexPath === targetPath) {
+    return cachedIndexHtml;
+  }
+  const content = fs.readFileSync(targetPath, 'utf8');
+  if (process.env.NODE_ENV === 'production') {
+    cachedIndexHtml = content;
+    cachedIndexPath = targetPath;
+  }
+  return content;
 }
 
 // Catch-all route to serve Vite index.html with Dynamic Server-Side Meta Tags (Step 4.3.2)
@@ -690,7 +793,7 @@ app.get('*', async (req, res, next) => {
       `Official URA transaction caveats, gross rental yields, and OneMap livability analysis for ${project.project_name} on ${project.street_name || ''} (District ${project.postal_district || 'N/A'}, ${project.market_segment || 'Singapore'}).`
     );
 
-    let html = fs.readFileSync(targetHtmlPath, 'utf8');
+    let html = getIndexHtmlTemplate(targetHtmlPath);
 
     // Use replacer functions (() => val) to prevent $ characters in titles/descriptions from triggering regex patterns
     html = html.replace(/<title>.*?<\/title>/, () => `<title>${title}</title>`);

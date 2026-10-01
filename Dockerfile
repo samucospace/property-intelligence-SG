@@ -20,11 +20,15 @@ RUN apk add --no-cache tzdata python3 make g++
 # Ensure persistent data directory exists
 RUN mkdir -p /app/data
 
+# Install PM2 globally for background cron execution and process management
+RUN npm install -g pm2 && mkdir -p /home/node/.pm2 && chown -R node:node /home/node
+
 # Copy server package manifest and install production dependencies only
 COPY server/package*.json ./server/
 RUN cd server && npm ci --omit=dev
 
-# Copy server application code
+# Copy PM2 ecosystem configuration and server application code
+COPY ecosystem.config.cjs ./
 COPY server/ ./server/
 
 # Copy compiled frontend from Stage 1 into client/dist for Express static serving
@@ -39,5 +43,5 @@ USER node
 # Expose server port
 EXPOSE 3001
 
-# Start the unified production server
-CMD ["node", "server/index.js"]
+# Start the unified production server and background cron processes
+CMD ["pm2-runtime", "ecosystem.config.cjs"]

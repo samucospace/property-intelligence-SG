@@ -17,6 +17,7 @@ services:
       - RESEND_API_KEY=${RESEND_API_KEY}
       - BASE_URL=${BASE_URL:?BASE_URL must be set (e.g. https://homeintel.sg)}
       - NEWSLETTER_FROM_EMAIL=${NEWSLETTER_FROM_EMAIL}
+      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-}
     volumes:
       # Persist SQLite database and WAL/journal across container restarts and updates
       - ./data:/app/data

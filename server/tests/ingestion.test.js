@@ -7,7 +7,7 @@ import {
 } from '../utils/projectUpsert.js';
 import { generateRentalQuarters } from '../utils/dateUtils.js';
 import { createConnection, withTransaction } from '../db.js';
-import { generateTxHash, generateRentHash, importRealUraData } from '../ingestion.js';
+import { generateTxHash, generateRentHash, importRealUraData, fetchWithRetry } from '../ingestion.js';
 import { runMigrations } from '../migrations/index.js';
 
 describe('Ingestion & Geospatial Integrity', () => {
@@ -235,6 +235,50 @@ describe('Ingestion & Geospatial Integrity', () => {
       } finally {
         await conn.close();
       }
+    });
+  });
+
+  describe('fetchWithRetry (ING-01 Resilience & Backoff)', () => {
+    it('returns data directly when request succeeds on first attempt', async () => {
+      const mockClient = {
+        get: async () => ({ status: 200, data: { Status: 'Success' } })
+      };
+      const res = await fetchWithRetry('https://api.example.com', {}, 3, mockClient);
+      expect(res.data.Status).toBe('Success');
+    });
+
+    it('retries on transient 503 error and succeeds on subsequent attempt', async () => {
+      let callCount = 0;
+      const mockClient = {
+        get: async () => {
+          callCount++;
+          if (callCount === 1) {
+            const err = new Error('Service Unavailable');
+            err.response = { status: 503 };
+            throw err;
+          }
+          return { status: 200, data: { Status: 'Success', attempt: callCount } };
+        }
+      };
+
+      const res = await fetchWithRetry('https://api.example.com', {}, 3, mockClient);
+      expect(callCount).toBe(2);
+      expect(res.data.attempt).toBe(2);
+    });
+
+    it('fails immediately without retrying on non-retryable 401 client error', async () => {
+      let callCount = 0;
+      const mockClient = {
+        get: async () => {
+          callCount++;
+          const err = new Error('Unauthorized');
+          err.response = { status: 401 };
+          throw err;
+        }
+      };
+
+      await expect(fetchWithRetry('https://api.example.com', {}, 3, mockClient)).rejects.toThrow('Unauthorized');
+      expect(callCount).toBe(1);
     });
   });
 });

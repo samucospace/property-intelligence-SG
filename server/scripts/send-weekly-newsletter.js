@@ -3,14 +3,14 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
-import { initDb, dbAll, dbGet } from '../db.js';
-import { generateUnsubscribeToken } from '../utils/security.js';
+import { initDb, dbAll, dbGet, dbRun } from '../db.js';
+import { generateUnsubscribeToken, escapeHtml } from '../utils/security.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Generate the responsive HTML email template
-function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, baseUrl }) {
+export function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, baseUrl }) {
   let unsubUrl = `${baseUrl}/api/leads/unsubscribe`;
   try {
     const unsubToken = generateUnsubscribeToken(recipientEmail);
@@ -62,7 +62,7 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
         <!-- Benchmark Indicator -->
         <div style="text-align: center;">
           <div class="sora-badge">
-            📊 MAS Benchmark: 3M SORA at ${sora?.sora_3m || '2.40'}% p.a.${sora?.reference_month ? ` (as of ${sora.reference_month})` : ''}
+            📊 MAS Benchmark: 3M SORA at ${escapeHtml(sora?.sora_3m || '2.40')}% p.a.${sora?.reference_month ? ` (as of ${escapeHtml(sora.reference_month)})` : ''}
           </div>
         </div>
 
@@ -78,11 +78,11 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
         ${topYields.map((item, idx) => `
           <div class="card">
             <div class="card-top">
-              <span class="proj-name">${idx + 1}. ${item.project_name}</span>
-              <span class="yield-pill">${item.gross_yield}% Gross Yield</span>
+              <span class="proj-name">${idx + 1}. ${escapeHtml(item.project_name)}</span>
+              <span class="yield-pill">${escapeHtml(item.gross_yield)}% Gross Yield</span>
             </div>
             <div class="card-sub">
-              ${item.market_segment} • District ${item.postal_district} | Est. Rent: S$${Number(item.avg_rent).toLocaleString()}/mo (S$${item.avg_psft}/sqft) | Valuation: ~S$${(item.avg_sale_price / 1e6).toFixed(2)}M
+              ${escapeHtml(item.market_segment)} • District ${escapeHtml(item.postal_district)} | Est. Rent: S$${escapeHtml(Number(item.avg_rent).toLocaleString())}/mo (S$${escapeHtml(item.avg_psft)}/sqft) | Valuation: ~S$${escapeHtml((item.avg_sale_price / 1e6).toFixed(2))}M
             </div>
           </div>
         `).join('')}
@@ -95,11 +95,11 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
         ${recentCaveats.map(c => `
           <div class="card" style="background: #FFFFFF;">
             <div class="card-top">
-              <span style="font-weight: 600; font-size: 14px;">${c.project_name} (D${c.postal_district})</span>
-              <span style="font-weight: 700; color: #4F7942; font-size: 14px;">S$${Number(c.price_sgd).toLocaleString()}</span>
+              <span style="font-weight: 600; font-size: 14px;">${escapeHtml(c.project_name)} (D${escapeHtml(c.postal_district)})</span>
+              <span style="font-weight: 700; color: #4F7942; font-size: 14px;">S$${escapeHtml(Number(c.price_sgd).toLocaleString())}</span>
             </div>
             <div class="card-sub">
-              Transacted on ${c.contract_date} • Floor Tier: ${c.floor_range} • Rate: S$${Number(c.psft_sgd).toLocaleString()}/sqft (${c.type_of_sale})
+              Transacted on ${escapeHtml(c.contract_date)} • Floor Tier: ${escapeHtml(c.floor_range)} • Rate: S$${escapeHtml(Number(c.psft_sgd).toLocaleString())}/sqft (${escapeHtml(c.type_of_sale)})
             </div>
           </div>
         `).join('')}
@@ -115,7 +115,7 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
           <p style="font-size: 12px; color: #6A7B82; margin: 6px 0 0; line-height: 1.4;">
             Get an on-the-ground unit-level valuation breakdown, transacted caveats comparative analysis, and private transaction advisory from our accredited CEA real estate specialist.
           </p>
-          <a href="${baseUrl}/?enquire=1" class="btn">
+          <a href="${escapeHtml(baseUrl)}/?enquire=1" class="btn">
             Consult District Specialist (Free) →
           </a>
         </div>
@@ -136,7 +136,7 @@ function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail, b
           <strong>Singapore PDPA Compliance:</strong> You are receiving this weekly digest because you subscribed via Singapore Home Intel (homeintel.sg). We respect your privacy and never sell personal data.
         </p>
         <p style="margin: 12px 0 0;">
-          <a href="${unsubUrl}">Click here to 1-Click Unsubscribe</a> from this list.
+          <a href="${escapeHtml(unsubUrl)}">Click here to 1-Click Unsubscribe</a> from this list.
         </p>
       </div>
     </div>
@@ -208,16 +208,17 @@ async function main() {
 
   console.log(`Data extracted: ${topYields.length} top yield projects, 3M SORA: ${sora?.sora_3m || 'N/A'}%`);
 
-  // 4. Fetch Active Subscribers
+  // 4. Fetch Active Subscribers who have not yet received this week's dispatch (OPS-01)
   const subscribers = await dbAll(`
-    SELECT email, name
+    SELECT lead_id, email, name
     FROM leads
     WHERE lead_type = 'newsletter'
       AND unsubscribed_at IS NULL
       AND confirmed_at IS NOT NULL
+      AND (last_newsletter_sent_at IS NULL OR last_newsletter_sent_at < date('now', '-6 days'))
   `);
 
-  console.log(`Active newsletter subscribers: ${subscribers.length}`);
+  console.log(`Active newsletter subscribers pending dispatch: ${subscribers.length}`);
 
   // Generate Sample HTML
   const sampleEmail = subscribers.length > 0 ? subscribers[0].email : 'subscriber@example.sg';
@@ -269,7 +270,13 @@ async function main() {
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
         }
       });
+
+      // Step 2.5 / OPS-01: Track send state in database for mid-run recovery and duplicate prevention
+      await dbRun(`UPDATE leads SET last_newsletter_sent_at = CURRENT_TIMESTAMP WHERE lead_id = ?`, [sub.lead_id]);
       successCount++;
+
+      // Step 2.5 / OPS-01: 150ms delay between dispatches to respect Resend API quotas
+      await new Promise(r => setTimeout(r, 150));
     } catch (sendErr) {
       console.error(`Failed to send to ${sub.email}:`, sendErr.message);
       failCount++;
@@ -280,7 +287,9 @@ async function main() {
   process.exit(failCount > 0 ? 1 : 0);
 }
 
-main().catch(err => {
-  console.error('Fatal newsletter script error:', err);
-  process.exit(1);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  main().catch(err => {
+    console.error('Fatal newsletter script error:', err);
+    process.exit(1);
+  });
+}

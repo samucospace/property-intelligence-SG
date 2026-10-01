@@ -1,6 +1,7 @@
 import '../config.js';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 import { createConnection } from '../db.js';
@@ -12,7 +13,56 @@ const dbPath = process.env.DB_PATH || path.join(__dirname, '../property.db');
 const backupDir = process.env.BACKUP_DIR || path.join(path.dirname(dbPath), 'backups');
 const RETENTION_DAYS = parseInt(process.env.BACKUP_RETENTION_DAYS || '30', 10);
 
-async function runBackup() {
+/**
+ * Derives a 32-byte key for AES-256-GCM encryption.
+ */
+export function deriveKey(secret) {
+  if (!secret) throw new Error('Encryption secret is required.');
+  return crypto.createHash('sha256').update(String(secret)).digest();
+}
+
+/**
+ * Encrypts a file using AES-256-GCM with authenticated tag (ARCH-01).
+ * Layout: [12 bytes IV][16 bytes AuthTag][Ciphertext]
+ */
+export async function encryptFile(sourcePath, destPath, secret) {
+  const key = deriveKey(secret);
+  const iv = crypto.randomBytes(12);
+  const plaintext = fs.readFileSync(sourcePath);
+
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  const encryptedBuffer = Buffer.concat([iv, authTag, ciphertext]);
+  fs.writeFileSync(destPath, encryptedBuffer);
+  return destPath;
+}
+
+/**
+ * Decrypts an AES-256-GCM encrypted backup file.
+ */
+export async function decryptFile(sourcePath, destPath, secret) {
+  const key = deriveKey(secret);
+  const encryptedBuffer = fs.readFileSync(sourcePath);
+
+  if (encryptedBuffer.length < 28) {
+    throw new Error('Encrypted file too small to contain IV and AuthTag.');
+  }
+
+  const iv = encryptedBuffer.subarray(0, 12);
+  const authTag = encryptedBuffer.subarray(12, 28);
+  const ciphertext = encryptedBuffer.subarray(28);
+
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(authTag);
+  const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+
+  fs.writeFileSync(destPath, plaintext);
+  return destPath;
+}
+
+export async function runBackup() {
   console.log(`[${new Date().toISOString()}] Starting SQLite online database backup...`);
 
   if (!fs.existsSync(dbPath)) {
@@ -73,9 +123,26 @@ async function runBackup() {
     });
     console.log(`[${new Date().toISOString()}] Backup integrity verified: OK.`);
 
-    // 3. Purge backups older than RETENTION_DAYS
+    // 3. Optional AES-256-GCM encryption (ARCH-01)
+    const encryptionKey = process.env.BACKUP_ENCRYPTION_KEY;
+    if (encryptionKey) {
+      const encryptedPath = `${targetPath}.enc`;
+      console.log(`[${new Date().toISOString()}] Encrypting snapshot with AES-256-GCM into ${encryptedPath}...`);
+      await encryptFile(targetPath, encryptedPath, encryptionKey);
+      console.log(`[${new Date().toISOString()}] Encrypted backup created: OK.`);
+
+      // Unless explicitly told to keep unencrypted copies, remove the plaintext snapshot
+      if (process.env.KEEP_UNENCRYPTED_BACKUPS !== 'true') {
+        fs.unlinkSync(targetPath);
+        console.log(`[${new Date().toISOString()}] Cleaned up plaintext snapshot.`);
+      }
+    } else {
+      console.log(`[${new Date().toISOString()}] Notice: BACKUP_ENCRYPTION_KEY not configured. Backup stored unencrypted.`);
+    }
+
+    // 4. Purge backups older than RETENTION_DAYS (both .db and .db.enc)
     const retentionCutoff = Date.now() - (RETENTION_DAYS * 24 * 60 * 60 * 1000);
-    const existingFiles = fs.readdirSync(backupDir).filter(f => f.startsWith('property-backup-') && f.endsWith('.db'));
+    const existingFiles = fs.readdirSync(backupDir).filter(f => f.startsWith('property-backup-') && (f.endsWith('.db') || f.endsWith('.db.enc')));
     let purgedCount = 0;
     for (const f of existingFiles) {
       const fPath = path.join(backupDir, f);
@@ -101,4 +168,6 @@ async function runBackup() {
   }
 }
 
-runBackup().then(() => process.exit(0));
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  runBackup().then(() => process.exit(0));
+}

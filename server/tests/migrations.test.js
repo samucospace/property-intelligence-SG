@@ -20,13 +20,15 @@ describe('Database Migrations from Empty State (CI Safe)', () => {
       expect(tableNames).toContain('project_benchmarks');
       expect(tableNames).toContain('sora_rates');
 
-      // Verify leads table has migration 007 columns
+      // Verify leads table has migration 007 and 008 columns
       const leadCols = await conn.all(`PRAGMA table_info(leads)`);
       const leadColNames = leadCols.map(c => c.name);
       expect(leadColNames).toContain('confirmed_at');
       expect(leadColNames).toContain('confirmation_token');
       expect(leadColNames).toContain('consent_version');
       expect(leadColNames).toContain('consent_at');
+      expect(leadColNames).toContain('last_confirmation_sent_at');
+      expect(leadColNames).toContain('last_newsletter_sent_at');
     } finally {
       await conn.close();
     }

@@ -112,3 +112,39 @@ export function checkAdminKey(configuredKey, providedKey) {
   }
   return { ok: true };
 }
+
+/**
+ * Issues a cryptographically signed, expiring admin session token (IAM-01).
+ * @param {string} adminKey Configured 32+ character admin secret
+ * @param {number} durationMs Session validity window in milliseconds (default 2 hours)
+ */
+export function generateAdminSession(adminKey, durationMs = 2 * 60 * 60 * 1000) {
+  if (!adminKey || typeof adminKey !== 'string' || adminKey.length < 32) {
+    throw new Error('Valid 32+ character ADMIN_API_KEY required to issue admin session tokens.');
+  }
+  const expiresAt = Date.now() + durationMs;
+  const payload = `${expiresAt}`;
+  const sig = crypto.createHmac('sha256', adminKey).update(payload).digest('hex');
+  return {
+    token: `${payload}.${sig}`,
+    expiresAt: new Date(expiresAt).toISOString()
+  };
+}
+
+/**
+ * Validates an HMAC-signed admin session token against the secret and expiration window (IAM-01).
+ */
+export function verifyAdminSession(token, adminKey) {
+  if (!token || typeof token !== 'string' || !adminKey || typeof adminKey !== 'string') {
+    return false;
+  }
+  const parts = token.split('.');
+  if (parts.length !== 2) return false;
+  const [expiresAtStr, sig] = parts;
+  const expiresAt = parseInt(expiresAtStr, 10);
+  if (isNaN(expiresAt) || Date.now() > expiresAt) {
+    return false; // Expired or invalid timestamp
+  }
+  const expectedSig = crypto.createHmac('sha256', adminKey).update(expiresAtStr).digest('hex');
+  return safeEqual(sig, expectedSig);
+}

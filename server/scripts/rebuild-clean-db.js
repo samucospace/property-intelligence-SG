@@ -7,12 +7,39 @@ import { runMigrations } from '../migrations/index.js';
 import { fetchUraData } from '../ingestion.js';
 import { seedAmenities } from '../livabilityEngine.js';
 
+import http from 'http';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const liveDbPath = path.join(__dirname, '../property.db');
-const rebuildDbPath = path.join(__dirname, '../property.db.rebuild');
+const liveDbPath = process.env.DB_PATH || path.join(__dirname, '../property.db');
+const rebuildDbPath = `${liveDbPath}.rebuild`;
+
+export function checkIsServerRunning(port = process.env.PORT || 3001) {
+  return new Promise(resolve => {
+    const req = http.get(`http://localhost:${port}/api/health`, { timeout: 1000 }, () => {
+      resolve(true);
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
 
 async function rebuild() {
+  const isForce = process.argv.includes('--force');
+  const isRunning = await checkIsServerRunning();
+  if (isRunning && !isForce) {
+    console.error('\n❌ [RES-01 Safety Check] The web application server is currently running!');
+    console.error('Performing live SQLite database file swaps while the server process holds open SQLite file handles');
+    console.error('will trigger Windows file-lock errors (EBUSY) or Linux SQLite WAL descriptor corruption.');
+    console.error('\nPlease stop the server before rebuilding:');
+    console.error('  pm2 stop property-intelligence-sg  (or stop docker/node)');
+    console.error('Then run this script again, or pass --force if you are certain the process is isolated.\n');
+    process.exit(1);
+  }
+
   const accessKey = process.env.URA_ACCESS_KEY;
   if (!accessKey) {
     console.error('\n[Error] URA_ACCESS_KEY is not defined in server/.env');
@@ -124,13 +151,23 @@ async function rebuild() {
     console.log(`  - Rentals:      ${rentCount?.c || 0}`);
     console.log(`  - Benchmarks:   ${benchCount?.c || 0}`);
 
+    // Step 6.5: Truncate WAL on rebuild database prior to swap
+    await rebuildConn.run('PRAGMA wal_checkpoint(TRUNCATE);');
     await rebuildConn.close();
 
     // Step 7: Atomic swap of database file
     console.log('\nSwapping clean rebuild into production property.db...');
     if (fs.existsSync(liveDbPath)) {
+      try {
+        const liveConn = createConnection(liveDbPath);
+        await liveConn.run('PRAGMA wal_checkpoint(TRUNCATE);');
+        await liveConn.close();
+      } catch (cpErr) {
+        console.warn('Note: Could not run WAL checkpoint on live DB before archiving:', cpErr.message);
+      }
+
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const archivePath = path.join(__dirname, `../property.db.archive.${timestamp}`);
+      const archivePath = path.join(path.dirname(liveDbPath), `property.db.archive.${timestamp}`);
       fs.renameSync(liveDbPath, archivePath);
       console.log(`Existing database archived to: ${archivePath}`);
       // Remove any leftover wal/shm files
@@ -152,4 +189,6 @@ async function rebuild() {
   }
 }
 
-rebuild();
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  rebuild();
+}
