@@ -1,42 +1,142 @@
 [
   {
     "attempt": 1,
-    "exit": 1,
-    "error": null,
-    "sqliteBusy": true,
-    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
-    "stdoutTail": ""
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
   },
   {
     "attempt": 2,
-    "exit": 1,
-    "error": null,
-    "sqliteBusy": true,
-    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
-    "stdoutTail": ""
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
   },
   {
     "attempt": 3,
-    "exit": 1,
-    "error": null,
-    "sqliteBusy": true,
-    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
-    "stdoutTail": ""
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
   },
   {
     "attempt": 4,
-    "exit": 1,
-    "error": null,
-    "sqliteBusy": true,
-    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
-    "stdoutTail": ""
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
   },
   {
     "attempt": 5,
-    "exit": 1,
-    "error": null,
-    "sqliteBusy": true,
-    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
-    "stdoutTail": ""
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 6,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 7,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 8,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 9,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 10,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 11,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 12,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 13,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 14,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 15,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 16,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 17,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 18,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 19,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
+  },
+  {
+    "attempt": 20,
+    "exit": 0,
+    "passed": true,
+    "sqliteBusy": false,
+    "error": null
   }
 ]

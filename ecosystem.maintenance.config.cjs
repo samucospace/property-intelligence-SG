@@ -1,69 +1,17 @@
-// Dedicated maintenance and scheduled task definitions
-// Decoupled from core application deployment under Phase 0 (GL-03 containment)
-// DO NOT launch automatically with general web server deployment.
+// Dedicated maintenance scheduler configuration (Phase 1 / GL-03)
+// Runs the persistent Singapore-timezone scheduler daemon with distributed SQLite locks.
+// Decoupled from core web deployment.
+// Command: pm2 start ecosystem.maintenance.config.cjs
 
 module.exports = {
   apps: [
-    // 1. Weekly Market Digest Newsletter (Every Monday at 08:00 SGT)
     {
-      name: 'cron-weekly-newsletter',
+      name: 'property-intelligence-scheduler',
       cwd: __dirname,
-      script: './server/scripts/send-weekly-newsletter.js',
+      script: './server/scheduler.js',
       instances: 1,
-      exec_mode: 'fork',
-      autorestart: false,
-      cron_restart: '0 8 * * 1',
-      watch: false,
-      env: {
-        NODE_ENV: 'production',
-        TZ: 'Asia/Singapore',
-        DB_PATH: process.env.DB_PATH || '/app/data/property.db'
-      }
-    },
-
-    // 2. Weekly URA Data Service Caveat & Rental Sync (Every Sunday at 02:00 SGT)
-    {
-      name: 'cron-ura-sync',
-      cwd: __dirname,
-      script: './server/scripts/sync-ura.js',
-      instances: 1,
-      exec_mode: 'fork',
-      autorestart: false,
-      cron_restart: '0 2 * * 0',
-      watch: false,
-      env: {
-        NODE_ENV: 'production',
-        TZ: 'Asia/Singapore',
-        DB_PATH: process.env.DB_PATH || '/app/data/property.db'
-      }
-    },
-
-    // 3. Monthly PDPA Lead Retention Cleanup (1st of every month at 03:00 SGT)
-    {
-      name: 'cron-leads-cleanup',
-      cwd: __dirname,
-      script: './server/scripts/cleanup-leads.js',
-      instances: 1,
-      exec_mode: 'fork',
-      autorestart: false,
-      cron_restart: '0 3 1 * *',
-      watch: false,
-      env: {
-        NODE_ENV: 'production',
-        TZ: 'Asia/Singapore',
-        DB_PATH: process.env.DB_PATH || '/app/data/property.db'
-      }
-    },
-
-    // 4. Daily SQLite Online Database Backup (Daily at 04:00 SGT)
-    {
-      name: 'cron-db-backup',
-      cwd: __dirname,
-      script: './server/scripts/backup-db.js',
-      instances: 1,
-      exec_mode: 'fork',
-      autorestart: false,
-      cron_restart: '0 4 * * *',
+      autorestart: true,
+      max_memory_restart: '500M',
       watch: false,
       env: {
         NODE_ENV: 'production',

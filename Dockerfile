@@ -1,5 +1,5 @@
 # Stage 1: Build Frontend
-FROM node:20-alpine AS client-builder
+FROM node:22-alpine AS client-builder
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY client/ ./
 RUN npm run build
 
 # Stage 2: Production Server Runtime
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -20,8 +20,8 @@ RUN apk add --no-cache tzdata python3 make g++
 # Ensure persistent data directory exists
 RUN mkdir -p /app/data
 
-# Install PM2 globally for background cron execution and process management
-RUN npm install -g pm2 && mkdir -p /home/node/.pm2 && chown -R node:node /home/node
+# Install PM2 globally for background cron execution and process management (pinned version)
+RUN npm install -g pm2@5.4.3 && mkdir -p /home/node/.pm2 && chown -R node:node /home/node
 
 # Copy server package manifest and install production dependencies only
 COPY server/package*.json ./server/

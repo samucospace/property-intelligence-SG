@@ -13,15 +13,39 @@ import { getOrCreateProject, cleanPostalDistrict, resolveProjectDistrict, isLand
 // Re-export shared utilities for external modules and scripts (Step 5.1)
 export { svy21ToWgs84, getOrCreateProject, cleanPostalDistrict, resolveProjectDistrict, isLandedDevelopment };
 
-// Helper: MD5 Hash for deterministic transaction deduplication (Step 2.5: includes occurrenceIndex and all key fields)
-export function generateTxHash(projName, dateStr, price, area, floorRange, occurrenceIndex = 1, noOfUnits = 1, propertyType = '', district = '') {
-  const raw = `${projName}|${dateStr}|${price}|${area}|${floorRange || ''}|${occurrenceIndex}|${noOfUnits}|${propertyType || ''}|${district || ''}`;
+// Helper: Normalize contract date (e.g., '0124' -> '2024-01-01')
+export function normalizeContractDate(rawDate) {
+  if (!rawDate) return null;
+  const rawDateStr = String(rawDate).trim();
+  if (rawDateStr.length === 4) {
+    const mm = rawDateStr.substring(0, 2);
+    const yy = '20' + rawDateStr.substring(2, 4);
+    return `${yy}-${mm}-01`;
+  }
+  return rawDateStr;
+}
+
+// Helper: Normalize lease date (e.g., '0124' -> '2024-01')
+export function normalizeLeaseDate(rawDate) {
+  if (!rawDate) return null;
+  const rawDateStr = String(rawDate).trim();
+  if (rawDateStr.length === 4) {
+    const mm = rawDateStr.substring(0, 2);
+    const yy = '20' + rawDateStr.substring(2, 4);
+    return `${yy}-${mm}`;
+  }
+  return rawDateStr.substring(0, 7);
+}
+
+// Helper: MD5 Hash for deterministic transaction deduplication (includes street & full identity)
+export function generateTxHash(projName, dateStr, price, area, floorRange, occurrenceIndex = 1, noOfUnits = 1, propertyType = '', district = '', street = '') {
+  const raw = `${projName}|${street || ''}|${dateStr}|${price}|${area}|${floorRange || ''}|${occurrenceIndex}|${noOfUnits}|${propertyType || ''}|${district || ''}`;
   return crypto.createHash('md5').update(raw).digest('hex');
 }
 
-// Helper: MD5 Hash for rental transaction deduplication
-export function generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCount, floorAreaRange, occurrenceIndex = 1, district = '') {
-  const raw = `URA_RENT|${projName}|${leaseDate}|${rentSgd}|${sqft ?? 'null'}|${bedroomCount || ''}|${floorAreaRange || ''}|${occurrenceIndex}|${district || ''}`;
+// Helper: MD5 Hash for rental transaction deduplication (includes street & full identity)
+export function generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCount, floorAreaRange, occurrenceIndex = 1, district = '', street = '') {
+  const raw = `URA_RENT|${projName}|${street || ''}|${leaseDate}|${rentSgd}|${sqft ?? 'null'}|${bedroomCount || ''}|${floorAreaRange || ''}|${occurrenceIndex}|${district || ''}`;
   return crypto.createHash('md5').update(raw).digest('hex');
 }
 
@@ -68,7 +92,7 @@ export async function fetchWithRetry(url, options = {}, maxRetries = 3, client =
 }
 
 // 2. Fetch live data from official URA API with SQLite TRANSACTION batching
-export async function fetchUraData(accessKey) {
+export async function fetchUraData(accessKey, targetConn = null) {
   if (!accessKey) {
     throw new Error('URA AccessKey is required for live ingestion.');
   }
@@ -92,7 +116,8 @@ export async function fetchUraData(accessKey) {
   const dailyToken = body.Result;
   console.log('Daily URA Token obtained successfully.');
 
-  const conn = createConnection();
+  const conn = targetConn || createConnection();
+  const shouldClose = !targetConn;
   let totalIngested = 0;
   let totalRentalsIngested = 0;
   let skippedSalesNoDate = 0;
@@ -126,12 +151,16 @@ export async function fetchUraData(accessKey) {
           let batchInserted = 0;
           await withTransaction(conn, async () => {
             for (const rawProj of projectsData) {
-              const { projId, projName, resolvedDistrict } = await getOrCreateProject(conn, rawProj);
+              const { projId, projName, resolvedDistrict, street } = await getOrCreateProject(conn, rawProj);
 
               const txList = rawProj.transaction || [];
               if (txList.length > 0) {
-                // Step 2.5.1: Replace by project: purge prior records for this project so fresh hashes and occurrence indices replace them cleanly
-                await conn.run('DELETE FROM property_transactions WHERE project_id = ?', [projId]);
+                // Scoped replacement: delete ONLY records within the incoming batch's contract dates for this project
+                const incomingDates = [...new Set(txList.map(t => normalizeContractDate(t.contractDate)).filter(Boolean))];
+                if (incomingDates.length > 0) {
+                  const placeholders = incomingDates.map(() => '?').join(',');
+                  await conn.run(`DELETE FROM property_transactions WHERE project_id = ? AND contract_date IN (${placeholders})`, [projId, ...incomingDates]);
+                }
               }
               const txOccurrenceTracker = new Map();
 
@@ -182,7 +211,7 @@ export async function fetchUraData(accessKey) {
                 const occurrenceIndex = (txOccurrenceTracker.get(sig) || 0) + 1;
                 txOccurrenceTracker.set(sig, occurrenceIndex);
 
-                const rawHash = generateTxHash(projName, contractDate, priceSgd, areaSqm, floorRange, occurrenceIndex, noOfUnits, propertyType, resolvedDistrict);
+                const rawHash = generateTxHash(projName, contractDate, priceSgd, areaSqm, floorRange, occurrenceIndex, noOfUnits, propertyType, resolvedDistrict, street);
 
                 try {
                   await conn.run(
@@ -306,7 +335,7 @@ export async function fetchUraData(accessKey) {
                 const occurrenceIndex = (rentOccurrenceTracker.get(sig) || 0) + 1;
                 rentOccurrenceTracker.set(sig, occurrenceIndex);
 
-                const rawHash = generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCount, floorAreaRange, occurrenceIndex, resolvedDistrict);
+                const rawHash = generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCount, floorAreaRange, occurrenceIndex, resolvedDistrict, street);
 
                 try {
                   await conn.run(
@@ -338,8 +367,8 @@ export async function fetchUraData(accessKey) {
     // Step D: Also fetch Median Rental Benchmarks (PMI_Resi_Rental_Median)
     try {
       const medianUrl = `https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1?service=PMI_Resi_Rental_Median`;
-      const medianRes = await axios.get(medianUrl, {
-        headers: { AccessKey: cleanKey, Token: dailyToken, 'User-Agent': 'Mozilla/5.0' }
+      const medianRes = await fetchWithRetry(medianUrl, {
+        headers: { AccessKey: cleanKey, Token: dailyToken }
       });
 
       const medianProjects = medianRes.data?.Result || medianRes.data?.result || [];
@@ -365,7 +394,9 @@ export async function fetchUraData(accessKey) {
       totalIngested: totalIngested + totalRentalsIngested
     };
   } finally {
-    await conn.close();
+    if (shouldClose) {
+      await conn.close();
+    }
   }
 }
 
@@ -389,12 +420,16 @@ export async function importRealUraData(jsonData, targetConn = null) {
         const projName = (rawProj.project || rawProj.project_name || '').trim().toUpperCase();
         if (!projName) continue;
 
-        const { projId, resolvedDistrict } = await getOrCreateProject(conn, rawProj);
+        const { projId, resolvedDistrict, street } = await getOrCreateProject(conn, rawProj);
 
         // Process Sales Transactions
         const txList = rawProj.transaction || rawProj.transactions || [];
         if (txList.length > 0) {
-          await conn.run('DELETE FROM property_transactions WHERE project_id = ?', [projId]);
+          const incomingDates = [...new Set(txList.map(t => normalizeContractDate(t.contractDate || t.contract_date)).filter(Boolean))];
+          if (incomingDates.length > 0) {
+            const placeholders = incomingDates.map(() => '?').join(',');
+            await conn.run(`DELETE FROM property_transactions WHERE project_id = ? AND contract_date IN (${placeholders})`, [projId, ...incomingDates]);
+          }
         }
         const txOccurrenceTracker = new Map();
 
@@ -442,7 +477,7 @@ export async function importRealUraData(jsonData, targetConn = null) {
           const occurrenceIndex = (txOccurrenceTracker.get(sig) || 0) + 1;
           txOccurrenceTracker.set(sig, occurrenceIndex);
 
-          const rawHash = generateTxHash(projName, contractDate, priceSgd, areaSqm, floorRange, occurrenceIndex, noOfUnits, propertyType, resolvedDistrict);
+          const rawHash = generateTxHash(projName, contractDate, priceSgd, areaSqm, floorRange, occurrenceIndex, noOfUnits, propertyType, resolvedDistrict, street);
 
           try {
             await conn.run(
@@ -464,7 +499,11 @@ export async function importRealUraData(jsonData, targetConn = null) {
         // Process Rental Contracts
         const rentalList = rawProj.rental || rawProj.rentals || [];
         if (rentalList.length > 0) {
-          await conn.run('DELETE FROM rental_transactions WHERE project_id = ?', [projId]);
+          const incomingLeaseDates = [...new Set(rentalList.map(r => normalizeLeaseDate(r.leaseDate || r.lease_date)).filter(Boolean))];
+          if (incomingLeaseDates.length > 0) {
+            const placeholders = incomingLeaseDates.map(() => '?').join(',');
+            await conn.run(`DELETE FROM rental_transactions WHERE project_id = ? AND lease_date IN (${placeholders})`, [projId, ...incomingLeaseDates]);
+          }
         }
         const rentOccurrenceTracker = new Map();
 
@@ -533,7 +572,7 @@ export async function importRealUraData(jsonData, targetConn = null) {
           const occurrenceIndex = (rentOccurrenceTracker.get(sig) || 0) + 1;
           rentOccurrenceTracker.set(sig, occurrenceIndex);
 
-          const rawHash = generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCount, floorAreaRange, occurrenceIndex, resolvedDistrict);
+          const rawHash = generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCount, floorAreaRange, occurrenceIndex, resolvedDistrict, street);
 
           try {
             await conn.run(
@@ -566,7 +605,7 @@ export async function importRealUraData(jsonData, targetConn = null) {
   }
 }
 
-export async function seedSoraRates() {
+export async function seedSoraRates(targetConn = null) {
   console.log('Seeding 1M & 3M Compounded SORA benchmark historical rate data...');
   
   // Step 2.4: Removed future months (2026-10 to 2026-12)
@@ -648,12 +687,10 @@ export async function seedSoraRates() {
     { month: '2026-09', sora1m: 2.40, sora3m: 2.44 }
   ];
 
-  const conn = createConnection();
+  const conn = targetConn || createConnection();
+  const shouldClose = !targetConn;
   try {
     await withTransaction(conn, async () => {
-      // Clean out any previously seeded future months
-      await conn.run(`DELETE FROM sora_rates WHERE reference_month > '2026-09'`);
-
       for (const item of soraData) {
         await conn.run(
           `INSERT INTO sora_rates (reference_month, sora_1m, sora_3m)
@@ -668,6 +705,8 @@ export async function seedSoraRates() {
     });
     console.log(`Successfully seeded ${soraData.length} SORA rate monthly entries.`);
   } finally {
-    await conn.close();
+    if (shouldClose) {
+      await conn.close();
+    }
   }
 }

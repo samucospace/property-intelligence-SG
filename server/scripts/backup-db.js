@@ -62,12 +62,12 @@ export async function decryptFile(sourcePath, destPath, secret) {
   return destPath;
 }
 
-export async function runBackup() {
+export async function runBackup(customConn = null) {
   console.log(`[${new Date().toISOString()}] Starting SQLite online database backup...`);
 
   if (!fs.existsSync(dbPath)) {
     console.error(`Database file does not exist at ${dbPath}`);
-    process.exit(1);
+    throw new Error(`Database file does not exist at ${dbPath}`);
   }
 
   if (!fs.existsSync(backupDir)) {
@@ -96,7 +96,8 @@ export async function runBackup() {
   const backupFilename = `property-backup-${y}${m}${d}-${h}${min}${s}.db`;
   const targetPath = path.join(backupDir, backupFilename);
 
-  const conn = createConnection();
+  const conn = customConn || createConnection();
+  const shouldClose = !customConn;
   try {
     // 1. Point-in-time consistent vacuum snapshot (non-blocking)
     console.log(`[${new Date().toISOString()}] Creating VACUUM snapshot into ${targetPath}...`);
@@ -157,17 +158,24 @@ export async function runBackup() {
     }
 
     console.log(`[${new Date().toISOString()}] Database backup job finished successfully.`);
+    return { success: true, backupFilename };
   } catch (err) {
     console.error(`[${new Date().toISOString()}] Backup error:`, err);
     if (fs.existsSync(targetPath)) {
       try { fs.unlinkSync(targetPath); } catch {}
     }
-    process.exit(1);
+    throw err;
   } finally {
-    await conn.close();
+    if (shouldClose) {
+      await conn.close();
+    }
   }
 }
 
+export const backupDatabase = runBackup;
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  runBackup().then(() => process.exit(0));
+  runBackup()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
 }

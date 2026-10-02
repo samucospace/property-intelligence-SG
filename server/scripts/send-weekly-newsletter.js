@@ -284,11 +284,13 @@ async function main() {
   }
 
   console.log(`Newsletter dispatch completed: ${successCount} sent successfully, ${failCount} failed.`);
-  process.exit(failCount > 0 ? 1 : 0);
+  return { successCount, failCount };
 }
 
+export const sendWeeklyNewsletter = main;
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  main().catch(err => {
+  main().then(({ failCount }) => process.exit(failCount > 0 ? 1 : 0)).catch(err => {
     console.error('Fatal newsletter script error:', err);
     process.exit(1);
   });
