@@ -121,3 +121,49 @@ export function getDistrictCenter(district) {
   const key = String(district).padStart(2, '0');
   return DISTRICT_CENTERS[key] || null;
 }
+
+export const DISTRICT_DESCRIPTIONS = {
+  "01": "Raffles Place / Marina / Cecil",
+  "02": "Tanjong Pagar / Chinatown",
+  "03": "Queenstown / Tiong Bahru / Alexandra",
+  "04": "Telok Blangah / Harbourfront / Sentosa",
+  "05": "Buona Vista / West Coast / Clementi",
+  "06": "City Hall / Clarke Quay",
+  "07": "Bugis / Rochor / Beach Road",
+  "08": "Little India / Farrer Park",
+  "09": "Orchard / River Valley",
+  "10": "Tanglin / Holland / Bukit Timah",
+  "11": "Newton / Novena / Thomson",
+  "12": "Balestier / Toa Payoh / Serangoon",
+  "13": "Macpherson / Braddell / Potong Pasir",
+  "14": "Geylang / Paya Lebar / Eunos",
+  "15": "East Coast / Marine Parade / Katong",
+  "16": "Bedok / Upper East Coast",
+  "17": "Changi / Loyang",
+  "18": "Pasir Ris / Tampines",
+  "19": "Serangoon Garden / Hougang / Punggol / Sengkang",
+  "20": "Bishan / Ang Mo Kio",
+  "21": "Upper Bukit Timah / Clementi Park",
+  "22": "Jurong / Boon Lay / Tuas",
+  "23": "Hillview / Dairy Farm / Bukit Panjang",
+  "24": "Lim Chu Kang / Tengah",
+  "25": "Kranji / Woodgrove / Woodlands",
+  "26": "Mandai / Upper Thomson",
+  "27": "Yishun / Sembawang",
+  "28": "Seletar / Yio Chu Kang"
+};
+
+/**
+ * Returns formatted fallback for planning area when official planning area boundary is unmapped.
+ * E.g. "District 09 (Orchard / River Valley)"
+ */
+export function formatPlanningAreaFallback(planningArea, district) {
+  if (planningArea && planningArea.trim() && planningArea.toUpperCase() !== 'CENTRAL') {
+    return planningArea.trim();
+  }
+  if (!district) return 'Singapore';
+  const distKey = String(district).padStart(2, '0');
+  const desc = DISTRICT_DESCRIPTIONS[distKey];
+  return desc ? `District ${distKey} (${desc})` : `District ${distKey}`;
+}
+

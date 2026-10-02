@@ -13,10 +13,20 @@ export function normalizeStreetName(street) {
 
   let s = street.trim().toUpperCase().replace(/\s+/g, ' ');
 
+  // 1. Correct mistakenly expanded or dotted Saint prefixes
+  // (e.g. "STREET. MICHAEL'S ROAD" -> "SAINT MICHAEL'S ROAD", "ST. THOMAS WALK" -> "SAINT THOMAS WALK")
+  s = s.replace(/(^|[\s/])STREET\.\s*/gi, '$1SAINT ');
+  s = s.replace(/(^|[\s/])ST\.\s*/gi, '$1SAINT ');
+  s = s.replace(/^ST\s+(?=[A-Z])/gi, 'SAINT ');
+  s = s.replace(/(?<=\b(?:AT|NEAR|OF|OPP)\s+)ST\s+(?=[A-Z])/gi, 'SAINT ');
+  s = s.replace(/(^|[\s/])ST\s+(?=(?:ANNE|FRANCIS|GEORGE|HELIER|MARTIN|MICHAEL|NICHOLAS|PATRICK|THOMAS|WILFRED|XAVIER|BARNABAS|JERVOIS|[A-Z]+'S)\b)/gi, '$1SAINT ');
+
+  // 2. Expand remaining ST abbreviations to STREET (e.g., CHURCH ST, BISHAN ST 21)
+  s = s.replace(/\bST\b/g, 'STREET');
+
   // Standard Singapore street replacements on word boundaries
   const replacements = [
     [/\bRD\b/g, 'ROAD'],
-    [/\bST\b/g, 'STREET'],
     [/\bAVE\b/g, 'AVENUE'],
     [/\bLOR\b/g, 'LORONG'],
     [/\bJLN\b/g, 'JALAN'],
@@ -39,7 +49,7 @@ export function normalizeStreetName(street) {
     s = s.replace(regex, rep);
   }
 
-  return s;
+  return s.trim().replace(/\s+/g, ' ');
 }
 
 /**
@@ -55,9 +65,13 @@ export function isLandedDevelopment(projectName, propertyType = '') {
   const name = projectName.toUpperCase();
   const type = (propertyType || '').toUpperCase();
 
+  // Guard against non-landed residential developments
+  if (name.includes('NON-LANDED')) return false;
+
   if (name.includes('LANDED HOUSING') || name.includes('LANDED DEVELOPMENT')) return true;
   if (name === 'LANDED' || name.startsWith('LANDED ')) return true;
-  if (type.includes('SEMI-DETACHED') || type.includes('DETACHED') || type.includes('TERRACE') || type.includes('BUNGALOW')) return true;
+  const combined = `${name} ${type}`;
+  if (combined.includes('SEMI-DETACHED') || combined.includes('DETACHED') || combined.includes('TERRACE') || combined.includes('BUNGALOW')) return true;
 
   return false;
 }

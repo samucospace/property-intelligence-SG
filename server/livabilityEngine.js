@@ -52,7 +52,8 @@ export async function getParsedAmenities(conn = null) {
 }
 
 // Grade Label & Color Helpers (Step 3.1)
-export function getGradeLabel(score) {
+export function getGradeLabel(score, locationQuality = null) {
+  if (locationQuality === 'district_centre') return 'Location approximate';
   if (score == null) return 'Location unavailable';
   if (score >= 80) return "Walker's Paradise";
   if (score >= 65) return 'Highly Walkable';
@@ -75,12 +76,12 @@ export async function precomputeAllProjectLivability(conn = null) {
 
   try {
     console.log('[Livability] Pre-computing livability scores into projects table...');
-    const amenities = await getParsedAmenities();
-    const projects = await localConn.all(`SELECT project_id, latitude, longitude FROM projects`);
+    const amenities = await getParsedAmenities(localConn);
+    const projects = await localConn.all(`SELECT project_id, latitude, longitude, geo_source FROM projects`);
 
     await withTransaction(localConn, async () => {
       for (const p of projects) {
-        if (!p.latitude || !p.longitude) {
+        if (!p.latitude || !p.longitude || p.geo_source === 'district_centre') {
           await localConn.run(
             `UPDATE projects SET livability_score = NULL, livability_data = NULL WHERE project_id = ?`,
             [p.project_id]

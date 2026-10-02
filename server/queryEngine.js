@@ -2,7 +2,7 @@ import { dbAll, dbGet, createConnection, withTransaction } from './db.js';
 import { calculateLivabilityScore, getProjectLivability, getGradeLabel, getGradeColor, DEFAULT_WEIGHTS } from './livabilityEngine.js';
 import { getDefaultDateRange } from './utils/dateUtils.js';
 import { calculateMedian } from './utils/math.js';
-import { haversineDistance } from './utils/geo.js';
+import { haversineDistance, formatPlanningAreaFallback } from './utils/geo.js';
 
 // Generate an array of YYYY-MM strings for every month between startMonth and endMonth inclusive
 export function generateMonthRange(startMonth, endMonth) {
@@ -122,9 +122,10 @@ export function normalizeAnalyticsCacheKey(prefix, filters = {}) {
 
 /**
  * Finds project IDs within radiusKm using SQLite bounding-box pre-filtering,
- * exact haversine distance filtering, and a safety cap of maxProjects (ABU-01).
+ * exact haversine distance filtering, and an optional cap of maxProjects (ABU-01).
+ * When maxProjects is null (default), returns all matching projects within the radius.
  */
-export async function getMatchingProjectIdsByRadius(centerCoords, radiusKm, maxProjects = 200) {
+export async function getMatchingProjectIdsByRadius(centerCoords, radiusKm, maxProjects = null) {
   if (!centerCoords || !centerCoords.lat || !centerCoords.lng || !radiusKm) {
     return [];
   }
@@ -157,13 +158,42 @@ export async function getMatchingProjectIdsByRadius(centerCoords, radiusKm, maxP
     [latMin, latMax, lngMin, lngMax]
   );
 
-  // Exact haversine filter & sort by distance, capped to maxProjects (default 200)
-  return candidateProjects
+  let matches = candidateProjects
     .map(p => ({ id: p.project_id, dist: haversineDistance(lat, lng, p.latitude, p.longitude) }))
     .filter(p => p.dist <= maxRadius)
-    .sort((a, b) => a.dist - b.dist)
-    .slice(0, maxProjects)
-    .map(p => p.id);
+    .sort((a, b) => a.dist - b.dist);
+
+  if (maxProjects && maxProjects > 0) {
+    matches = matches.slice(0, maxProjects);
+  }
+
+  return matches.map(p => p.id);
+}
+
+let lastObservedDataVersion = null;
+
+/**
+ * Checks SQLite PRAGMA data_version and refreshes in-memory caches if another
+ * connection or process has committed data changes (GL-06).
+ * @param {object} [conn] Optional database connection
+ */
+export async function syncCacheWithDataVersion(conn = null) {
+  try {
+    const queryFn = conn?.get ? conn.get.bind(conn) : dbGet;
+    const row = await queryFn('PRAGMA data_version');
+    const currentVersion = row ? row.data_version : 0;
+    let invalidated = false;
+    if (lastObservedDataVersion !== null && currentVersion !== lastObservedDataVersion) {
+      analyticsQueryCache.clear();
+      await initSaleValuationsCache(conn);
+      invalidated = true;
+    }
+    lastObservedDataVersion = currentVersion;
+    return invalidated;
+  } catch {
+    // In-memory or environments where data_version is not supported
+    return false;
+  }
 }
 
 /**
@@ -194,6 +224,7 @@ export async function invalidateSaleValuationsCache(conn = null) {
 export function invalidateAnalyticsCache() {
   analyticsQueryCache.clear();
 }
+export const clearAnalyticsCache = invalidateAnalyticsCache;
 
 /**
  * Refreshes the project_benchmarks table with rolling 24-month medians.
@@ -314,6 +345,7 @@ export async function getSearchSuggestions(q) {
 
 // 2. Price Analytics & Filter Query Engine
 export async function getPriceAnalytics(filters = {}) {
+  await syncCacheWithDataVersion();
   const cacheKey = normalizeAnalyticsCacheKey('price', filters);
   const cachedData = getAnalyticsCache(cacheKey);
   if (cachedData) {
@@ -341,6 +373,10 @@ export async function getPriceAnalytics(filters = {}) {
     page = 1,
     limit = 100
   } = filters;
+
+  const sanitizedPage = Math.max(1, parseInt(page, 10) || 1);
+  const sanitizedLimit = Math.max(1, Math.min(parseInt(limit, 10) || 100, 500));
+  const offset = (sanitizedPage - 1) * sanitizedLimit;
 
   const effectiveDateFrom = dateFrom || defaultDates.dateFrom;
   const effectiveDateTo = dateTo || defaultDates.dateTo;
@@ -414,7 +450,7 @@ export async function getPriceAnalytics(filters = {}) {
 
   // Radius filter by project coordinates (excluding district centroids)
   if (radiusKm && centerCoords && centerCoords.lat && centerCoords.lng) {
-    const matchedIds = await getMatchingProjectIdsByRadius(centerCoords, radiusKm, 200);
+    const matchedIds = await getMatchingProjectIdsByRadius(centerCoords, radiusKm);
     if (matchedIds.length === 0) {
       const emptyResult = {
         summary: { totalVolume: 0, medianPrice: 0, medianPsqm: 0, medianPsft: 0, minPrice: 0, maxPrice: 0, averagePrice: 0 },
@@ -447,8 +483,6 @@ export async function getPriceAnalytics(filters = {}) {
   summaryParams[0] = cutoffDate;
   summaryParams[1] = effectiveDateTo;
   const summarySqlWhere = 'WHERE ' + summaryWhereClauses.join(' AND ');
-
-  const sanitizedLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
 
   const [countRow, summaryRow, timeSeriesRows, scatterRows, mapRows] = await Promise.all([
     // 1. Total matching count
@@ -515,7 +549,7 @@ export async function getPriceAnalytics(filters = {}) {
       params
     ),
 
-    // 4. Scatter Points (capped at 200)
+    // 4. Scatter Points (paginated with sanitized page and limit)
     dbAll(
       `SELECT t.transaction_id AS id, t.contract_date AS date,
               COALESCE(t.floor_range, 'Unknown') AS floorRange,
@@ -531,8 +565,8 @@ export async function getPriceAnalytics(filters = {}) {
        JOIN projects p ON t.project_id = p.project_id
        ${sqlWhere}
        ORDER BY t.contract_date DESC, t.transaction_id DESC
-       LIMIT 200`,
-      params
+       LIMIT ? OFFSET ?`,
+      [...params, sanitizedLimit, offset]
     ),
 
     // 5. Distinct Developments for Map Display with SQL window medians
@@ -560,7 +594,6 @@ export async function getPriceAnalytics(filters = {}) {
     )
   ]);
 
-  const sanitizedPage = Math.max(1, parseInt(page, 10) || 1);
   const summary = {
     totalVolume: summaryRow?.total_count || 0,
     filteredVolume: countRow?.totalCount || 0,
@@ -605,6 +638,9 @@ export async function getPriceAnalytics(filters = {}) {
 
   const mapProjects = mapRows.map(p => {
     let livScore = p.livabilityScore;
+    if (p.locationQuality === 'district_centre') {
+      livScore = null;
+    }
     let livSubScores = { mrt: null, school: null, hawker: null, supermarket: null, park: null };
     let livNearest = {};
 
@@ -641,7 +677,7 @@ export async function getPriceAnalytics(filters = {}) {
       name: p.name,
       street: p.street,
       district: p.district,
-      planningArea: p.planningArea,
+      planningArea: formatPlanningAreaFallback(p.planningArea, p.district),
       segment: p.segment,
       lat: p.lat,
       lng: p.lng,
@@ -651,7 +687,7 @@ export async function getPriceAnalytics(filters = {}) {
       locationQuality: p.locationQuality,
       livability: {
         score: livScore,
-        label: getGradeLabel(livScore),
+        label: getGradeLabel(livScore, p.locationQuality),
         color: getGradeColor(livScore),
         subScores: livSubScores,
         nearest: livNearest
@@ -667,7 +703,8 @@ export async function getPriceAnalytics(filters = {}) {
     mapProjects,
     totalCount: countRow?.totalCount || 0,
     page: sanitizedPage,
-    limit: sanitizedLimit
+    limit: sanitizedLimit,
+    totalPages: Math.ceil((countRow?.totalCount || 0) / sanitizedLimit)
   };
 
   setAnalyticsCache(cacheKey, result);
@@ -676,6 +713,7 @@ export async function getPriceAnalytics(filters = {}) {
 
 // 3. Rental Yield Analytics Query Engine
 export async function getRentalYieldAnalytics(filters = {}) {
+  await syncCacheWithDataVersion();
   const cacheKey = normalizeAnalyticsCacheKey('rental', filters);
   const cachedData = getAnalyticsCache(cacheKey);
   if (cachedData) {
@@ -693,6 +731,9 @@ export async function getRentalYieldAnalytics(filters = {}) {
     centerCoords = null,
     dateFrom = defaultDates.dateFrom,
     dateTo = defaultDates.dateTo,
+    unitSizeMin = 0,
+    unitSizeMax = null,
+    unitType = 'sqft',
     priceMin = null,
     priceMax = null,
     tenure = 'all',
@@ -702,11 +743,23 @@ export async function getRentalYieldAnalytics(filters = {}) {
     limit = 100
   } = filters;
 
+  const sanitizedPage = Math.max(1, parseInt(page, 10) || 1);
+  const sanitizedLimit = Math.max(1, Math.min(parseInt(limit, 10) || 100, 500));
+  const offset = (sanitizedPage - 1) * sanitizedLimit;
+
   const effectiveDateFrom = dateFrom || defaultDates.dateFrom;
   const effectiveDateTo = dateTo || defaultDates.dateTo;
 
   let whereClauses = ['r.lease_date >= ? AND r.lease_date <= ?'];
   let params = [effectiveDateFrom.substring(0, 7), effectiveDateTo.substring(0, 7)];
+
+  // Unit size / Floor area band filtering
+  if (unitSizeMin > 0 || (unitSizeMax != null && Number(unitSizeMax) < 100000)) {
+    const minSqft = unitType === 'sqft' ? Number(unitSizeMin) : Number(unitSizeMin) * 10.7639;
+    const maxSqft = unitType === 'sqft' ? Number(unitSizeMax || 100000) : Number(unitSizeMax || 10000) * 10.7639;
+    whereClauses.push('(r.area_sqft >= ? AND r.area_sqft <= ?)');
+    params.push(minSqft, maxSqft);
+  }
 
   // Specific project IDs or names
   if (Array.isArray(projects) && projects.length > 0) {
@@ -776,7 +829,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
 
   // Radius filter by project coordinates (excluding district centroids)
   if (radiusKm && centerCoords && centerCoords.lat && centerCoords.lng) {
-    const matchedIds = await getMatchingProjectIdsByRadius(centerCoords, radiusKm, 200);
+    const matchedIds = await getMatchingProjectIdsByRadius(centerCoords, radiusKm);
     if (matchedIds.length === 0) {
       const emptyResult = {
         summary: { medianRent: 0, medianRentPsft: 0, medianRentPsqm: 0, avgGrossYield: null, totalLeases: 0, rentMinMaxRange: { min: 0, max: 0 } },
@@ -809,10 +862,6 @@ export async function getRentalYieldAnalytics(filters = {}) {
   summaryParams[0] = cutoff24m;
   summaryParams[1] = endMonth;
   const summarySqlWhere = 'WHERE ' + summaryWhereClauses.join(' AND ');
-
-  const sanitizedLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
-  const sanitizedPage = Math.max(1, parseInt(page, 10) || 1);
-  const offset = (sanitizedPage - 1) * sanitizedLimit;
 
   const [countRow, summaryRow, matchingSaleStats, timeSeriesRows, bedroomRows, caveats, mapRows] = await Promise.all([
     // 1. Total Count
@@ -943,20 +992,6 @@ export async function getRentalYieldAnalytics(filters = {}) {
   const medianRentPsft = summaryRow?.median_rent_psft || 0;
   const benchmarkSalePsft = matchingSaleStats?.medianSalePsft || null;
 
-  // Step 3.3.2: Genuine time-matched gross yield calculation (null if no matching sales)
-  const avgGrossYield = (medianRentPsft && benchmarkSalePsft && benchmarkSalePsft > 0)
-    ? parseFloat(((medianRentPsft * 12.0 / benchmarkSalePsft) * 100).toFixed(2))
-    : null;
-
-  const summary = {
-    medianRent: summaryRow?.median_rent || 0,
-    medianRentPsft,
-    medianRentPsqm: summaryRow?.median_rent_psqm || 0,
-    avgGrossYield,
-    totalLeases: summaryRow?.total_count || 0,
-    rentMinMaxRange: { min: summaryRow?.min_rent || 0, max: summaryRow?.max_rent || 0 }
-  };
-
   const startMonth = effectiveDateFrom.substring(0, 7);
   const allMonths = generateMonthRange(startMonth, endMonth);
   const timeMap = new Map(timeSeriesRows.map(m => [m.month, m]));
@@ -996,14 +1031,24 @@ export async function getRentalYieldAnalytics(filters = {}) {
     };
   });
 
+  const projectYields = [];
   const mapProjects = mapRows.map(p => {
     const val = getProjectSaleValuation(p.id);
-    const grossYield = (p.medianRentPsft && val?.medianPsft)
+    const grossYield = (p.medianRentPsft && val?.medianPsft && val?.medianPsft > 0)
       ? parseFloat(((p.medianRentPsft * 12 / val.medianPsft) * 100).toFixed(2))
       : null;
 
+    // Option A: Only include projects with >= 3 transactions in the window for median headline calculation
+    if (grossYield !== null && isFinite(grossYield) && grossYield > 0 && grossYield < 50 && p.txCount >= 3) {
+      projectYields.push(grossYield);
+    }
+
     // Step 3.1: Synchronous livability score derivation without distance scans
     let livScore = p.livabilityScore;
+    if (p.locationQuality === 'district_centre') {
+      livScore = null;
+    }
+
     let livSubScores = { mrt: null, school: null, hawker: null, supermarket: null, park: null };
     let livNearest = {};
 
@@ -1040,7 +1085,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
       name: p.name,
       street: p.street,
       district: p.district,
-      planningArea: p.planningArea,
+      planningArea: formatPlanningAreaFallback(p.planningArea, p.district),
       segment: p.segment,
       lat: p.lat,
       lng: p.lng,
@@ -1052,7 +1097,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
       locationQuality: p.locationQuality,
       livability: {
         score: livScore,
-        label: getGradeLabel(livScore),
+        label: getGradeLabel(livScore, p.locationQuality),
         color: getGradeColor(livScore),
         subScores: livSubScores,
         nearest: livNearest
@@ -1060,15 +1105,39 @@ export async function getRentalYieldAnalytics(filters = {}) {
     };
   });
 
+  // Option A (Approved): Headline gross yield is the median of development-level gross yields
+  let avgGrossYield = null;
+  if (projectYields.length > 0) {
+    projectYields.sort((a, b) => a - b);
+    const mid = Math.floor(projectYields.length / 2);
+    const medianYield = projectYields.length % 2 !== 0
+      ? projectYields[mid]
+      : (projectYields[mid - 1] + projectYields[mid]) / 2;
+    avgGrossYield = parseFloat(medianYield.toFixed(2));
+  }
+
+  const summary = {
+    medianRent: summaryRow?.median_rent || 0,
+    medianRentPsft,
+    medianRentPsqm: summaryRow?.median_rent_psqm || 0,
+    avgGrossYield,
+    grossYieldPct: avgGrossYield,
+    yieldSampleProjects: projectYields.length,
+    totalLeases: summaryRow?.total_count || 0,
+    rentMinMaxRange: { min: summaryRow?.min_rent || 0, max: summaryRow?.max_rent || 0 }
+  };
+
   const result = {
     summary,
     timeSeries,
     bedroomBreakdown,
     rentalCaveats,
+    scatter: rentalCaveats,
     mapProjects,
-    totalCount: countRow?.totalCount || 0,
+    totalCount: summaryRow?.total_count || 0,
     page: sanitizedPage,
-    limit: sanitizedLimit
+    limit: sanitizedLimit,
+    totalPages: Math.ceil((summaryRow?.total_count || 0) / sanitizedLimit)
   };
 
   setAnalyticsCache(cacheKey, result);
@@ -1077,6 +1146,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
 
 // 5. Get all projects overview for map initialize (Step 3.1 & 3.3.4)
 export async function getAllProjects(lifestyleWeights = null) {
+  await syncCacheWithDataVersion();
   const cacheKey = 'allProjects:' + JSON.stringify(lifestyleWeights);
   const cachedData = getAnalyticsCache(cacheKey);
   if (cachedData) {
@@ -1100,6 +1170,9 @@ export async function getAllProjects(lifestyleWeights = null) {
 
   const result = projects.map(p => {
     let livScore = p.livabilityScore;
+    if (p.locationQuality === 'district_centre') {
+      livScore = null;
+    }
     let subScores = { mrt: null, school: null, hawker: null, supermarket: null, park: null };
 
     if (p.livabilityData) {
@@ -1135,7 +1208,7 @@ export async function getAllProjects(lifestyleWeights = null) {
       street: p.street,
       district: p.district,
       segment: p.segment,
-      planningArea: p.planningArea,
+      planningArea: formatPlanningAreaFallback(p.planningArea, p.district),
       lat: p.lat,
       lng: p.lng,
       locationQuality: p.locationQuality,
@@ -1145,7 +1218,7 @@ export async function getAllProjects(lifestyleWeights = null) {
       tenureClass: p.tenureClass,
       livability: {
         score: livScore,
-        label: getGradeLabel(livScore),
+        label: getGradeLabel(livScore, p.locationQuality),
         color: getGradeColor(livScore),
         subScores
       }
