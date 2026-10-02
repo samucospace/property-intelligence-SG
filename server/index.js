@@ -850,7 +850,13 @@ async function startServer() {
   console.log('Pre-warming livability and valuation caches...');
   await initLivabilityCache();
   await initSaleValuationsCache();
-  await cleanupExpiredLeads();
+
+  // Phase 0 containment: Do not run destructive cleanup on simple web server start
+  if (process.env.ENABLE_STARTUP_LEAD_CLEANUP === 'true') {
+    await cleanupExpiredLeads();
+  } else {
+    console.log('[Startup] Automatic lead retention cleanup on boot skipped (ENABLE_STARTUP_LEAD_CLEANUP !== "true").');
+  }
 
   const server = app.listen(PORT, () => {
     console.log(`Backend server running on http://localhost:${PORT}`);

@@ -28,6 +28,12 @@ export function checkIsServerRunning(port = process.env.PORT || 3001) {
 }
 
 async function rebuild() {
+  console.error('\n🛑 [CRITICAL QUARANTINE - GL-01]');
+  console.error('server/scripts/rebuild-clean-db.js is UNSAFE and has been quarantined under Phase 0.');
+  console.error('Reason: Late DB_PATH mutation causes ingestion to target live database; accepts partial results; drops Migration 008 lead columns.');
+  console.error('This script must remain offline until refactored in Phase 1.\n');
+  process.exit(1);
+
   const isForce = process.argv.includes('--force');
   const isRunning = await checkIsServerRunning();
   if (isRunning && !isForce) {
