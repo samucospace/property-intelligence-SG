@@ -1,8 +1,12 @@
 # Singapore Home Intel (`homeintel.sg`)
 
-An institutional-grade Singapore private residential transaction price intelligence engine, rental yield tracker, and livability analytics portal powered by official **Urban Redevelopment Authority (URA) Data Service** transaction caveats and **SLA OneMap** spatial data. Available at [homeintel.sg](https://homeintel.sg).
+**Current status (2 October 2026): local development, NO-GO for public release.** The default release is read-only analytics; lead/admin/email features and unsafe sync/cleanup are contained. Operational rebuild is quarantined. Use the [Phase 0 runbook](PHASE_0_OPERATIONS_RUNBOOK.md) and [corrected Phase 0 report](PHASE_0_COMPLETION_REPORT_2026-10-02.md). The capability/deployment descriptions below are intended functionality and plans, not evidence of a hosted service.
 
-The platform includes built-in programmatic SEO, a verified Council for Estate Agencies (CEA) partner lead-generation engine, an automated weekly investor newsletter via Resend, and single-command Docker/PM2 production deployment with automated HTTPS.
+Phase 1 local corrections pass 161 tests on Node 22.23.3. Use the [Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md) and [current operations runbook](PHASE_1_OPERATIONS_RUNBOOK.md); release-image qualification remains pending. Every identified issue must be fixed and verified before public launch.
+
+An institutional-grade Singapore private residential transaction price intelligence engine, rental yield tracker, and livability analytics portal powered by official **Urban Redevelopment Authority (URA) Data Service** transaction caveats and **SLA OneMap** spatial data. Intended domain: `homeintel.sg`; external hosting is not yet established.
+
+The platform includes built-in programmatic SEO, a verified Council for Estate Agencies (CEA) partner lead-generation engine, an automated weekly investor newsletter via Resend, and Docker Compose deployment with automated HTTPS and separately enabled maintenance.
 
 ---
 
@@ -280,55 +284,11 @@ npm --prefix server test
 
 ## 🚢 Production Deployment Guide
 
-### Option A: Docker Compose & Caddy (Recommended)
-1. **Clone repository onto your Linux VPS (Ubuntu 24.04 LTS)**:
-   ```bash
-   git clone https://github.com/samucospace/property-intelligence-SG.git
-   cd property-intelligence-SG
-   ```
-2. **Transfer your pre-populated database**:
-   ```bash
-   scp server/property.db root@<SERVER_IP>:/root/property-intelligence-SG/server/property.db
-   ```
-3. **Configure environment and domain**:
-   - Fill in `server/.env`.
-   - Update `Caddyfile` with your live domain name.
-   - Set required variables: `ADMIN_API_KEY`, `UNSUBSCRIBE_SECRET`, `BASE_URL`, `URA_ACCESS_KEY`, `ALLOWED_ORIGIN`, `TZ=Asia/Singapore`.
-4. **Launch with automated HTTPS**:
-   ```bash
-   docker compose up -d --build
-   ```
-   *The container runs `pm2-runtime ecosystem.config.cjs`, which starts both the unified Express web application and all 4 background cron jobs (database backups, URA sync, PDPA retention, and newsletters) under process supervision.*
+The project is not live. Resolve and verify every identified issue before public release. Use Node 22.23.3 and locked installs. The [Phase 1 runbook](PHASE_1_OPERATIONS_RUNBOOK.md) is the current deployment/maintenance procedure; older PM2 and host-crontab instructions are superseded.
 
-### Option B: Bare Linux VPS with PM2
-The provided `ecosystem.config.cjs` manages the unified web app alongside built-in scheduled background cron jobs respecting `TZ=Asia/Singapore` in fork mode:
-```bash
-# Build frontend
-npm run build
+The proposed Docker deployment runs the web application and Caddy. Maintenance is a separate opt-in Compose profile and uses persistent job-slot claims. Configure the approved restored database under the mounted `data/property.db`, environment/secrets, TLS and the [deployment-stage backup strategy](PHASE_0_OPERATIONS_RUNBOOK.md#deployment-stage-backup-strategy-deferred-not-live) before private deployment. Test the release image and restores before public launch.
 
-# Install production dependencies
-cd server && npm install --omit=dev
-
-# Start application server and background cron jobs
-pm2 start ecosystem.config.cjs
-pm2 save
-```
-
-### Scheduled Maintenance Crontab (Docker Environments)
-If running under Docker, add the scheduled maintenance tasks to host crontab (`crontab -e`) using the `-T` flag to prevent TTY allocation issues under cron:
-```bash
-# Daily SQLite online backup at 4:00 AM SGT
-0 4 * * * docker compose -f /root/property-intelligence-SG/docker-compose.yml exec -T app node server/scripts/backup-db.js >> /var/log/db-backup.log 2>&1
-
-# Sync official URA caveats every Sunday at 2:00 AM SGT
-0 2 * * 0 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec -T app node server/scripts/sync-ura.js >> /var/log/ura-sync.log 2>&1
-
-# Dispatch weekly property digest every Monday at 8:00 AM SGT
-0 8 * * 1 docker compose -f /root/property-intelligence-SG/docker-compose.yml exec -T app node server/scripts/send-weekly-newsletter.js >> /var/log/newsletter.log 2>&1
-
-# Monthly PDPA lead retention cleanup on the 1st of every month at 3:00 AM SGT
-0 3 1 * * docker compose -f /root/property-intelligence-SG/docker-compose.yml exec -T app node server/scripts/cleanup-leads.js >> /var/log/leads-cleanup.log 2>&1
-```
+`docker compose up -d --build` does not start the scheduler. After the applicable gates pass, `docker compose --profile maintenance up -d scheduler` starts it explicitly. Keep sync, cleanup and email disabled until their governing gates pass. Do not install overlapping host cron schedules.
 
 ---
 

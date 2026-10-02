@@ -14,6 +14,11 @@ server/property.db
 server/property.db-journal
 data/
 server/backups/
+/.recovery-keys/
+*.db.enc
+*.sqlite-wal
+*.sqlite-shm
+audit/2026-10-02/phase-validation-fixtures/
 
 # Build output
 client/dist/
@@ -24,6 +29,7 @@ dist/
 .env.*
 .env.local
 !.env.example
+!.env.staging.example
 
 
 # Logs & OS artifacts
@@ -38,6 +44,13 @@ server/test_*.js
 server/scripts/newsletter-preview.html
 
 # Internal review documents
+audit/2026-10-02/toolchain/
+server/tests/temp-phase1-*/
+*.maintenance
+*.swap.json
+*.generation
+*.db.backup-*
+*.db.rebuild-*
 TECHNICAL_REVIEW.md
 REMEDIATION_PLAN.md
 POST_REMEDIATION_REPORT.md

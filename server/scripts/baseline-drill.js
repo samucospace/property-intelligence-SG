@@ -1,196 +1,76 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import sqlite3 from 'sqlite3';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { encryptFile, decryptFile } from './backup-db.js';
+import { encryptFile } from './backup-db.js';
+import { openReadonly, databaseMetrics, fileHash } from '../utils/databaseArtifacts.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const inside = (parent, child) => { const rel = path.relative(path.resolve(parent), path.resolve(child)); return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel)); };
 
-const rootDir = path.resolve(__dirname, '../..');
-const liveDbPath = path.resolve(rootDir, 'server/property.db');
-const backupDir = path.resolve(rootDir, 'server/backups');
-const baselineDbPath = path.join(backupDir, 'baseline-authoritative-20261002.db');
-const encryptedBaselinePath = `${baselineDbPath}.enc`;
-const drillDir = path.resolve(rootDir, 'audit/recovery-drill');
-const restoredDbPath = path.join(drillDir, 'restored-baseline.db');
+export async function captureBaseline({ sourcePath, backupRoot, keyFile, createKey = false, restoreRoot, workspaceRoot = root }) {
+  sourcePath = path.resolve(sourcePath);
+  backupRoot = path.resolve(backupRoot);
+  keyFile = path.resolve(keyFile);
+  restoreRoot = path.resolve(restoreRoot);
+  if (inside(backupRoot, keyFile) || inside(restoreRoot, keyFile)) throw new Error('Recovery key must be stored separately from backup and restored database directories');
+  if (!fs.existsSync(keyFile)) {
+    if (!createKey) throw new Error('Recovery key file does not exist; create it explicitly and retain it separately');
+    fs.mkdirSync(path.dirname(keyFile), { recursive: true });
+    fs.writeFileSync(keyFile, crypto.randomBytes(32).toString('hex'), { flag: 'wx', mode: 0o600 });
+  }
+  const key = fs.readFileSync(keyFile, 'utf8').trim();
+  if (!/^[a-f0-9]{64}$/i.test(key)) throw new Error('Recovery key must contain 32 random bytes encoded as 64 hex characters');
+  const captureId = `baseline-${new Date().toISOString().replaceAll(/[:.]/g, '-')}-${crypto.randomUUID().slice(0, 8)}`;
+  const directory = path.join(backupRoot, captureId);
+  const restoreDirectory = path.join(restoreRoot, captureId);
+  fs.mkdirSync(directory, { recursive: true });
+  fs.mkdirSync(restoreDirectory, { recursive: true });
+  const snapshot = path.join(restoreDirectory, 'snapshot.db');
+  const encrypted = path.join(directory, 'database.db.enc');
+  const restored = path.join(restoreDirectory, 'restored.db');
+  const source = openReadonly(sourcePath);
+  try { await source.run('VACUUM INTO ?', [snapshot]); } finally { await source.close(); }
+  const snapshotMetrics = await databaseMetrics(snapshot);
+  const snapshotHash = fileHash(snapshot);
+  await encryptFile(snapshot, encrypted, key);
+  // Restore in a new process using only the saved key and encrypted artifact.
+  const child = spawnSync(process.execPath, [path.join(root, 'server/scripts/restore-baseline.js'), `--backup=${encrypted}`, `--key-file=${keyFile}`, `--output=${restored}`, `--sha256=${snapshotHash}`], { encoding: 'utf8', env: { ...process.env, NODE_ENV: 'test' }, timeout: 60000 });
+  if (child.status !== 0) throw new Error(`Fresh-process restore failed: ${child.stderr}`);
+  const restoreResult = JSON.parse(child.stdout.trim());
+  if (JSON.stringify(restoreResult.counts) !== JSON.stringify(snapshotMetrics.counts)) throw new Error('Restore table counts differ');
+  fs.unlinkSync(snapshot);
 
-async function runQuery(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+  // Retain a reviewable working-tree/build baseline, excluding secrets and data.
+  const listing = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: workspaceRoot, encoding: 'utf8' });
+  if (listing.status !== 0) throw new Error('Cannot capture working-tree baseline');
+  const files = [];
+  const allowed = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.json', '.css', '.html', '.md', '.yml', '.yaml', '.py', '.sql', '.svg', '.txt', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.woff', '.woff2']);
+  for (const relative of [...new Set(listing.stdout.split('\0').filter(Boolean))].sort()) {
+    if (relative.startsWith('audit/') || relative.includes('node_modules/') || (relative.includes('.env') && !['.env.example', '.env.staging.example'].includes(path.basename(relative))) || relative.startsWith('.recovery-keys/')) continue;
+    if (!allowed.has(path.extname(relative)) && !['Dockerfile', 'Caddyfile', '.gitignore', '.dockerignore', 'LICENSE'].includes(relative)) continue;
+    const from = path.join(workspaceRoot, relative);
+    if (!fs.existsSync(from) || !fs.statSync(from).isFile()) continue;
+    const to = path.join(directory, 'working-tree', relative);
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.copyFileSync(from, to);
+    files.push({ path: relative, sha256: fileHash(from) });
+  }
+  const manifest = {
+    captureId, capturedAt: new Date().toISOString(), sourcePath,
+    encryptedBackup: encrypted, encryptedSha256: fileHash(encrypted), snapshotSha256: snapshotHash,
+    keyFile, keyCustody: 'Separate local file; retain independently. Windows access controls require operator review.',
+    restoredPath: restored, restoreProcess: 'Fresh Node process using saved key file', ...snapshotMetrics,
+    workingTree: { head: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: workspaceRoot, encoding: 'utf8' }).stdout.trim(), runtime: process.version, files },
+    offHost: { status: 'pending-deployment', destination: 'Sam Fraser local machine after hosting is established' }
+  };
+  fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  return manifest;
 }
 
-async function getDbMetrics(dbFilePath) {
-  const db = new sqlite3.Database(dbFilePath, sqlite3.OPEN_READONLY);
-  try {
-    const integrity = await runQuery(db, 'PRAGMA integrity_check;');
-    const fkCheck = await runQuery(db, 'PRAGMA foreign_key_check;');
-    const tables = [
-      'projects',
-      'property_transactions',
-      'rental_transactions',
-      'project_benchmarks',
-      'amenities',
-      'sora_rates',
-      'leads',
-      'schema_migrations'
-    ];
-
-    const counts = {};
-    for (const t of tables) {
-      try {
-        const row = await runQuery(db, `SELECT COUNT(*) as cnt FROM ${t};`);
-        counts[t] = row[0].cnt;
-      } catch (err) {
-        counts[t] = `Error: ${err.message}`;
-      }
-    }
-
-    return {
-      integrity: integrity[0]?.integrity_check || 'unknown',
-      fkViolations: fkCheck.length,
-      counts
-    };
-  } finally {
-    await new Promise(res => db.close(res));
-  }
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.slice(name.length + 3);
+  captureBaseline({ sourcePath: arg('source') || path.join(root, 'server/property.db'), backupRoot: arg('backup-root') || path.join(root, 'server/backups'), keyFile: arg('key-file') || path.join(root, '.recovery-keys/phase0.key'), createKey: process.argv.includes('--create-key'), restoreRoot: arg('restore-root') || path.join(root, 'audit/recovery-drill') })
+    .then(result => console.log(JSON.stringify({ captureId: result.captureId, encryptedBackup: result.encryptedBackup, keyFile: result.keyFile, snapshotSha256: result.snapshotSha256, counts: result.counts, offHost: result.offHost }, null, 2))).catch(err => { console.error(err.message); process.exitCode = 1; });
 }
-
-async function main() {
-  console.log('===========================================================');
-  console.log(' Phase 0: Baseline Capture & Recovery Rehearsal Drill');
-  console.log('===========================================================\n');
-
-  if (!fs.existsSync(liveDbPath)) {
-    throw new Error(`Live database not found at ${liveDbPath}`);
-  }
-
-  if (!fs.existsSync(backupDir)) {
-    fs.mkdirSync(backupDir, { recursive: true });
-  }
-  if (!fs.existsSync(drillDir)) {
-    fs.mkdirSync(drillDir, { recursive: true });
-  }
-
-  // 1. Audit Live Source DB
-  console.log('[Step 1/5] Auditing live source database at:', liveDbPath);
-  const liveStats = fs.statSync(liveDbPath);
-  const liveMetrics = await getDbMetrics(liveDbPath);
-  console.log(`Live size: ${(liveStats.size / (1024 * 1024)).toFixed(2)} MB`);
-  console.log('Live integrity:', liveMetrics.integrity);
-  console.log('Live table counts:', JSON.stringify(liveMetrics.counts, null, 2));
-
-  // 2. Point-in-time consistent vacuum snapshot
-  console.log('\n[Step 2/5] Creating point-in-time VACUUM INTO baseline snapshot...');
-  if (fs.existsSync(baselineDbPath)) {
-    fs.unlinkSync(baselineDbPath);
-  }
-
-  const liveDb = new sqlite3.Database(liveDbPath);
-  await new Promise((resolve, reject) => {
-    liveDb.run('VACUUM INTO ?', [baselineDbPath], (err) => {
-      liveDb.close();
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-
-  const baselineStats = fs.statSync(baselineDbPath);
-  console.log(`Baseline snapshot created: ${baselineDbPath}`);
-  console.log(`Baseline size: ${(baselineStats.size / (1024 * 1024)).toFixed(2)} MB`);
-  const baselineMetrics = await getDbMetrics(baselineDbPath);
-  console.log('Baseline integrity:', baselineMetrics.integrity);
-
-  // 3. Encrypt Baseline with AES-256-GCM
-  console.log('\n[Step 3/5] Encrypting baseline snapshot with AES-256-GCM...');
-  const drillKey = crypto.randomBytes(32).toString('hex');
-  if (fs.existsSync(encryptedBaselinePath)) {
-    fs.unlinkSync(encryptedBaselinePath);
-  }
-  await encryptFile(baselineDbPath, encryptedBaselinePath, drillKey);
-  const encStats = fs.statSync(encryptedBaselinePath);
-  console.log(`Encrypted baseline created: ${encryptedBaselinePath}`);
-  console.log(`Encrypted size: ${(encStats.size / (1024 * 1024)).toFixed(2)} MB`);
-
-  // 4. Recovery Rehearsal Drill in Isolated Directory
-  console.log('\n[Step 4/5] Executing isolated restore drill in:', drillDir);
-  if (fs.existsSync(restoredDbPath)) {
-    fs.unlinkSync(restoredDbPath);
-  }
-  await decryptFile(encryptedBaselinePath, restoredDbPath, drillKey);
-  const restoredStats = fs.statSync(restoredDbPath);
-  console.log(`Decrypted restored database created: ${restoredDbPath}`);
-  console.log(`Restored size: ${(restoredStats.size / (1024 * 1024)).toFixed(2)} MB`);
-
-  const restoredMetrics = await getDbMetrics(restoredDbPath);
-  console.log('Restored integrity check:', restoredMetrics.integrity);
-  console.log('Restored FK violations:', restoredMetrics.fkViolations);
-  console.log('Restored table counts:', JSON.stringify(restoredMetrics.counts, null, 2));
-
-  // 5. Verification Validation
-  console.log('\n[Step 5/5] Comparing Live vs Restored counts...');
-  let allMatched = true;
-  for (const [table, cnt] of Object.entries(liveMetrics.counts)) {
-    if (cnt !== restoredMetrics.counts[table]) {
-      console.error(`❌ Mismatch in table ${table}: Live ${cnt} vs Restored ${restoredMetrics.counts[table]}`);
-      allMatched = false;
-    } else {
-      console.log(`✓ Table [${table}] matched perfectly: ${cnt}`);
-    }
-  }
-
-  if (allMatched && restoredMetrics.integrity === 'ok' && restoredMetrics.fkViolations === 0) {
-    console.log('\n🎉 ALL RECOVERY CHECKS PASSED: Authoritative baseline is 100% verified and recoverable!');
-  } else {
-    throw new Error('Recovery drill failed validation checks.');
-  }
-
-  // Generate markdown report
-  const report = `# Baseline Recovery Rehearsal Drill Report
-
-**Executed:** ${new Date().toISOString()}  
-**Drill Objective:** Prove consistent baseline capture and complete isolated restoration from encrypted backup (GL-11).  
-**Outcome:** **PASSED (100% Exact Match)**  
-
-## 1. Artifact Verification
-
-| Item | Path | Size | Integrity Check |
-| :--- | :--- | :--- | :--- |
-| **Live Source** | \`${liveDbPath}\` | ${(liveStats.size / (1024 * 1024)).toFixed(2)} MB | ${liveMetrics.integrity} |
-| **Snapshot Baseline** | \`${baselineDbPath}\` | ${(baselineStats.size / (1024 * 1024)).toFixed(2)} MB | ${baselineMetrics.integrity} |
-| **Encrypted Snapshot** | \`${encryptedBaselinePath}\` | ${(encStats.size / (1024 * 1024)).toFixed(2)} MB | AES-256-GCM (AuthTag Verified) |
-| **Restored Isolated Copy** | \`${restoredDbPath}\` | ${(restoredStats.size / (1024 * 1024)).toFixed(2)} MB | ${restoredMetrics.integrity} |
-
-## 2. Table Row Count Reconciliation
-
-| Table Name | Live Count | Baseline Snapshot | Restored Count | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **\`projects\`** | ${liveMetrics.counts.projects} | ${baselineMetrics.counts.projects} | ${restoredMetrics.counts.projects} | ✅ Verified Match |
-| **\`property_transactions\`** | ${liveMetrics.counts.property_transactions} | ${baselineMetrics.counts.property_transactions} | ${restoredMetrics.counts.property_transactions} | ✅ Verified Match |
-| **\`rental_transactions\`** | ${liveMetrics.counts.rental_transactions} | ${baselineMetrics.counts.rental_transactions} | ${restoredMetrics.counts.rental_transactions} | ✅ Verified Match |
-| **\`project_benchmarks\`** | ${liveMetrics.counts.project_benchmarks} | ${baselineMetrics.counts.project_benchmarks} | ${restoredMetrics.counts.project_benchmarks} | ✅ Verified Match |
-| **\`amenities\`** | ${liveMetrics.counts.amenities} | ${baselineMetrics.counts.amenities} | ${restoredMetrics.counts.amenities} | ✅ Verified Match |
-| **\`sora_rates\`** | ${liveMetrics.counts.sora_rates} | ${baselineMetrics.counts.sora_rates} | ${restoredMetrics.counts.sora_rates} | ✅ Verified Match |
-| **\`leads\`** | ${liveMetrics.counts.leads} | ${baselineMetrics.counts.leads} | ${restoredMetrics.counts.leads} | ✅ Verified Match |
-| **\`schema_migrations\`** | ${liveMetrics.counts.schema_migrations} | ${baselineMetrics.counts.schema_migrations} | ${restoredMetrics.counts.schema_migrations} | ✅ Verified Match |
-
-## 3. Foreign Key and Structural Integrity
-- **Integrity Check:** \`${restoredMetrics.integrity}\`
-- **Foreign Key Violations:** \`${restoredMetrics.fkViolations}\`
-
-The baseline recovery procedure proves that an encrypted backup can be successfully decrypted and restored in an isolated environment with zero data loss or structural anomalies.
-`;
-
-  fs.writeFileSync(path.join(rootDir, 'audit/2026-10-02/BASELINE_RESTORE_DRILL.md'), report);
-  console.log('Report written to audit/2026-10-02/BASELINE_RESTORE_DRILL.md');
-}
-
-main().catch(err => {
-  console.error('\n❌ Baseline drill failed:', err);
-  process.exit(1);
-});

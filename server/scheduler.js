@@ -1,8 +1,10 @@
 import './config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initDb, createConnection } from './db.js';
+import { initDb, createConnection, getDbPath } from './db.js';
+import { assertStagingDatabase } from './utils/databaseArtifacts.js';
 import { runJobWithLock, getLastSuccessfulRun } from './utils/jobRunner.js';
+import { releaseFeatures } from './utils/releasePolicy.js';
 
 // Maintenance scripts
 import { fetchUraData } from './ingestion.js';
@@ -37,20 +39,22 @@ export function getSingaporeTime(date = new Date()) {
 export const SCHEDULED_JOBS = [
   {
     name: 'cron-ura-sync',
+    enabled: () => releaseFeatures().dataSync,
     description: 'Weekly URA Caveats and Rental Sync (Sunday 02:00 SGT)',
     isDue: ({ dayOfWeek, hour, minute }) => dayOfWeek === 0 && hour === 2 && minute === 0,
     execute: async ({ runId, conn }) => {
       const accessKey = process.env.URA_ACCESS_KEY;
       if (!accessKey) {
         console.warn('[Scheduler:sync-ura] Skipped: URA_ACCESS_KEY is not configured.');
-        return 0;
+        return { skipped: true, reason: 'URA_ACCESS_KEY is not configured' };
       }
       const res = await fetchUraData(accessKey, conn);
-      return res.totalIngested || 0;
+      return res;
     }
   },
   {
     name: 'cron-weekly-newsletter',
+    enabled: () => releaseFeatures().leadCapture && releaseFeatures().outboundEmail && process.env.ENABLE_SCHEDULED_NEWSLETTER === 'true',
     description: 'Weekly Market Digest Newsletter (Monday 08:00 SGT)',
     isDue: ({ dayOfWeek, hour, minute }) => dayOfWeek === 1 && hour === 8 && minute === 0,
     execute: async ({ runId, conn }) => {
@@ -58,11 +62,15 @@ export const SCHEDULED_JOBS = [
         console.log('[Scheduler:newsletter] Skipped: ENABLE_SCHEDULED_NEWSLETTER !== "true" (Phase 0 scope protection).');
         return 0;
       }
-      return await sendWeeklyNewsletter(conn);
+      const result = await sendWeeklyNewsletter(conn);
+      if (result.skipped) return result;
+      return { status: result.failCount ? 'partial_success' : result.mockedCount ? 'skipped' : 'success',
+        count: result.successCount || 0, reason: result.mockedCount ? 'Mock transport; no live dispatch' : undefined };
     }
   },
   {
     name: 'cron-leads-cleanup',
+    enabled: () => releaseFeatures().leadCleanup,
     description: 'Monthly PDPA Lead Retention Cleanup (1st of month 03:00 SGT)',
     isDue: ({ day, hour, minute }) => day === 1 && hour === 3 && minute === 0,
     execute: async ({ runId, conn }) => {
@@ -80,7 +88,11 @@ export const SCHEDULED_JOBS = [
 ];
 
 class SchedulerDaemon {
-  constructor() {
+  constructor({ jobs = SCHEDULED_JOBS, now = () => new Date(), conn = null, intervalMs = 30000 } = {}) {
+    this.jobs = jobs;
+    this.now = now;
+    this.conn = conn;
+    this.intervalMs = intervalMs;
     this.timer = null;
     this.lastExecutedSlots = new Map();
     this.runningJobs = new Set();
@@ -88,6 +100,7 @@ class SchedulerDaemon {
   }
 
   async start() {
+    await assertStagingDatabase(getDbPath());
     console.log('====================================================');
     console.log(' Singapore Home Intel - Maintenance Scheduler Daemon');
     console.log(' Timezone: Asia/Singapore (UTC+8)');
@@ -98,7 +111,7 @@ class SchedulerDaemon {
     await initDb();
 
     console.log('[Scheduler] Registered jobs:');
-    for (const job of SCHEDULED_JOBS) {
+    for (const job of this.jobs) {
       console.log(`  • ${job.name}: ${job.description}`);
     }
 
@@ -113,8 +126,8 @@ class SchedulerDaemon {
     console.log('\n[Scheduler] Daemon listening for scheduled slots. No deploy-time side effects executed.');
     
     // Check schedule every 30 seconds
-    this.timer = setInterval(() => this.tick(), 30000);
-    this.tick(); // Run initial check without triggering non-due jobs
+    this.timer = setInterval(() => this.tick().catch(error => console.error('[Scheduler] Tick failed:', error.message)), this.intervalMs);
+    // Boot registers the scheduler only; the timer performs the first due check.
   }
 
   async runImmediate(targetJobName) {
@@ -128,6 +141,7 @@ class SchedulerDaemon {
     }
 
     for (const job of jobsToRun) {
+      if (job.enabled && !job.enabled()) throw new Error(`Job '${job.name}' is disabled by release policy`);
       console.log(`[Scheduler] Executing immediate manual run for '${job.name}'...`);
       await runJobWithLock({
         jobName: job.name,
@@ -138,9 +152,11 @@ class SchedulerDaemon {
 
   async tick() {
     if (this.stopping) return;
-    const sg = getSingaporeTime();
+    const sg = getSingaporeTime(this.now());
+    const pending = [];
 
-    for (const job of SCHEDULED_JOBS) {
+    for (const job of this.jobs) {
+      if (job.enabled && !job.enabled()) continue;
       const executionKey = `${job.name}@${sg.slotKey}`;
       if (this.lastExecutedSlots.has(executionKey)) {
         continue; // Already dispatched for this minute slot
@@ -151,16 +167,18 @@ class SchedulerDaemon {
         console.log(`[Scheduler] Slot triggered: ${job.name} at ${sg.slotKey} SGT`);
 
         this.runningJobs.add(job.name);
-        runJobWithLock({
+        pending.push(runJobWithLock({
           jobName: job.name,
-          fn: job.execute
+          fn: job.execute,
+          slotKey: sg.slotKey,
+          conn: this.conn
         })
           .catch(err => {
             console.error(`[Scheduler] Unhandled job failure for ${job.name}:`, err.message);
           })
           .finally(() => {
             this.runningJobs.delete(job.name);
-          });
+          }));
       }
     }
 
@@ -168,6 +186,7 @@ class SchedulerDaemon {
     if (this.lastExecutedSlots.size > 200) {
       this.lastExecutedSlots.clear();
     }
+    await Promise.all(pending);
   }
 
   async stop(signal = 'SIGTERM') {

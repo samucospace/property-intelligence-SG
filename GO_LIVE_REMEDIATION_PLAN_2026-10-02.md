@@ -2,6 +2,8 @@
 
 This plan implements the findings in `GO_LIVE_READINESS_REPORT_2026-10-02.md`. The current release decision is **NO-GO**. It is a plan, not a record of completed fixes.
 
+**Phase 0 update:** local containment, isolated staging and durable local restoration are verified in the [corrected completion report](PHASE_0_COMPLETION_REPORT_2026-10-02.md). Sam Fraser is release owner and operational contact. The project is not live, and Sam requires every identified issue to be fixed and verified before public release. Hosted backup work is deferred to private deployment: daily DigitalOcean Droplet backups plus automated encrypted database copies to a separate provider/account, with separate key custody and verified restores before launch. See the [backup strategy](PHASE_0_OPERATIONS_RUNBOOK.md#deployment-stage-backup-strategy-deferred-not-live). The original recovery exit requirement remains open; this is a timing deferral, not a passed gate. Phase 1/2 completion is disputed by the [independent review](PHASE_0_TO_2_INDEPENDENT_VALIDATION_2026-10-02.md).
+
 Estimates below are rough focused engineering effort, not promised elapsed dates. They assume one experienced engineer with access to a staging host, provider test accounts and a business owner who can resolve metric/privacy questions. External setup and data reconciliation can extend the schedule. Approximately **20–35 engineering days**, plus external waiting time, is a reasonable initial planning range; re-estimate after Phase 1 and data reconciliation. Phases 2–4 can partly overlap when staffed separately, but their acceptance gates cannot be skipped.
 
 ## Phase 0 — Contain unsafe operations and establish a recoverable baseline
@@ -17,6 +19,8 @@ Estimates below are rough focused engineering effort, not promised elapsed dates
 **Exit gate:** the baseline can be restored; no unapproved script can rebuild or send mail as a side effect of deployment; staging is isolated; scope and owners are written down.
 
 ## Phase 1 — Fix startup, scheduling and data-write safety
+
+**Current status:** local corrections and 161 regressions pass on Node 22.23.3; see the [corrected Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md). Container qualification is pending the Docker startup issue or a recorded successful CI run. Rebuild remains operationally quarantined pending complete source reconciliation and target-platform rehearsal. These original gates are retained; Phase 1 is not signed off.
 
 **Owner:** backend/platform. **Effort:** 4–6 days. **Findings:** GL-01–04, GL-12, GL-16.
 

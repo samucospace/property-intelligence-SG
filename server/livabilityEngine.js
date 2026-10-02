@@ -112,8 +112,8 @@ export async function precomputeAllProjectLivability(conn = null) {
 }
 
 // 1. Seed or synchronize Amenities Table
-export async function seedAmenities(forceRefresh = false) {
-  const conn = createConnection();
+export async function seedAmenities(forceRefresh = false, targetConn = null) {
+  const conn = targetConn || createConnection();
   try {
     const versionRow = await conn.get(`SELECT version FROM seed_versions WHERE name = 'amenities'`);
     if (!forceRefresh && versionRow && versionRow.version >= AMENITIES_SEED_VERSION) {
@@ -147,7 +147,7 @@ export async function seedAmenities(forceRefresh = false) {
 
     return seedAmenitiesData.length;
   } finally {
-    await conn.close();
+    if (!targetConn) await conn.close();
   }
 }
 

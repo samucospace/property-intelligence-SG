@@ -1,14 +1,16 @@
 # Phase 1 Detailed Implementation Plan: Startup, Scheduling & Data-Write Safety
 
-**Document Date:** 2 October 2026  
-**Governing Documents:**  
-- [`GO_LIVE_REMEDIATION_PLAN_2026-10-02.md`](file:///C:/Dev/my-property-SG/GO_LIVE_REMEDIATION_PLAN_2026-10-02.md) (Phase 1)  
-- [`GO_LIVE_READINESS_REPORT_2026-10-02.md`](file:///C:/Dev/my-property-SG/GO_LIVE_READINESS_REPORT_2026-10-02.md) (Findings GL-01–04, GL-12, GL-16)  
-- [`PHASE_0_COMPLETION_REPORT_2026-10-02.md`](file:///C:/Dev/my-property-SG/PHASE_0_COMPLETION_REPORT_2026-10-02.md)  
-- [`PHASE_0_SCOPE_AND_GOVERNANCE.md`](file:///C:/Dev/my-property-SG/PHASE_0_SCOPE_AND_GOVERNANCE.md)  
-**Assigned Ownership:** Backend & Platform Engineering Lead  
-**Engineering Estimate:** 4–6 engineering days  
-**Target Release Scope:** Phased Read-Only Analytics MVP First (Personal Data / Email deferred to Phase 3)  
+**Current correction:** The original implementation/completion claims below are superseded by the [corrected Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md) and [operations runbook](PHASE_1_OPERATIONS_RUNBOOK.md). Runtime is now pinned to Node 22.23.3; Docker supervises separate processes, imports are additive, migrations are transactional and scheduled slots are durable. Operational rebuild remains quarantined pending final qualification and source reconciliation. The original governing acceptance gates remain mandatory.
+
+**Document Date:** 2 October 2026
+**Governing Documents:**
+- [`GO_LIVE_REMEDIATION_PLAN_2026-10-02.md`](GO_LIVE_REMEDIATION_PLAN_2026-10-02.md) (Phase 1)
+- [`GO_LIVE_READINESS_REPORT_2026-10-02.md`](GO_LIVE_READINESS_REPORT_2026-10-02.md) (Findings GL-01–04, GL-12, GL-16)
+- [`PHASE_0_COMPLETION_REPORT_2026-10-02.md`](PHASE_0_COMPLETION_REPORT_2026-10-02.md)
+- [`PHASE_0_SCOPE_AND_GOVERNANCE.md`](PHASE_0_SCOPE_AND_GOVERNANCE.md)
+**Assigned Ownership:** Backend & Platform Engineering Lead
+**Engineering Estimate:** 4–6 engineering days
+**Target Release Scope:** Phased Read-Only Analytics MVP First (Personal Data / Email deferred to Phase 3)
 
 ---
 
@@ -76,7 +78,7 @@ Phase 0 established operational containment: unsafe operations were quarantined,
 4. **Uncoordinated Migrations:** `server/migrations/index.js` checks `schema_migrations` without an exclusive lock or single transaction wrapper. If the web server and a maintenance job start concurrently, both race on table creation.
 
 #### Target Implementation
-1. **Refactor [`server/db.js`](file:///C:/Dev/my-property-SG/server/db.js):**
+1. **Refactor [`server/db.js`](server/db.js):**
    - Dynamic path resolution: Provide `getDbPath()` instead of static top-level assignment.
    - Strict PRAGMA initialization order in `createConnection(customPath)`:
      ```javascript
@@ -92,7 +94,7 @@ Phase 0 established operational containment: unsafe operations were quarantined,
      });
      ```
    - Lazy/Awaited Primary Connection: Replace the unconditional top-level `new sqlite3.Database()` with an explicit `getPrimaryDb()` or awaited initialization helper `initDatabaseConnection()`.
-2. **Refactor [`server/migrations/index.js`](file:///C:/Dev/my-property-SG/server/migrations/index.js):**
+2. **Refactor [`server/migrations/index.js`](server/migrations/index.js):**
    - Implement an exclusive SQLite advisory migration lock:
      - Execute `BEGIN IMMEDIATE` or acquire a lock row in a dedicated `schema_lock` table with an expiration timestamp.
      - Prevent concurrent processes from executing migrations simultaneously.
@@ -103,7 +105,7 @@ Phase 0 established operational containment: unsafe operations were quarantined,
        await conn.run(`INSERT INTO schema_migrations (name) VALUES (?)`, [migrationName]);
      });
      ```
-3. **Refactor [`server/index.js`](file:///C:/Dev/my-property-SG/server/index.js):**
+3. **Refactor [`server/index.js`](server/index.js):**
    - Structure `startServer()` as a strict sequential barrier:
      ```
      [1. Validate Environment]
@@ -182,7 +184,7 @@ Phase 0 established operational containment: unsafe operations were quarantined,
    - `server/ingestion.js:341` executes median rental queries using raw Axios calls without `fetchWithRetry` backoff or timeout bounds.
 
 #### Target Implementation
-1. **Fix Transaction Hashing in [`server/ingestion.js`](file:///C:/Dev/my-property-SG/server/ingestion.js):**
+1. **Fix Transaction Hashing in [`server/ingestion.js`](server/ingestion.js):**
    - Incorporate project identity and street into hash inputs:
      ```javascript
      export function generateTxHash(projId, streetName, projName, dateStr, price, area, floorRange, occurrenceIndex = 1, noOfUnits = 1, propertyType = '', district = '') {
@@ -219,7 +221,7 @@ Phase 0 established operational containment: unsafe operations were quarantined,
 - Used uncoordinated file swap without ensuring WAL truncation or verified rollback.
 
 #### Target Implementation
-1. **Un-quarantine & Refactor [`server/scripts/rebuild-clean-db.js`](file:///C:/Dev/my-property-SG/server/scripts/rebuild-clean-db.js):**
+1. **Un-quarantine & Refactor [`server/scripts/rebuild-clean-db.js`](server/scripts/rebuild-clean-db.js):**
    - Remove the hard-abort quarantine block.
    - Require explicit exclusive lock: Check that no other process holds an active write lock on `property.db`.
 2. **Connection Injection (No Ambient Env Mutation):**
@@ -332,6 +334,6 @@ Phase 0 established operational containment: unsafe operations were quarantined,
 
 ## 6. Document Sign-Off & Approvals
 
-- **Prepared By:** Backend & Platform Engineering Lead  
-- **Reviewed By:** Release Owner & Product Lead  
+- **Prepared By:** Backend & Platform Engineering Lead
+- **Reviewed By:** Release Owner & Product Lead
 - **Status:** **Ready for Execution**

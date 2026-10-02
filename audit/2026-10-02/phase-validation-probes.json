@@ -1,0 +1,58 @@
+{
+  "runtime": "v24.19.0",
+  "before_partial_same_month": 2,
+  "after_partial_same_month": 1,
+  "after_malformed_same_month": 0,
+  "sparse_benchmark": {
+    "sale_count": 1,
+    "rolling_24m_median_psft": 2000
+  },
+  "sparse_headline": {
+    "medianRent": 5000,
+    "medianRentPsft": 5,
+    "medianRentPsqm": 0,
+    "avgGrossYield": 3,
+    "grossYieldPct": 3,
+    "yieldSampleProjects": 1,
+    "totalLeases": 3,
+    "rentMinMaxRange": {
+      "min": 5000,
+      "max": 5000
+    }
+  },
+  "rental_date_window": {
+    "wideTotal": 3,
+    "wideActual": 6,
+    "wideTotalPages": 3,
+    "wideYield": 1.8,
+    "narrowYield": 3
+  },
+  "approximate_detail": {
+    "score": 18,
+    "label": "Car Dependent"
+  },
+  "empty_provider_response": {
+    "status": "success",
+    "salesBatchesProcessed": 4,
+    "salesBatchErrors": [],
+    "rentalQuartersProcessed": 24,
+    "rentalQuarterErrors": [],
+    "totalSalesIngested": 0,
+    "totalRentalsIngested": 0,
+    "skippedSalesNoDate": 0,
+    "skippedRentalsNoDate": 0,
+    "totalIngested": 0
+  },
+  "scheduler_same_slot_after_restart": 2,
+  "rebuild_primary_amenities_before": 0,
+  "rebuild_primary_amenities_after": 399,
+  "rebuild_candidate_amenities": 0,
+  "rebuild_candidate_sales": 0,
+  "interrupted_merge_error": "SQLITE_CONSTRAINT: validation interrupted merge",
+  "interrupted_merge_ownership": [
+    {
+      "project_id": 101,
+      "n": 2
+    }
+  ]
+}

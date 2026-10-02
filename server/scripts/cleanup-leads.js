@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createConnection } from '../db.js';
+import { releaseFeatures } from '../utils/releasePolicy.js';
 
 /**
  * Monthly Lead Retention Cleanup Script (PRIV-01, Step 4.5.5 & 5.4).
@@ -12,6 +13,9 @@ import { createConnection } from '../db.js';
  * 3. Anonymizes unsubscribed newsletter leads older than 90 days (replaces PII with SHA256 suppression hash).
  */
 export async function cleanupLeads(conn = null) {
+  if (!releaseFeatures().leadCleanup && !(process.env.NODE_ENV === 'test' && conn)) {
+    return { skipped: true, reason: 'Lead cleanup is contained pending approved retention controls.' };
+  }
   const shouldClose = !conn;
   const db = conn || createConnection();
 

@@ -6,6 +6,9 @@ dist/
 # SQLite databases & backups (never bake live databases into images)
 server/property.db*
 server/backups/
+/.recovery-keys/
+*.db.enc
+audit/
 backups/
 data/
 *.db
@@ -21,6 +24,7 @@ data/
 .env
 .env.*
 !.env.example
+!.env.staging.example
 
 # Logs & OS artifacts
 *.log
@@ -32,6 +36,12 @@ Thumbs.db
 screenshot*.png
 server/scratch_*
 server/test_*
+server/tests/temp-*/
+*.maintenance
+*.swap.json
+*.generation
+*.db.backup-*
+*.db.rebuild-*
 server/scripts/newsletter-preview.html
 
 # Internal review & planning docs

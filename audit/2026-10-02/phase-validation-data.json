@@ -1,0 +1,245 @@
+{
+  "current": {
+    "counts": {
+      "projects": 5903,
+      "property_transactions": 133418,
+      "rental_transactions": 450722,
+      "project_benchmarks": 3223,
+      "amenities": 399,
+      "sora_rates": 69,
+      "leads": 0,
+      "schema_migrations": 10
+    },
+    "integrity": "ok",
+    "fk_errors": 0,
+    "approximate": [
+      200,
+      0,
+      0
+    ],
+    "non_landed_misflags": 0,
+    "sparse_benchmarks": 1262,
+    "amenity_sources": [
+      [
+        "seed",
+        399
+      ]
+    ],
+    "sora_columns": [
+      "reference_month",
+      "sora_1m",
+      "sora_3m",
+      "updated_at"
+    ]
+  },
+  "baseline": {
+    "counts": {
+      "projects": 5938,
+      "property_transactions": 133418,
+      "rental_transactions": 450722,
+      "project_benchmarks": 3291,
+      "amenities": 399,
+      "sora_rates": 69,
+      "leads": 0,
+      "schema_migrations": 8
+    },
+    "integrity": "ok",
+    "fk_errors": 0
+  },
+  "restored": {
+    "counts": {
+      "projects": 5938,
+      "property_transactions": 133418,
+      "rental_transactions": 450722,
+      "project_benchmarks": 3291,
+      "amenities": 399,
+      "sora_rates": 69,
+      "leads": 0,
+      "schema_migrations": 8
+    },
+    "integrity": "ok",
+    "fk_errors": 0
+  },
+  "staging": {
+    "counts": {
+      "projects": 5938,
+      "property_transactions": 133418,
+      "rental_transactions": 450722,
+      "project_benchmarks": 3291,
+      "amenities": 399,
+      "sora_rates": 69,
+      "leads": 0,
+      "schema_migrations": 8
+    },
+    "integrity": "ok",
+    "fk_errors": 0
+  },
+  "transaction_comparison": {
+    "property_transactions": {
+      "changed_or_added_excluding_project_id": 0,
+      "removed_or_changed_excluding_project_id": 0,
+      "reassigned": 427,
+      "current_value_total": 315079118793.0,
+      "baseline_value_total": 315079118793.0
+    },
+    "rental_transactions": {
+      "changed_or_added_excluding_project_id": 0,
+      "removed_or_changed_excluding_project_id": 0,
+      "reassigned": 1,
+      "current_value_total": 2329672020.0,
+      "baseline_value_total": 2329672020.0
+    }
+  },
+  "project_mapping": [
+    [
+      329,
+      3515,
+      "ST MICHAEL REGENCY"
+    ],
+    [
+      387,
+      3551,
+      "AIRSTREAM"
+    ],
+    [
+      394,
+      3555,
+      "ESPADA"
+    ],
+    [
+      426,
+      3563,
+      "ST MICHAEL'S CONDOMINIUM"
+    ],
+    [
+      475,
+      3586,
+      "ONE ST MICHAEL'S"
+    ],
+    [
+      503,
+      3612,
+      "GRANGE HEIGHTS"
+    ],
+    [
+      560,
+      3645,
+      "ST THOMAS SUITES"
+    ],
+    [
+      656,
+      3699,
+      "SKYLINE 360 @ SAINT THOMAS WALK"
+    ],
+    [
+      700,
+      3721,
+      "8 SAINT THOMAS"
+    ],
+    [
+      710,
+      3734,
+      "ST FRANCIS COURT"
+    ],
+    [
+      714,
+      3738,
+      "THE RICHMOND"
+    ],
+    [
+      747,
+      3756,
+      "SAM KIANG MANSIONS"
+    ],
+    [
+      864,
+      3813,
+      "THE MORNINGTON"
+    ],
+    [
+      978,
+      3539,
+      "ST MARTIN RESIDENCE"
+    ],
+    [
+      1075,
+      3600,
+      "ST THOMAS COURT"
+    ],
+    [
+      1081,
+      3602,
+      "ST FRANCIS LODGE"
+    ],
+    [
+      1099,
+      3616,
+      "ST MARTIN'S"
+    ],
+    [
+      1160,
+      3663,
+      "CITY REGENCY"
+    ],
+    [
+      1193,
+      3676,
+      "RIVERSIDE MELODIES"
+    ],
+    [
+      1245,
+      3705,
+      "SUNVILLE"
+    ],
+    [
+      1278,
+      3725,
+      "TANGLIN RESIDENCES"
+    ],
+    [
+      1672,
+      3899,
+      "ST PATRICK'S COURT"
+    ],
+    [
+      1688,
+      3907,
+      "ST PATRICK'S GREEN"
+    ],
+    [
+      2039,
+      4015,
+      "ST PATRICK'S LOFT"
+    ],
+    [
+      2199,
+      4071,
+      "ST ANNE'S WOOD"
+    ],
+    [
+      2299,
+      4101,
+      "GRAND DUCHESS AT ST PATRICK'S"
+    ],
+    [
+      2444,
+      4162,
+      "TIERRA VUE"
+    ],
+    [
+      2490,
+      4184,
+      "SEVENTY SAINT PATRICK'S"
+    ],
+    [
+      2568,
+      4234,
+      "ST PATRICK'S RESIDENCES"
+    ],
+    [
+      3838,
+      1494,
+      "ST NICHOLAS VIEW"
+    ]
+  ]
+}

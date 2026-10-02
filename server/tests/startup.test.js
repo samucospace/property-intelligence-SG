@@ -24,7 +24,7 @@ describe('Startup & Concurrency Reliability (GL-02)', () => {
   });
 
   it('reliably initializes fresh disk databases without SQLITE_BUSY (G1-1)', async () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 20; i++) {
       const diskDb = path.join(testDir, `fresh-${Date.now()}-${i}.db`);
       await initDb(diskDb);
 

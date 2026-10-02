@@ -1,8 +1,11 @@
 import '../config.js';
 import { initDb } from '../db.js';
 import { fetchUraData } from '../ingestion.js';
+import { requireDataSyncEnabled } from '../utils/releasePolicy.js';
+import { runJobWithLock } from '../utils/jobRunner.js';
 
 async function main() {
+  requireDataSyncEnabled();
   const accessKey = process.env.URA_ACCESS_KEY;
   if (!accessKey) {
     console.error('Error: URA_ACCESS_KEY is not defined in environment variables.');
@@ -12,7 +15,7 @@ async function main() {
 
   console.log(`[${new Date().toISOString()}] Starting scheduled URA Data Service synchronization...`);
   await initDb();
-  const result = await fetchUraData(accessKey);
+  const result = await runJobWithLock({jobName:'cron-ura-sync', fn:({conn})=>fetchUraData(accessKey,conn)});
   console.log(`[${new Date().toISOString()}] Ingestion completed:`, result);
 
   if (result.status !== 'success' || (result.salesBatchErrors && result.salesBatchErrors.length > 0) || (result.rentalQuarterErrors && result.rentalQuarterErrors.length > 0)) {

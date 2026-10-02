@@ -1,5 +1,5 @@
 # Stage 1: Build Frontend
-FROM node:22-alpine AS client-builder
+FROM node:22.23.3-alpine AS client-builder
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY client/ ./
 RUN npm run build
 
 # Stage 2: Production Server Runtime
-FROM node:22-alpine
+FROM node:22.23.3-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -20,15 +20,11 @@ RUN apk add --no-cache tzdata python3 make g++
 # Ensure persistent data directory exists
 RUN mkdir -p /app/data
 
-# Install PM2 globally for background cron execution and process management (pinned version)
-RUN npm install -g pm2@5.4.3 && mkdir -p /home/node/.pm2 && chown -R node:node /home/node
-
 # Copy server package manifest and install production dependencies only
 COPY server/package*.json ./server/
 RUN cd server && npm ci --omit=dev
 
-# Copy PM2 ecosystem configuration and server application code
-COPY ecosystem.config.cjs ./
+# Docker supervises one process per container; maintenance is an explicit profile.
 COPY server/ ./server/
 
 # Copy compiled frontend from Stage 1 into client/dist for Express static serving
@@ -43,5 +39,5 @@ USER node
 # Expose server port
 EXPOSE 3001
 
-# Start the unified production server and background cron processes
-CMD ["pm2-runtime", "ecosystem.config.cjs"]
+# Web deployment never starts maintenance.
+CMD ["node", "server/index.js"]

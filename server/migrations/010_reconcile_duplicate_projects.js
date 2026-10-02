@@ -28,6 +28,18 @@ const URA_PLANNING_AREAS = [
 ];
 
 export async function up(conn) {
+  await conn.run('SAVEPOINT project_adjudication');
+  try {
+    await reconcile(conn);
+    await conn.run('RELEASE project_adjudication');
+  } catch (error) {
+    await conn.run('ROLLBACK TO project_adjudication');
+    await conn.run('RELEASE project_adjudication');
+    throw error;
+  }
+}
+
+async function reconcile(conn) {
   const run = conn.run.bind(conn);
   const all = conn.all.bind(conn);
 

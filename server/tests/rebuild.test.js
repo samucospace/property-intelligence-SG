@@ -61,11 +61,14 @@ describe('Clean Database Rebuild Safety & Atomic Rollback (GL-01)', () => {
         INSERT INTO projects (project_name, street_name, market_segment)
         VALUES ('REBUILD TEST CONDO', 'TEST WAY', 'OCR')
       `);
+      await conn.run("INSERT INTO property_transactions(project_id,area_sqm,area_sqft,price_sgd,psqm_sgd,psft_sgd,contract_date,raw_hash) VALUES(1,100,1076.39,1000000,10000,929,'2026-01-01','rebuild-sale')");
+      await conn.run("INSERT INTO rental_transactions(project_id,rent_sgd,lease_date,raw_hash) VALUES(1,4000,'2026-01','rebuild-rent')");
       return { status: 'success' };
     };
 
     const res = await rebuildCleanDb({
       targetLivePath: liveDbFile,
+      minimumCounts: { projects: 1, sales: 1, rentals: 1 },
       isForce: true,
       dataProvider: mockProvider
     });

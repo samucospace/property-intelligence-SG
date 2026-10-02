@@ -10,7 +10,10 @@ const __dirname = path.dirname(__filename);
 const serverEnvPath = path.resolve(__dirname, '.env');
 const rootEnvPath = path.resolve(__dirname, '../.env');
 
-if (fs.existsSync(serverEnvPath)) {
+const isolatedEnvironment = ['test', 'staging'].includes(process.env.NODE_ENV);
+if (isolatedEnvironment) {
+  // Isolated processes must never inherit local production credentials from .env.
+} else if (fs.existsSync(serverEnvPath)) {
   dotenv.config({ path: serverEnvPath });
 } else if (fs.existsSync(rootEnvPath)) {
   dotenv.config({ path: rootEnvPath });
@@ -19,6 +22,18 @@ if (fs.existsSync(serverEnvPath)) {
 }
 
 import { isPlaceholderSecret } from './utils/security.js';
+import { releaseFeatures } from './utils/releasePolicy.js';
+
+releaseFeatures(); // Reject misspelled scope before serving requests.
+if (process.env.NODE_ENV === 'staging') {
+  if (!process.env.DB_PATH || path.resolve(process.env.DB_PATH) === path.join(__dirname, 'property.db')) {
+    throw new Error('Staging requires an explicit isolated DB_PATH');
+  }
+  if ((process.env.URA_ACCESS_KEY && !process.env.URA_ACCESS_KEY.startsWith('mock')) ||
+      (process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.startsWith('re_mock'))) {
+    throw new Error('Staging must use separate mock provider credentials');
+  }
+}
 
 // Validate critical variables in production
 if (process.env.NODE_ENV === 'production') {

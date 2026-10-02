@@ -12,6 +12,14 @@ import MonetizationBanner from './components/MonetizationBanner';
 import { getDefaultDateRange } from './utils/dateUtils';
 
 export default function App() {
+  const [features, setFeatures] = useState({ leadCapture: false, dataSync: false });
+  useEffect(() => {
+    axios.get('/api/features').then(({ data }) => setFeatures(data)).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (features.leadCapture && new URLSearchParams(window.location.search).get('enquire') === '1') setIsEnquiryModalOpen(true);
+    if (!features.leadCapture) setIsEnquiryModalOpen(false);
+  }, [features.leadCapture]);
   // Read initial view mode from URL ?mode=rental or default to 'sale'
   const [viewMode, setViewMode] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -73,9 +81,6 @@ export default function App() {
   // Step 4.3.1: Handle ?enquire=1 and ?q= on initial load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('enquire') === '1') {
-      setIsEnquiryModalOpen(true);
-    }
 
     const qParam = params.get('q');
     if (qParam && qParam.trim()) {
@@ -244,7 +249,7 @@ export default function App() {
         </div>
 
         <div className="header-actions">
-          {new URLSearchParams(window.location.search).get('admin') === '1' || import.meta.env.DEV ? (
+          {features.dataSync && (new URLSearchParams(window.location.search).get('admin') === '1' || import.meta.env.DEV) ? (
             <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
               <Database size={16} /> Sync URA API Data
             </button>
@@ -405,11 +410,11 @@ export default function App() {
         )}
 
         {/* High-Intent Native Monetization: Accredited CEA Agent Advisory */}
-        <MonetizationBanner
+        {features.leadCapture && <MonetizationBanner
           variant="agent"
           isEnquiryModalOpen={isEnquiryModalOpen}
           onToggleEnquiryModal={setIsEnquiryModalOpen}
-        />
+        />}
 
         {/* Main Grid: Charts & GIS Map */}
         <div className="dashboard-grid">
@@ -432,7 +437,7 @@ export default function App() {
         </div>
 
         {/* High-Intent Native Monetization: Weekly Deals Newsletter */}
-        <MonetizationBanner variant="newsletter" />
+        {features.leadCapture && <MonetizationBanner variant="newsletter" />}
 
         {/* Detailed Caveats / Tenancy Transactions Log Table */}
         <div className="card">

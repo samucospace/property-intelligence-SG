@@ -1,5 +1,9 @@
 # Complete Live Deployment & Email Setup Guide: Singapore Home Intel
 
+**Current state, 2 October 2026:** local-only project, not live. Sam requires every identified issue to be fixed and verified before public launch. The infrastructure/domain/provider details below are a proposed deployment guide, not verified live configuration. Phase 0 now defaults to read-only/no-mail containment; use [the current runbook](PHASE_0_OPERATIONS_RUNBOOK.md) and keep its guards enabled. Do not follow legacy rebuild/sync/email enablement steps until their governing remediation gates pass.
+
+**Backup work deferred to private deployment:** enable daily DigitalOcean Droplet backups and automate encrypted SQLite copies to a separate cloud provider/account, with separate key custody. Validate whole-server and clean-environment database restores and backup-failure alerts before public launch. The local backup schedule below alone does not satisfy off-host recovery. Provider uptime commitments do not replace these checks. Configuration and hosted verification remain pending; see the [deployment-stage backup strategy](PHASE_0_OPERATIONS_RUNBOOK.md#deployment-stage-backup-strategy-deferred-not-live).
+
 **Target Domain:** `homeintel.sg`  
 **Host Platform:** DigitalOcean (Ubuntu 24.04 LTS Droplet in Singapore `SGP1`)  
 **Domain Registrar & DNS:** Namecheap  
@@ -218,15 +222,10 @@ docker compose up -d --build
 ```
 
 ### What happens automatically:
-1. Multi-stage Docker build compiles the React frontend (`client/dist`).
-2. Node 20 runtime is created with PM2 process supervisor (`pm2-runtime ecosystem.config.cjs`).
-3. PM2 starts:
-   - Primary web server (`property-intelligence-sg`).
-   - Sunday 02:00 SGT URA sync cron (`cron-ura-sync`).
-   - Monday 08:00 SGT newsletter dispatcher (`cron-weekly-newsletter`).
-   - Daily 04:00 SGT encrypted backup cron (`cron-db-backup`).
-   - Monthly 1st 03:00 SGT PDPA retention cleanup (`cron-leads-cleanup`).
-4. Caddy starts, contacts Let's Encrypt, auto-provisions a free SSL/TLS certificate for `homeintel.sg`, and routes incoming HTTPS traffic to Node on port 3001.
+1. The locked multi-stage build compiles the frontend and creates a Node 22.23.3 runtime.
+2. Docker runs one web process with init/restart supervision. No maintenance jobs start on web deployment.
+3. Caddy provisions TLS for the configured domain and routes traffic to the web application.
+4. The separate scheduler is opt-in through the maintenance profile, after its gates/configuration pass. See [Phase 1 operations](PHASE_1_OPERATIONS_RUNBOOK.md).
 
 ---
 
@@ -240,11 +239,8 @@ docker compose ps
 ```
 *Result: Both `app` and `caddy` should display `Up (healthy)`.*
 
-### 2. Verify PM2 Background Cron Tasks
-```bash
-docker compose exec app pm2 list
-```
-*Result: All 5 processes should be present (`property-intelligence-sg` online, 4 cron jobs in fork mode).*
+### 2. Verify maintenance separation
+Use `docker compose ps` and `docker compose logs --tail=100 scheduler` after explicitly enabling the maintenance profile. Web-only deployment must not create a scheduler container or execute maintenance. Verify durable due-slot behavior with fake jobs before authorizing real provider operations.
 
 ### 3. Check Deep API Health Check
 ```bash
@@ -277,8 +273,8 @@ docker compose exec app node server/scripts/send-weekly-newsletter.js --preview
 | :--- | :--- |
 | **View Live Web Traffic Logs** | `docker compose logs -f --tail=50 app` |
 | **View Caddy SSL / Proxy Logs** | `docker compose logs -f caddy` |
-| **Check PM2 Memory / CPU** | `docker compose exec app pm2 monit` |
-| **Run Immediate Manual Backup** | `docker compose exec app node server/scripts/backup-db.js` |
-| **Run Immediate URA Data Sync** | `docker compose exec app node server/scripts/sync-ura.js` |
+| **Check Container Memory / CPU** | `docker stats` |
+| **Run Immediate Manual Backup** | `docker compose exec -T scheduler node server/scheduler.js --now=cron-db-backup` |
+| **Run Immediate URA Data Sync** | `docker compose exec -T scheduler node server/scheduler.js --now=cron-ura-sync` |
 | **Update App After Git Push** | `git pull origin main && docker compose up -d --build` |
 | **Restart Application Stack** | `docker compose restart` |

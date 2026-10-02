@@ -29,6 +29,8 @@ export function normalizeContractDate(rawDate) {
 export function normalizeLeaseDate(rawDate) {
   if (!rawDate) return null;
   const rawDateStr = String(rawDate).trim();
+  if (!/^(\d{4}|\d{4}-\d{2}|\d{4}-\d{2}-\d{2})$/.test(rawDateStr)) return null;
+  if (rawDateStr.length === 10 && (!Number.isFinite(Date.parse(rawDateStr)) || new Date(rawDateStr).toISOString().slice(0,10) !== rawDateStr)) return null;
   if (rawDateStr.length === 4) {
     const mm = rawDateStr.substring(0, 2);
     const yy = '20' + rawDateStr.substring(2, 4);
@@ -91,322 +93,97 @@ export async function fetchWithRetry(url, options = {}, maxRetries = 3, client =
   }
 }
 
-// 2. Fetch live data from official URA API with SQLite TRANSACTION batching
+// Fetch and validate every requested source scope before writing anything.
 export async function fetchUraData(accessKey, targetConn = null) {
-  if (!accessKey) {
-    throw new Error('URA AccessKey is required for live ingestion.');
+  if (!accessKey?.trim()) throw new Error('URA AccessKey is required for live ingestion.');
+  const headers = { AccessKey: accessKey.trim() };
+  const token = (await fetchWithRetry('https://eservice.ura.gov.sg/uraDataService/insertNewToken/v1', { headers })).data;
+  if (token?.Status !== 'Success' || typeof token.Result !== 'string' || !token.Result) throw new Error('Invalid URA token response');
+  headers.Token = token.Result;
+  const projects = [];
+  const refPeriods = generateRentalQuarters();
+  const request = async (service, scope) => {
+    const response = (await fetchWithRetry('https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1?service=' + service + '&' + scope, { headers })).data;
+    if (response?.Status !== 'Success' || !Array.isArray(response.Result) || !response.Result.length) throw new Error('Empty or unsuccessful URA scope: ' + service + ' ' + scope);
+    return response.Result;
+  };
+  for (let batch = 1; batch <= 4; batch++) {
+    const rows = await request('PMI_Resi_Transaction', 'batch=' + batch);
+    validateImportPayload(rows, 'sales');
+    projects.push(...rows);
   }
-
-  const cleanKey = accessKey.trim();
-  console.log(`Requesting daily URA token...`);
-
-  // Step A: Get Token
-  const tokenUrl = 'https://eservice.ura.gov.sg/uraDataService/insertNewToken/v1';
-  const tokenRes = await fetchWithRetry(tokenUrl, {
-    headers: {
-      AccessKey: cleanKey
+  for (const period of refPeriods) {
+    const rows = await request('PMI_Resi_Rental', 'refPeriod=' + period);
+    validateImportPayload(rows, 'rentals');
+    const match = /^(\d{2})q([1-4])$/i.exec(period);
+    if (!match) throw new Error('Invalid rental quarter');
+    for (const project of rows) for (const rental of project.rental || project.rentals) {
+      const date = normalizeLeaseDate(rental.leaseDate || rental.lease_date);
+      if (date.slice(0, 4) !== '20' + match[1] || Math.ceil(Number(date.slice(5, 7)) / 3) !== Number(match[2])) throw new Error('Rental outside requested quarter');
     }
-  });
-
-  const body = tokenRes.data || {};
-  if (body.Status === 'Error' || !body.Result) {
-    throw new Error(`URA API Error: ${body.Message || 'Invalid Access Key. Please double check your URA Access Key.'}`);
+    projects.push(...rows);
   }
+  const result = await importRealUraData(projects, targetConn);
+  return { ...result, salesBatchesProcessed: 4, rentalQuartersProcessed: refPeriods.length,
+    salesBatchErrors: [], rentalQuarterErrors: [], totalIngested: result.totalSalesIngested + result.totalRentalsIngested,
+    mode: 'additive', sourceCompleteness: 'unverified' };
+}
 
-  const dailyToken = body.Result;
-  console.log('Daily URA Token obtained successfully.');
-
-  const conn = targetConn || createConnection();
-  const shouldClose = !targetConn;
-  let totalIngested = 0;
-  let totalRentalsIngested = 0;
-  let skippedSalesNoDate = 0;
-  let skippedRentalsNoDate = 0;
-  const salesBatchErrors = [];
-  const quarterErrors = [];
-
-  try {
-    // Step B: Fetch Sales Transactions (batches 1 to 4)
-    for (let batch = 1; batch <= 4; batch++) {
-      console.log(`Fetching URA Sales Batch ${batch}/4...`);
-      const dataUrl = `https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1?service=PMI_Resi_Transaction&batch=${batch}`;
-
-      try {
-        const batchRes = await fetchWithRetry(dataUrl, {
-          headers: {
-            AccessKey: cleanKey,
-            Token: dailyToken
-          }
-        });
-
-        const batchBody = batchRes.data || {};
-        const projectsData = batchBody.Result || batchBody.result || [];
-        console.log(`Batch ${batch} URA Sales Status:`, batchBody.Status, 'Projects count:', Array.isArray(projectsData) ? projectsData.length : 0);
-
-        if (batchBody.Status && batchBody.Status !== 'Success') {
-          salesBatchErrors.push({ batch, error: batchBody.Message || `Sales batch status: ${batchBody.Status}` });
-        }
-
-        if (Array.isArray(projectsData) && projectsData.length > 0) {
-          let batchInserted = 0;
-          await withTransaction(conn, async () => {
-            for (const rawProj of projectsData) {
-              const { projId, projName, resolvedDistrict, street } = await getOrCreateProject(conn, rawProj);
-
-              const txList = rawProj.transaction || [];
-              if (txList.length > 0) {
-                // Scoped replacement: delete ONLY records within the incoming batch's contract dates for this project
-                const incomingDates = [...new Set(txList.map(t => normalizeContractDate(t.contractDate)).filter(Boolean))];
-                if (incomingDates.length > 0) {
-                  const placeholders = incomingDates.map(() => '?').join(',');
-                  await conn.run(`DELETE FROM property_transactions WHERE project_id = ? AND contract_date IN (${placeholders})`, [projId, ...incomingDates]);
-                }
-              }
-              const txOccurrenceTracker = new Map();
-
-              for (const tx of txList) {
-                // Step 2.4: Skip records with no contract date instead of defaulting to '0124'
-                const rawDate = tx.contractDate;
-                if (!rawDate) {
-                  skippedSalesNoDate++;
-                  continue;
-                }
-
-                const rawDateStr = String(rawDate).trim();
-                let contractDate;
-                if (rawDateStr.length === 4) {
-                  const mm = rawDateStr.substring(0, 2);
-                  const yy = '20' + rawDateStr.substring(2, 4);
-                  contractDate = `${yy}-${mm}-01`;
-                } else {
-                  contractDate = rawDateStr;
-                }
-
-                const areaSqm = parseFloat(tx.area) || 0;
-                if (areaSqm <= 0) continue;
-
-                const areaSqft = areaSqm * 10.7639;
-                const priceSgd = parseFloat(tx.price) || 0;
-                if (priceSgd <= 0) continue;
-
-                const noOfUnits = parseInt(tx.noOfUnits, 10) || 1;
-                const psqmSgd = priceSgd / areaSqm;
-                const psftSgd = priceSgd / areaSqft;
-                // Step 2.4: Store null instead of invented defaults
-                const floorRange = tx.floorRange || null;
-                const tenure = tx.tenure || null;
-                const tenureClass = classifyTenure(tenure);
-                const typeOfSale = tx.typeOfSale === '1' ? 'New Sale' : tx.typeOfSale === '2' ? 'Sub Sale' : (tx.typeOfSale === '3' ? 'Resale' : (tx.typeOfSale || null));
-                const propertyType = tx.propertyType || null;
-
-                if (tenureClass) {
-                  await conn.run(
-                    `UPDATE projects SET tenure_class = ? WHERE project_id = ? AND (tenure_class IS NULL OR (tenure_class != 'freehold' AND ? = 'freehold'))`,
-                    [tenureClass, projId, tenureClass]
-                  );
-                }
-
-                // Step 2.5: Occurrence tracking preserves genuine duplicate records with identical price/area
-                const sig = `${contractDate}|${priceSgd}|${areaSqm}|${floorRange || ''}|${noOfUnits}`;
-                const occurrenceIndex = (txOccurrenceTracker.get(sig) || 0) + 1;
-                txOccurrenceTracker.set(sig, occurrenceIndex);
-
-                const rawHash = generateTxHash(projName, contractDate, priceSgd, areaSqm, floorRange, occurrenceIndex, noOfUnits, propertyType, resolvedDistrict, street);
-
-                try {
-                  await conn.run(
-                    `INSERT INTO property_transactions 
-                     (project_id, area_sqm, area_sqft, price_sgd, psqm_sgd, psft_sgd, contract_date, floor_range, tenure, type_of_sale, property_type, no_of_units, tenure_class, raw_hash)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [projId, areaSqm, areaSqft, priceSgd, psqmSgd, psftSgd, contractDate, floorRange, tenure, typeOfSale, propertyType, noOfUnits, tenureClass, rawHash]
-                  );
-                  batchInserted++;
-                  totalIngested++;
-                } catch (e) {
-                  if (e.message && e.message.includes('raw_hash')) {
-                    // Ignore duplicate hash on retry
-                  } else {
-                    throw e;
-                  }
-                }
-              }
-            }
-          });
-          console.log(`Sales Batch ${batch}/4 committed: ${batchInserted} caveats added (Total: ${totalIngested}, Skipped without date: ${skippedSalesNoDate}).`);
-        }
-      } catch (txErr) {
-        salesBatchErrors.push({ batch, error: txErr.message });
-        console.error(`Sales Batch ${batch} error:`, txErr.message);
-      }
+// A nonempty response cannot prove an authoritative complete period. Imports are
+// additive multiset unions; source corrections/deletions require reconciliation.
+export function validateImportPayload(projects, required = null) {
+  if (!Array.isArray(projects) || !projects.length) throw new Error('Empty import payload');
+  for (const project of projects) {
+    if (!project || typeof (project.project || project.project_name) !== 'string' || !(project.project || project.project_name).trim() ||
+        typeof (project.street || project.street_name) !== 'string' || !(project.street || project.street_name).trim()) throw new Error('Project name and street are required');
+    const sales = project.transaction ?? project.transactions ?? [];
+    const rentals = project.rental ?? project.rentals ?? [];
+    if (!Array.isArray(sales) || !Array.isArray(rentals) || (required === 'sales' && !sales.length) || (required === 'rentals' && !rentals.length) || (!sales.length && !rentals.length)) throw new Error('Missing transaction records');
+    for (const tx of sales) {
+      const date = normalizeContractDate(tx?.contractDate || tx?.contract_date);
+      if (!date || !/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(date) || new Date(date + 'T00:00:00Z').toISOString().slice(0,10) !== date ||
+          !Number.isFinite(Number(tx.price ?? tx.price_sgd)) || Number(tx.price ?? tx.price_sgd) <= 0 ||
+          !Number.isFinite(Number(tx.area ?? tx.area_sqm)) || Number(tx.area ?? tx.area_sqm) <= 0) throw new Error('Malformed sale record');
+      const units = tx.noOfUnits ?? tx.no_of_units ?? 1;
+      if (!Number.isInteger(Number(units)) || Number(units) < 1) throw new Error('Malformed sale unit count');
     }
-
-    // Step C: Fetch URA Real Rental Contracts by Reference Quarter (refPeriod: yyqq)
-    const refPeriods = generateRentalQuarters();
-    console.log(`Fetching URA Rental Contracts across ${refPeriods.length} reference quarters (${refPeriods[0]} to ${refPeriods[refPeriods.length - 1]})...`);
-
-    for (const refPeriod of refPeriods) {
-      try {
-        const rentUrl = `https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1?service=PMI_Resi_Rental&refPeriod=${refPeriod}`;
-        const rentRes = await fetchWithRetry(rentUrl, {
-          headers: { AccessKey: cleanKey, Token: dailyToken }
-        });
-
-        const rentBody = rentRes.data || {};
-        const rentProjects = rentBody.Result || rentBody.result || [];
-
-        if (rentBody.Status && rentBody.Status !== 'Success') {
-          quarterErrors.push({ quarter: refPeriod, error: rentBody.Message || `Rental quarter status: ${rentBody.Status}` });
-        }
-
-        if (rentBody.Status === 'Success' && Array.isArray(rentProjects) && rentProjects.length > 0) {
-          console.log(`Quarter [${refPeriod}]: Retrieved ${rentProjects.length} rental projects from URA.`);
-          let quarterInserted = 0;
-          await withTransaction(conn, async () => {
-            // Step 2.5.1: Replace-by-period: delete existing records for this quarter before inserting fresh URA data
-            const qMatch = /^(\d{2})q([1-4])$/i.exec(String(refPeriod).trim());
-            if (qMatch) {
-              const yy = qMatch[1];
-              const qNum = parseInt(qMatch[2], 10);
-              const qMonths = [
-                `20${yy}-${String((qNum - 1) * 3 + 1).padStart(2, '0')}`,
-                `20${yy}-${String((qNum - 1) * 3 + 2).padStart(2, '0')}`,
-                `20${yy}-${String((qNum - 1) * 3 + 3).padStart(2, '0')}`
-              ];
-              await conn.run(`DELETE FROM rental_transactions WHERE lease_date IN (?, ?, ?)`, qMonths);
-            }
-
-            for (const rawProj of rentProjects) {
-              const { projId, projName, resolvedDistrict, isNew, street } = await getOrCreateProject(conn, rawProj);
-              if (isNew) {
-                console.log(`[Rental Feed] Created new project entry: ${projName} at ${street}`);
-              }
-
-              const rentalList = rawProj.rental || rawProj.rentals || [];
-              const rentOccurrenceTracker = new Map();
-
-              for (const r of rentalList) {
-                // Step 2.4: Skip rental records with no lease date
-                const rawDate = r.leaseDate || r.lease_date;
-                if (!rawDate) {
-                  skippedRentalsNoDate++;
-                  continue;
-                }
-
-                const rawDateStr = String(rawDate).trim();
-                let leaseDate;
-                if (rawDateStr.length === 4) {
-                  const mm = rawDateStr.substring(0, 2);
-                  const yy = '20' + rawDateStr.substring(2, 4);
-                  leaseDate = `${yy}-${mm}`;
-                } else {
-                  leaseDate = rawDateStr.substring(0, 7);
-                }
-
-                const rentSgd = parseFloat(r.rent || r.rent_sgd) || 0;
-                if (rentSgd <= 0) continue;
-
-                // Step 2.4: Eliminate invented 1,000 sqft / 92.9 sqm defaults; store null if missing
-                let sqft = null;
-                let sqm = null;
-                let rentPsft = null;
-                let rentPsqm = null;
-
-                const parsedSqft = parseAreaRange(r.areaSqft);
-                const parsedSqm = parseAreaRange(r.areaSqm);
-
-                if (parsedSqft) {
-                  sqft = parseFloat(parsedSqft.toFixed(1));
-                  sqm = parseFloat((sqft / 10.7639).toFixed(1));
-                } else if (parsedSqm) {
-                  sqm = parseFloat(parsedSqm.toFixed(1));
-                  sqft = parseFloat((sqm * 10.7639).toFixed(1));
-                }
-
-                if (sqft && sqft > 0) {
-                  rentPsft = parseFloat((rentSgd / sqft).toFixed(2));
-                  rentPsqm = parseFloat((rentSgd / sqm).toFixed(2));
-                }
-
-                const bedroomCount = normalizeBedroom(r.noOfBedRoom);
-                const floorAreaRange = r.areaSqft ? `${r.areaSqft} sqft` : (r.areaSqm ? `${r.areaSqm} sqm` : null);
-                const propType = r.propertyType || null;
-
-                const sig = `${leaseDate}|${rentSgd}|${sqft ?? 'null'}|${bedroomCount || ''}|${floorAreaRange || ''}`;
-                const occurrenceIndex = (rentOccurrenceTracker.get(sig) || 0) + 1;
-                rentOccurrenceTracker.set(sig, occurrenceIndex);
-
-                const rawHash = generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCount, floorAreaRange, occurrenceIndex, resolvedDistrict, street);
-
-                try {
-                  await conn.run(
-                    `INSERT INTO rental_transactions 
-                     (project_id, area_sqm, area_sqft, rent_sgd, rent_psqm, rent_psft, lease_date, bedroom_count, floor_area_range, property_type, raw_hash)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [projId, sqm, sqft, rentSgd, rentPsqm, rentPsft, leaseDate, bedroomCount, floorAreaRange, propType, rawHash]
-                  );
-                  quarterInserted++;
-                  totalRentalsIngested++;
-                } catch (e) {
-                  if (e.message && e.message.includes('raw_hash')) {
-                    // Ignore duplicate hash on retry
-                  } else {
-                    throw e;
-                  }
-                }
-              }
-            }
-          });
-          console.log(`Quarter [${refPeriod}] committed: ${quarterInserted} rental records added (Total: ${totalRentalsIngested}, Skipped without date: ${skippedRentalsNoDate}).`);
-        }
-      } catch (rentErr) {
-        quarterErrors.push({ quarter: refPeriod, error: rentErr.message });
-        console.warn(`Quarter [${refPeriod}] rental fetch warning:`, rentErr.message);
-      }
-    }
-
-    // Step D: Also fetch Median Rental Benchmarks (PMI_Resi_Rental_Median)
-    try {
-      const medianUrl = `https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1?service=PMI_Resi_Rental_Median`;
-      const medianRes = await fetchWithRetry(medianUrl, {
-        headers: { AccessKey: cleanKey, Token: dailyToken }
-      });
-
-      const medianProjects = medianRes.data?.Result || medianRes.data?.result || [];
-      console.log(`Median Rental Service returned ${medianProjects.length} records.`);
-    } catch (mErr) {
-      console.warn('Median rental benchmark warning:', mErr.message);
-    }
-
-    // Step 3.1: Automatically refresh project benchmarks after live ingestion
-    await refreshProjectBenchmarks(conn);
-    await precomputeAllProjectLivability(conn);
-
-    return {
-      status: salesBatchErrors.length === 0 && quarterErrors.length === 0 ? 'success' : 'partial_success',
-      salesBatchesProcessed: 4,
-      salesBatchErrors,
-      rentalQuartersProcessed: refPeriods.length,
-      rentalQuarterErrors: quarterErrors,
-      totalSalesIngested: totalIngested,
-      totalRentalsIngested,
-      skippedSalesNoDate,
-      skippedRentalsNoDate,
-      totalIngested: totalIngested + totalRentalsIngested
-    };
-  } finally {
-    if (shouldClose) {
-      await conn.close();
+    for (const rental of rentals) {
+      const date = normalizeLeaseDate(rental?.leaseDate || rental?.lease_date);
+      if (!date || !/^\d{4}-(0[1-9]|1[0-2])$/.test(date) || !Number.isFinite(Number(rental.rent ?? rental.rent_sgd)) || Number(rental.rent ?? rental.rent_sgd) <= 0) throw new Error('Malformed rental record');
+      for (const area of [rental.areaSqft, rental.areaSqm]) if (area != null && (!parseAreaRange(area) || parseAreaRange(area) <= 0)) throw new Error('Malformed rental area');
     }
   }
 }
 
+async function insertOccurrence(conn, table, columns, values, occurrence, existing) {
+  const fields = columns.split(',').map(c => c.trim());
+  // Ignore derived values for identity, allowing legacy rounding and raw hashes.
+  const identity = fields.map((name, i) => ({name, i})).filter(({name}) => !['raw_hash', 'area_sqft', 'psqm_sgd', 'psft_sgd', 'rent_psqm', 'rent_psft', 'tenure_class'].includes(name));
+  const params = identity.map(({i}) => values[i]);
+  const key = table + JSON.stringify(params);
+  const ordinal = (occurrence.get(key) || 0) + 1;
+  occurrence.set(key, ordinal);
+  if (!existing.has(key)) {
+    const row = await conn.get('SELECT COUNT(*) AS count FROM ' + table + ' WHERE ' + identity.map(({name}) => name + ' IS ?').join(' AND '), params);
+    existing.set(key, row.count);
+  }
+  if (ordinal <= existing.get(key)) return false;
+  values[fields.indexOf('raw_hash')] = crypto.createHash('sha256').update(key + '|' + ordinal).digest('hex');
+  await conn.run('INSERT INTO ' + table + ' (' + columns + ') VALUES (' + fields.map(() => '?').join(',') + ')', values);
+  return true;
+}
+
 // 3. Bulk Real URA Dataset Importer (JSON or Array payload)
 export async function importRealUraData(jsonData, targetConn = null) {
+  if (!Array.isArray(jsonData) && jsonData?.Status && jsonData.Status !== 'Success') throw new Error('Unsuccessful URA import envelope');
   const resultData = Array.isArray(jsonData) ? jsonData : (jsonData?.Result || jsonData?.data || []);
   if (!Array.isArray(resultData) || resultData.length === 0) {
     throw new Error('Invalid URA Data format. Expected JSON containing array of project records.');
   }
 
+  validateImportPayload(resultData);
+  const occurrences = new Map();
+  const existing = new Map();
   const conn = targetConn || createConnection();
   const shouldClose = !targetConn;
   let totalSalesIngested = 0;
@@ -424,13 +201,6 @@ export async function importRealUraData(jsonData, targetConn = null) {
 
         // Process Sales Transactions
         const txList = rawProj.transaction || rawProj.transactions || [];
-        if (txList.length > 0) {
-          const incomingDates = [...new Set(txList.map(t => normalizeContractDate(t.contractDate || t.contract_date)).filter(Boolean))];
-          if (incomingDates.length > 0) {
-            const placeholders = incomingDates.map(() => '?').join(',');
-            await conn.run(`DELETE FROM property_transactions WHERE project_id = ? AND contract_date IN (${placeholders})`, [projId, ...incomingDates]);
-          }
-        }
         const txOccurrenceTracker = new Map();
 
         for (const tx of txList) {
@@ -450,14 +220,14 @@ export async function importRealUraData(jsonData, targetConn = null) {
             contractDate = rawDateStr;
           }
 
-          const areaSqm = parseFloat(tx.area || tx.area_sqm) || 0;
+          const areaSqm = Number(tx.area ?? tx.area_sqm);
           if (areaSqm <= 0) continue;
 
           const areaSqft = areaSqm * 10.7639;
-          const priceSgd = parseFloat(tx.price || tx.price_sgd) || 0;
+          const priceSgd = Number(tx.price ?? tx.price_sgd);
           if (priceSgd <= 0) continue;
 
-          const noOfUnits = parseInt(tx.noOfUnits || tx.no_of_units, 10) || 1;
+          const noOfUnits = Number(tx.noOfUnits ?? tx.no_of_units ?? 1);
           const psqmSgd = priceSgd / areaSqm;
           const psftSgd = priceSgd / areaSqft;
           const floorRange = tx.floorRange || tx.floor_range || null;
@@ -479,32 +249,14 @@ export async function importRealUraData(jsonData, targetConn = null) {
 
           const rawHash = generateTxHash(projName, contractDate, priceSgd, areaSqm, floorRange, occurrenceIndex, noOfUnits, propertyType, resolvedDistrict, street);
 
-          try {
-            await conn.run(
-              `INSERT INTO property_transactions 
-               (project_id, area_sqm, area_sqft, price_sgd, psqm_sgd, psft_sgd, contract_date, floor_range, tenure, type_of_sale, property_type, no_of_units, tenure_class, raw_hash)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [projId, areaSqm, areaSqft, priceSgd, psqmSgd, psftSgd, contractDate, floorRange, tenure, typeOfSale, propertyType, noOfUnits, tenureClass, rawHash]
-            );
-            totalSalesIngested++;
-          } catch (e) {
-            if (e.message && e.message.includes('raw_hash')) {
-              // Ignore genuine duplicates
-            } else {
-              throw e;
-            }
-          }
+          if (await insertOccurrence(conn, 'property_transactions',
+            'project_id, area_sqm, area_sqft, price_sgd, psqm_sgd, psft_sgd, contract_date, floor_range, tenure, type_of_sale, property_type, no_of_units, tenure_class, raw_hash',
+            [projId, areaSqm, areaSqft, priceSgd, psqmSgd, psftSgd, contractDate, floorRange, tenure, typeOfSale, propertyType, noOfUnits, tenureClass, rawHash], occurrences, existing)) totalSalesIngested++;
+
         }
 
         // Process Rental Contracts
         const rentalList = rawProj.rental || rawProj.rentals || [];
-        if (rentalList.length > 0) {
-          const incomingLeaseDates = [...new Set(rentalList.map(r => normalizeLeaseDate(r.leaseDate || r.lease_date)).filter(Boolean))];
-          if (incomingLeaseDates.length > 0) {
-            const placeholders = incomingLeaseDates.map(() => '?').join(',');
-            await conn.run(`DELETE FROM rental_transactions WHERE project_id = ? AND lease_date IN (${placeholders})`, [projId, ...incomingLeaseDates]);
-          }
-        }
         const rentOccurrenceTracker = new Map();
 
         for (const r of rentalList) {
@@ -524,7 +276,7 @@ export async function importRealUraData(jsonData, targetConn = null) {
             leaseDate = rawDateStr.substring(0, 7);
           }
 
-          const rentSgd = parseFloat(r.rent || r.rent_sgd) || 0;
+          const rentSgd = Number(r.rent ?? r.rent_sgd);
           if (rentSgd <= 0) continue;
 
           // Step 2.4: Unit handling without arbitrary < 350 guessing
@@ -574,30 +326,17 @@ export async function importRealUraData(jsonData, targetConn = null) {
 
           const rawHash = generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCount, floorAreaRange, occurrenceIndex, resolvedDistrict, street);
 
-          try {
-            await conn.run(
-              `INSERT INTO rental_transactions 
-               (project_id, area_sqm, area_sqft, rent_sgd, rent_psqm, rent_psft, lease_date, bedroom_count, floor_area_range, property_type, raw_hash)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [projId, sqm, sqft, rentSgd, rentPsqm, rentPsft, leaseDate, bedroomCount, floorAreaRange, propertyType, rawHash]
-            );
-            totalRentalsIngested++;
-          } catch (e) {
-            if (e.message && e.message.includes('raw_hash')) {
-              // Ignore genuine duplicates
-            } else {
-              throw e;
-            }
-          }
+          if (await insertOccurrence(conn, 'rental_transactions',
+            'project_id, area_sqm, area_sqft, rent_sgd, rent_psqm, rent_psft, lease_date, bedroom_count, floor_area_range, property_type, raw_hash',
+            [projId, sqm, sqft, rentSgd, rentPsqm, rentPsft, leaseDate, bedroomCount, floorAreaRange, propertyType, rawHash], occurrences, existing)) totalRentalsIngested++;
+
         }
       }
+      await refreshProjectBenchmarks(conn);
     });
 
-    // Step 3.1: Automatically refresh project benchmarks after bulk import
-    await refreshProjectBenchmarks(conn);
-
     console.log(`Real URA Data Import complete: ${totalSalesIngested} sales (skipped ${skippedSalesNoDate} without date), ${totalRentalsIngested} rentals (skipped ${skippedRentalsNoDate} without date).`);
-    return { status: 'success', totalSalesIngested, totalRentalsIngested, skippedSalesNoDate, skippedRentalsNoDate };
+    return { status: 'success', mode: 'additive', sourceCompleteness: 'unverified', totalSalesIngested, totalRentalsIngested, totalIngested: totalSalesIngested + totalRentalsIngested, skippedSalesNoDate, skippedRentalsNoDate };
   } finally {
     if (shouldClose) {
       await conn.close();

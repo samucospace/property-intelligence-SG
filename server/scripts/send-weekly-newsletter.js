@@ -2,8 +2,9 @@ import '../config.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Resend } from 'resend';
-import { initDb, dbAll, dbGet, dbRun } from '../db.js';
+import { sendEmail } from '../utils/emailAdapter.js';
+import { releaseFeatures } from '../utils/releasePolicy.js';
+import { initDb, dbAll, dbGet, dbRun, closeDb } from '../db.js';
 import { generateUnsubscribeToken, escapeHtml } from '../utils/security.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -146,20 +147,24 @@ export function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientE
   `;
 }
 
-async function main() {
+async function main(conn = null) {
+  if (!releaseFeatures().leadCapture) return { skipped: true, successCount: 0, failCount: 0, reason: 'Newsletter disabled for read-only release.' };
+  const all = conn ? conn.all.bind(conn) : dbAll;
+  const get = conn ? conn.get.bind(conn) : dbGet;
+  const run = conn ? conn.run.bind(conn) : dbRun;
   const isPreview = process.argv.includes('--preview') || process.argv.includes('--dry-run');
   const resendApiKey = process.env.RESEND_API_KEY;
   const baseUrl = process.env.BASE_URL || 'https://homeintel.sg';
   const fromEmail = process.env.NEWSLETTER_FROM_EMAIL || 'Singapore Home Intel <digest@homeintel.sg>';
 
   console.log(`[${new Date().toISOString()}] Initializing Weekly Automated Newsletter Dispatch...`);
-  await initDb();
+  if (!conn) await initDb();
 
   // 1. Fetch Latest 3M SORA rate
-  const sora = await dbGet(`SELECT reference_month, sora_3m, sora_1m FROM sora_rates ORDER BY reference_month DESC LIMIT 1`);
+  const sora = await get(`SELECT reference_month, sora_3m, sora_1m FROM sora_rates ORDER BY reference_month DESC LIMIT 1`);
 
   // 2. Fetch Top 5 Gross Rental Yield Condominiums (Step 3.2: CTE query without cartesian explosion)
-  const topYields = await dbAll(`
+  const topYields = await all(`
     WITH rent_stats AS (
       SELECT project_id,
              COUNT(*)       AS rental_count,
@@ -198,7 +203,7 @@ async function main() {
   `);
 
   // 3. Fetch 3 Recent Notable Transactions
-  const recentCaveats = await dbAll(`
+  const recentCaveats = await all(`
     SELECT p.project_name, p.postal_district, t.contract_date, t.price_sgd, t.psft_sgd, t.floor_range, t.type_of_sale
     FROM property_transactions t
     JOIN projects p ON t.project_id = p.project_id
@@ -209,7 +214,7 @@ async function main() {
   console.log(`Data extracted: ${topYields.length} top yield projects, 3M SORA: ${sora?.sora_3m || 'N/A'}%`);
 
   // 4. Fetch Active Subscribers who have not yet received this week's dispatch (OPS-01)
-  const subscribers = await dbAll(`
+  const subscribers = await all(`
     SELECT lead_id, email, name
     FROM leads
     WHERE lead_type = 'newsletter'
@@ -221,11 +226,11 @@ async function main() {
   console.log(`Active newsletter subscribers pending dispatch: ${subscribers.length}`);
 
   // Generate Sample HTML
-  const sampleEmail = subscribers.length > 0 ? subscribers[0].email : 'subscriber@example.sg';
+  const sampleEmail = 'preview@example.invalid';
   const sampleHtml = buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail: sampleEmail, baseUrl });
 
   // Save HTML preview file locally
-  const previewPath = path.join(__dirname, 'newsletter-preview.html');
+  const previewPath = process.env.NEWSLETTER_PREVIEW_PATH || path.join(__dirname, 'newsletter-preview.html');
   fs.writeFileSync(previewPath, sampleHtml, 'utf8');
   console.log(`✓ Generated local HTML preview at: ${previewPath}`);
 
@@ -236,20 +241,20 @@ async function main() {
       console.log(`To send live emails, configure RESEND_API_KEY in server/.env.`);
     }
     console.log(`You can open and inspect the generated newsletter in your browser: file://${previewPath.replace(/\\/g, '/')}`);
-    process.exit(0);
+    return { preview: true, successCount: 0, failCount: 0 };
   }
 
   if (!process.env.UNSUBSCRIBE_SECRET) {
     console.error('Fatal: UNSUBSCRIBE_SECRET must be configured before dispatching live newsletters to ensure secure 1-click unsubscribe compliance.');
-    process.exit(1);
+    throw new Error('UNSUBSCRIBE_SECRET is required for newsletter dispatch.');
   }
 
   // 5. Send Live Emails via Resend
   console.log(`Dispatching to ${subscribers.length} subscribers via Resend...`);
-  const resend = new Resend(resendApiKey);
 
   let successCount = 0;
   let failCount = 0;
+  let mockedCount = 0;
 
   for (const sub of subscribers) {
     const personalizedHtml = buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail: sub.email, baseUrl });
@@ -260,7 +265,7 @@ async function main() {
     } catch (e) {}
 
     try {
-      await resend.emails.send({
+      const result = await sendEmail({
         from: fromEmail,
         to: sub.email,
         subject: `Weekly SG Property Yield Watchlist: Top Condos & SORA Rate Update`,
@@ -270,9 +275,14 @@ async function main() {
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
         }
       });
+      if (result.error || !result.data?.id) throw new Error(result.error?.message || 'Provider did not accept email');
+      if (result.mocked) {
+        mockedCount++;
+        continue;
+      }
 
       // Step 2.5 / OPS-01: Track send state in database for mid-run recovery and duplicate prevention
-      await dbRun(`UPDATE leads SET last_newsletter_sent_at = CURRENT_TIMESTAMP WHERE lead_id = ?`, [sub.lead_id]);
+      await run(`UPDATE leads SET last_newsletter_sent_at = CURRENT_TIMESTAMP WHERE lead_id = ?`, [sub.lead_id]);
       successCount++;
 
       // Step 2.5 / OPS-01: 150ms delay between dispatches to respect Resend API quotas
@@ -284,13 +294,13 @@ async function main() {
   }
 
   console.log(`Newsletter dispatch completed: ${successCount} sent successfully, ${failCount} failed.`);
-  return { successCount, failCount };
+  return { successCount, failCount, mockedCount };
 }
 
 export const sendWeeklyNewsletter = main;
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  main().then(({ failCount }) => process.exit(failCount > 0 ? 1 : 0)).catch(err => {
+  main().then(async ({ failCount }) => { await closeDb(); process.exit(failCount > 0 ? 1 : 0); }).catch(err => {
     console.error('Fatal newsletter script error:', err);
     process.exit(1);
   });

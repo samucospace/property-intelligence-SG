@@ -1,13 +1,21 @@
 services:
   app:
+    image: property-intelligence-sg:local
+    init: true
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     expose:
       - "3001"
-    environment:
+    environment: &app-environment
       - NODE_ENV=production
+      - RELEASE_SCOPE=${RELEASE_SCOPE:-analytics-readonly}
+      - ENABLE_DATA_SYNC=${ENABLE_DATA_SYNC:-false}
+      - ENABLE_LEAD_CLEANUP=${ENABLE_LEAD_CLEANUP:-false}
+      - ENABLE_STARTUP_LEAD_CLEANUP=false
+      - ENABLE_OUTBOUND_EMAIL=${ENABLE_OUTBOUND_EMAIL:-false}
+      - ENABLE_SCHEDULED_NEWSLETTER=${ENABLE_SCHEDULED_NEWSLETTER:-false}
       - PORT=3001
       - DB_PATH=/app/data/property.db
       - TZ=Asia/Singapore
@@ -21,6 +29,7 @@ services:
       - AGENT_NOTIFICATION_EMAIL=${AGENT_NOTIFICATION_EMAIL:-}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-}
       - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
     volumes:
       # Persist SQLite database and WAL/journal across container restarts and updates
       - ./data:/app/data
@@ -30,6 +39,20 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # Explicitly enable only after maintenance/recovery configuration is validated.
+  scheduler:
+    image: property-intelligence-sg:local
+    profiles: [maintenance]
+    init: true
+    restart: unless-stopped
+    command: ["node", "server/scheduler.js"]
+    environment: *app-environment
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      app:
+        condition: service_healthy
 
   # Caddy Reverse Proxy for Automated Free SSL (Let's Encrypt) and compression
   caddy:

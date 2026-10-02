@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import os from 'node:os';
 import { createConnection, withTransaction } from '../db.js';
 
 /**
@@ -13,7 +14,8 @@ import { createConnection, withTransaction } from '../db.js';
  * @param {number} leaseMinutes Expiration window for stale lease recovery
  * @returns {Promise<{ acquired: boolean, runId?: string, reason?: string }>}
  */
-export async function acquireJobLock(conn, jobName, workerId = `pid-${process.pid}`, leaseMinutes = 15) {
+const workerIdentity = () => `${os.hostname()}:pid-${process.pid}`;
+export async function acquireJobLock(conn, jobName, workerId = workerIdentity(), leaseMinutes = 15, slotKey = null) {
   const runId = crypto.randomUUID();
 
   return await withTransaction(conn, async () => {
@@ -25,12 +27,29 @@ export async function acquireJobLock(conn, jobName, workerId = `pid-${process.pi
       [jobName]
     );
 
-    if (existing && existing.is_active === 1) {
-      return {
+    if (existing) {
+      // Time expiry alone never fences a still-running worker. Require confirmed
+      // local process death; unknown owners fail closed for operator recovery.
+      const owner = /^(.*):pid-(\d+)$/.exec(existing.locked_by);
+      const pid = owner?.[1] === os.hostname() ? owner[2] : null;
+      let dead = false;
+      if (pid) {
+        try { process.kill(Number(pid), 0); } catch (error) { dead = error.code === 'ESRCH'; }
+      }
+      if (!dead) return {
         acquired: false,
         reason: `Job '${jobName}' is currently locked by ${existing.locked_by} until ${existing.lease_expires_at}`
       };
+      await conn.run("UPDATE job_history SET status='interrupted', finished_at=datetime('now'), error_message='Worker process terminated' WHERE run_id=? AND status='running'", [existing.run_id]);
     }
+    if (slotKey && await conn.get('SELECT run_id FROM job_slots WHERE job_name=? AND slot_key=?', [jobName, slotKey])) {
+      return {
+        acquired: false,
+        reason: `Job '${jobName}' already claimed slot ${slotKey}`
+      };
+    }
+
+    if (slotKey) await conn.run('INSERT INTO job_slots(job_name,slot_key,run_id) VALUES(?,?,?)', [jobName, slotKey, runId]);
 
     // 2. Insert or take over expired lock
     await conn.run(
@@ -65,7 +84,6 @@ export async function acquireJobLock(conn, jobName, workerId = `pid-${process.pi
  * @param {string|null} errorMessage
  */
 export async function releaseJobLock(conn, jobName, runId, success = true, itemsProcessed = 0, errorMessage = null) {
-  try {
     await withTransaction(conn, async () => {
       await conn.run(
         `UPDATE job_history
@@ -74,7 +92,7 @@ export async function releaseJobLock(conn, jobName, runId, success = true, items
              items_processed = ?,
              error_message = ?
          WHERE run_id = ?`,
-        [success ? 'success' : 'failed', itemsProcessed, errorMessage, runId]
+        [typeof success === 'string' ? success : (success ? 'success' : 'failed'), itemsProcessed, errorMessage, runId]
       );
 
       await conn.run(
@@ -82,9 +100,6 @@ export async function releaseJobLock(conn, jobName, runId, success = true, items
         [jobName, runId]
       );
     });
-  } catch (err) {
-    console.error(`[JobRunner] Error releasing lock for ${jobName} (${runId}):`, err.message);
-  }
 }
 
 /**
@@ -112,12 +127,12 @@ export async function getLastSuccessfulRun(conn, jobName) {
  * @param {number} [options.leaseMinutes] Default 15
  * @returns {Promise<{ executed: boolean, itemsProcessed?: number, runId?: string, skippedReason?: string }>}
  */
-export async function runJobWithLock({ jobName, fn, conn = null, leaseMinutes = 15 }) {
+export async function runJobWithLock({ jobName, fn, conn = null, leaseMinutes = 15, slotKey = null, heartbeatMs = Math.max(1000, leaseMinutes * 60000 / 3) }) {
   const db = conn || createConnection();
   const shouldClose = !conn;
 
   try {
-    const lockRes = await acquireJobLock(db, jobName, `pid-${process.pid}`, leaseMinutes);
+    const lockRes = await acquireJobLock(db, jobName, workerIdentity(), leaseMinutes, slotKey);
     if (!lockRes.acquired) {
       console.log(`[JobRunner] ${lockRes.reason}. Skipping execution.`);
       return { executed: false, skippedReason: lockRes.reason };
@@ -127,18 +142,37 @@ export async function runJobWithLock({ jobName, fn, conn = null, leaseMinutes = 
     console.log(`[JobRunner] Starting job '${jobName}' (Run ID: ${runId})...`);
 
     let itemsProcessed = 0;
+    let renewal = Promise.resolve();
+    let renewalError = null;
+    const heartbeat = setInterval(() => {
+      renewal = renewal.then(() => db.run("UPDATE job_locks SET lease_expires_at=datetime('now', '+' || ? || ' minutes') WHERE job_name=? AND run_id=?", [leaseMinutes, jobName, runId]))
+        .then(result => { if (result.changes !== 1) throw new Error('Job ownership lost'); })
+        .catch(error => { renewalError = error; });
+    }, heartbeatMs);
+    heartbeat.unref();
     try {
       const res = await fn({ runId, conn: db });
       if (typeof res === 'number') itemsProcessed = res;
       else if (res && typeof res.count === 'number') itemsProcessed = res.count;
       else if (res && typeof res.totalIngested === 'number') itemsProcessed = res.totalIngested;
 
-      await releaseJobLock(db, jobName, runId, true, itemsProcessed, null);
+      clearInterval(heartbeat);
+      await renewal;
+      if (renewalError) throw renewalError;
+      const status = res?.skipped ? 'skipped' : res?.status || 'success';
+      if (!['success', 'skipped'].includes(status)) {
+        const error = new Error(`Job returned ${status}`);
+        error.itemsProcessed = itemsProcessed;
+        throw error;
+      }
+      await releaseJobLock(db, jobName, runId, status, itemsProcessed, res?.reason || null);
       console.log(`[JobRunner] Successfully finished job '${jobName}' (Processed: ${itemsProcessed}).`);
-      return { executed: true, runId, itemsProcessed };
+      return { executed: true, runId, itemsProcessed, status };
     } catch (jobErr) {
+      clearInterval(heartbeat);
+      await renewal;
       console.error(`[JobRunner] Error in job '${jobName}':`, jobErr.message);
-      await releaseJobLock(db, jobName, runId, false, itemsProcessed, jobErr.message);
+      await releaseJobLock(db, jobName, runId, false, jobErr.itemsProcessed ?? itemsProcessed, jobErr.message);
       throw jobErr;
     }
   } finally {

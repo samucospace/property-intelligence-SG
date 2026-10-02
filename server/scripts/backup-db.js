@@ -63,6 +63,12 @@ export async function decryptFile(sourcePath, destPath, secret) {
 }
 
 export async function runBackup(customConn = null) {
+  const encryptionKey = process.env.BACKUP_KEY_FILE
+    ? fs.readFileSync(process.env.BACKUP_KEY_FILE, 'utf8').trim()
+    : process.env.BACKUP_ENCRYPTION_KEY;
+  if (process.env.NODE_ENV === 'production' && !encryptionKey) {
+    throw new Error('Production backups require BACKUP_KEY_FILE or BACKUP_ENCRYPTION_KEY');
+  }
   console.log(`[${new Date().toISOString()}] Starting SQLite online database backup...`);
 
   if (!fs.existsSync(dbPath)) {
@@ -125,7 +131,6 @@ export async function runBackup(customConn = null) {
     console.log(`[${new Date().toISOString()}] Backup integrity verified: OK.`);
 
     // 3. Optional AES-256-GCM encryption (ARCH-01)
-    const encryptionKey = process.env.BACKUP_ENCRYPTION_KEY;
     if (encryptionKey) {
       const encryptedPath = `${targetPath}.enc`;
       console.log(`[${new Date().toISOString()}] Encrypting snapshot with AES-256-GCM into ${encryptedPath}...`);

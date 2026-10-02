@@ -1,9 +1,11 @@
 # Singapore Home Intel: Ongoing Operations & Maintenance Runbook
 
-**Application:** Singapore Home Intel (`property-intelligence-sg` / `homeintel.sg`)  
-**Target Environment:** Production Linux VPS (Ubuntu 24.04 LTS / Docker Compose / PM2)  
-**Document Version:** 2.0.0 (Production Live)  
-**Date:** October 2026  
+**Current operating override, 2 October 2026:** the project is local and remains NO-GO. [The Phase 0 runbook](PHASE_0_OPERATIONS_RUNBOOK.md) supersedes any conflicting rebuild, cleanup, sync or email instructions below. Sam Fraser is release owner and operational contact. Hosted operations and off-host transfer are not yet verified.
+
+**Application:** Singapore Home Intel (`property-intelligence-sg` / `homeintel.sg`)
+**Target Environment:** Production Linux VPS (Ubuntu 24.04 LTS / Docker Compose; separate maintenance profile)
+**Document Version:** 2.0.0 (Production Live)
+**Date:** October 2026
 
 ---
 
@@ -31,17 +33,17 @@ To keep the platform reliable, performant, and compliant with minimal overhead, 
 
 ### Detailed Operational Division
 
-#### 🟢 Category A: 100% Fully Automated (Self-Driving)
-These operations run autonomously via the containerized PM2 supervisor (`ecosystem.config.cjs`) on Singapore Time (`TZ=Asia/Singapore`). No manual intervention is needed for day-to-day execution:
+#### Category A: Planned automated operations
+These are planned schedules, not verified live operations. The opt-in Compose scheduler uses Asia/Singapore and durable slot claims; web deployment starts no maintenance. Keep disabled features contained and follow [the current Phase 1 runbook](PHASE_1_OPERATIONS_RUNBOOK.md).
 
 | Operational Task | Cadence | Execution Mechanism | Automated Behavior |
 | :--- | :--- | :--- | :--- |
 | **Hot Database Backup** | **Daily** (04:00 SGT) | `cron-db-backup` (`backup-db.js`) | Executes non-blocking SQLite `VACUUM INTO`, verifies file health with `PRAGMA integrity_check`, encrypts with authenticated AES-256-GCM, and deletes local snapshots older than 30 days. |
-| **Official URA Market Sync** | **Weekly** (Sun 02:00 SGT) | `cron-ura-sync` (`sync-ura.js`) | Exchanges token, fetches 4 sales batches + rental quarters, performs atomic replace-by-period transactions, and recalculates 24-month rolling median benchmarks. |
+| **Official URA Market Sync** | **Weekly** (Sun 02:00 SGT) | `cron-ura-sync` (`sync-ura.js`) | Exchanges token, fetches 4 sales batches + rental quarters, validates every requested scope before committing non-destructive additive imports, and recalculates 24-month rolling median benchmarks. |
 | **Investor Newsletter** | **Weekly** (Mon 08:00 SGT) | `cron-weekly-newsletter` (`send-weekly-newsletter.js`) | Queries top yields, builds sanitized HTML, filters confirmed active subscribers, throttles dispatches (150ms delay) via Resend, and tracks send state to prevent duplicate emails. |
 | **PDPA Retention Purge** | **Monthly** (1st at 03:00 SGT) | `cron-leads-cleanup` (`cleanup-leads.js`) | Purges unconfirmed signups > 30 days, purges unconverted advisory leads > 12 months, and replaces emails of unsubscribed users (> 90 days) with SHA-256 suppression hashes. |
 | **SSL / HTTPS Certificates** | **Continuous** | Caddy Reverse Proxy | Obtains, configures, and auto-renews Let's Encrypt / ZeroSSL TLS certificates with zero downtime. |
-| **Process Crash Recovery** | **Continuous** | PM2 Process Manager | Automatically restarts the web server upon unhandled errors or if RSS memory exceeds 800 MB. |
+| **Process Crash Recovery** | **Continuous** | Docker restart policy | Restarts terminated web/scheduler containers; no PM2 memory-limit guarantee is claimed. |
 | **Sitemap Regeneration** | **On Demand** | Dynamic Route (`/sitemap.xml`) | Generates live XML sitemaps referencing 5,900+ developments with current `<lastmod>` timestamps directly from SQLite. |
 
 ---
@@ -81,10 +83,10 @@ All background schedules are configured in `ecosystem.config.cjs` using `TZ=Asia
 ├──────────────┬──────────────────┬───────────────────┬────────────────────┤
 │ Cadence      │ Time (SGT)       │ Target Process    │ Mode               │
 ├──────────────┼──────────────────┼───────────────────┼────────────────────┤
-│ Daily        │ 04:00 SGT        │ cron-db-backup    │ 🟢 100% Automated │
-│ Weekly (Sun) │ 02:00 SGT        │ cron-ura-sync     │ 🟢 100% Automated │
-│ Weekly (Mon) │ 08:00 SGT        │ cron-weekly-news  │ 🟢 100% Automated │
-│ Monthly (1st)│ 03:00 SGT        │ cron-leads-clean  │ 🟢 100% Automated │
+│ Daily        │ 04:00 SGT        │ cron-db-backup    │ 🟡 Planned │
+│ Weekly (Sun) │ 02:00 SGT        │ cron-ura-sync     │ 🟡 Planned │
+│ Weekly (Mon) │ 08:00 SGT        │ cron-weekly-news  │ 🟡 Planned │
+│ Monthly (1st)│ 03:00 SGT        │ cron-leads-clean  │ 🟡 Planned │
 │ Quarterly    │ Scheduled        │ Restore Drill     │ 🔴 Manual Operator │
 └──────────────┴──────────────────┴───────────────────┴────────────────────┘
 ```
@@ -175,39 +177,8 @@ curl -i https://homeintel.sg/api/health
 - **Unhealthy (HTTP 503):** `{"status":"unhealthy","error":"Database check failed"}`
 - *Action:* Configure an external monitoring service (e.g. Uptime Kuma, Pingdom, Better Uptime) to ping `/api/health` every 60 seconds and alert the engineering team on HTTP 503 or timeout.
 
-### 2. Process Management Commands (PM2 / Docker)
-
-#### If deployed with Docker Compose (Recommended):
-```bash
-# Check container status
-docker compose ps
-
-# View live application logs (tail 100 lines)
-docker compose logs -f --tail=100 app
-
-# View PM2 process list inside container
-docker compose exec app pm2 list
-
-# View PM2 resource monitor inside container
-docker compose exec app pm2 monit
-```
-
-#### If deployed directly on a Linux VPS with PM2:
-```bash
-# View process status
-pm2 list
-
-# View logs for the web server or specific cron tasks
-pm2 logs property-intelligence-sg
-pm2 logs cron-ura-sync
-pm2 logs cron-weekly-newsletter
-
-# Monitor CPU & memory consumption
-pm2 monit
-
-# Save current PM2 state for automatic system reboot recovery
-pm2 save
-```
+### 2. Process management (Docker)
+Use `docker compose ps`, `docker compose logs --tail=100 app`, `docker compose logs --tail=100 scheduler` and `docker stats`. Start maintenance only through the explicitly approved profile. PM2 ecosystem files are legacy references; PM2 is not installed in the release image.
 
 ### 3. Caddy Reverse Proxy Logs & TLS
 ```bash
@@ -246,7 +217,7 @@ Use this procedure if database schema migrations require a clean-slate rebuild o
 1. **Stop Application Web Server:**
    ```bash
    # On bare VPS:
-   pm2 stop property-intelligence-sg
+   docker compose --profile maintenance stop scheduler app
 
    # On Docker:
    docker compose stop app
@@ -259,7 +230,7 @@ Use this procedure if database schema migrations require a clean-slate rebuild o
 3. **Restart Application Web Server:**
    ```bash
    # On bare VPS:
-   pm2 start property-intelligence-sg
+   docker compose up -d app
 
    # On Docker:
    docker compose start app
@@ -311,13 +282,13 @@ Before sending a newsletter manually or testing email templates:
 node server/scripts/backup-db.js
 ```
 The script will output the snapshot path:
-`✓ Created verified SQLite backup snapshot: server/backups/property-backup-YYYYMMDD-HHmmss.db`  
+`✓ Created verified SQLite backup snapshot: server/backups/property-backup-YYYYMMDD-HHmmss.db`
 If `BACKUP_ENCRYPTION_KEY` is set:
 `✓ Authenticated AES-256-GCM encrypted backup created: server/backups/property-backup-YYYYMMDD-HHmmss.db.enc`
 
 #### Restoring from an Encrypted Backup:
 1. **Stop Application:**
-   `pm2 stop property-intelligence-sg`
+   `docker compose --profile maintenance stop scheduler app`
 2. **Decrypt Backup File:**
    Create a small script or use Node REPL:
    ```javascript
@@ -333,7 +304,7 @@ If `BACKUP_ENCRYPTION_KEY` is set:
    ```bash
    mv server/property.db server/property.db.bak
    mv server/restored.db server/property.db
-   pm2 start property-intelligence-sg
+   docker compose up -d app
    ```
 
 ---
@@ -351,9 +322,9 @@ If `BACKUP_ENCRYPTION_KEY` is set:
 - **Symptom:** `/api/health` returns HTTP 503; API endpoints return `SqliteError: database is locked`.
 - **Diagnosis:** A long-running write operation or stalled transaction has locked SQLite.
 - **Recovery:**
-  1. Inspect running queries: check PM2 logs for unclosed transactions.
+  1. Inspect running queries: check container logs for unclosed transactions.
   2. The application configures `PRAGMA busy_timeout = 5000` and WAL mode, allowing concurrent reads alongside writes.
-  3. If persistent, restart application: `pm2 restart property-intelligence-sg`.
+  3. If persistent, restart application: `docker compose restart app`.
 
 ### Incident 3: Resend Email Rate Limiting (HTTP 429) or Delivery Failure
 - **Symptom:** `Failed to send to user@example.sg: Too Many Requests`.
@@ -363,7 +334,7 @@ If `BACKUP_ENCRYPTION_KEY` is set:
   - Re-running `node server/scripts/send-weekly-newsletter.js` resumes safely, automatically skipping recipients who already received the email.
 
 ### Incident 4: High Event Loop Latency or Memory Spike
-- **Symptom:** Response times exceed 1 second; PM2 reports memory approaching 800 MB restart limit.
+- **Symptom:** Response times exceed 1 second; container monitoring reports high memory use.
 - **Diagnosis:**
   - Unbounded query filter parameter explosion bypassing cache.
   - Bounded LRU cache automatically evicts oldest entries at 50 items.
@@ -376,7 +347,7 @@ If `BACKUP_ENCRYPTION_KEY` is set:
 ## 7. Legal, Regulatory & Commercial Compliance
 
 1. **Singapore Open Data Licence:**
-   Ensure all user-facing footers and exported reports maintain accurate attribution:  
+   Ensure all user-facing footers and exported reports maintain accurate attribution:
    *Contains information from the Urban Redevelopment Authority (URA) Data Service and Singapore Land Authority (SLA) OneMap accessed under the terms of the Singapore Open Data Licence.*
 2. **CEA Estate Agents Act Disclosures:**
    The application must never represent itself as a licensed estate agency. The advisory banner must state that advisory consultations are fulfilled by licensed salespersons (ERA Realty Network Pte Ltd / Lic: L3002382K).

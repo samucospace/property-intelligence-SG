@@ -8,8 +8,10 @@ import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Resend } from 'resend';
-import { initDb, dbGet, dbAll, dbRun, closeDb } from './db.js';
+import { sendEmail } from './utils/emailAdapter.js';
+import { releaseFeatures } from './utils/releasePolicy.js';
+import { initDb, dbGet, dbAll, dbRun, closeDb, getDbPath } from './db.js';
+import { assertStagingDatabase } from './utils/databaseArtifacts.js';
 import { fetchUraData, importRealUraData, seedSoraRates } from './ingestion.js';
 import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics, initSaleValuationsCache, invalidateSaleValuationsCache, invalidateAnalyticsCache } from './queryEngine.js';
 import { seedAmenities, calculateLivabilityScore, initLivabilityCache, invalidateLivabilityCache, getProjectLivability } from './livabilityEngine.js';
@@ -80,6 +82,22 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests from this IP, please try again later.' }
 });
 app.use('/api/', apiLimiter);
+
+// Enforce the selected release scope before parsing or executing protected flows.
+app.use((req, res, next) => {
+  const features = releaseFeatures();
+  // Express routes are case-insensitive and accept a trailing slash by default.
+  const routePath = req.path.toLowerCase().replace(/\/+$/, '');
+  if (!features.leadCapture && (routePath.startsWith('/api/admin') ||
+      routePath === '/api/leads/submit' || routePath.startsWith('/api/newsletter'))) {
+    return res.status(403).json({ error: 'Lead and newsletter features are disabled for this release.' });
+  }
+  if (!features.dataSync && routePath.startsWith('/api/ingest')) {
+    return res.status(403).json({ error: 'Data sync is contained pending safety verification.' });
+  }
+  next();
+});
+app.get('/api/features', (req, res) => res.set('Cache-Control', 'no-store').json(releaseFeatures()));
 
 // Step 3.4.4: Stricter rate limiter for expensive analytics routes (120 req / 5 min)
 const analyticsLimiter = rateLimit({
@@ -297,11 +315,10 @@ app.post('/api/leads/submit', leadsLimiter, async (req, res, next) => {
         [name ? name.trim().slice(0, 100) : null, cleanEmail, confirmToken]
       );
 
-      // If Resend API key configured, send confirmation email; otherwise log link (auto-confirm in dev)
+      // The shared adapter applies scope, isolation and explicit live-send controls.
       if (process.env.RESEND_API_KEY) {
         try {
-          const resend = new Resend(process.env.RESEND_API_KEY);
-          await resend.emails.send({
+          const mailResult = await sendEmail({
             from: process.env.SENDER_EMAIL || 'Singapore Home Intel <digest@homeintel.sg>',
             to: cleanEmail,
             subject: 'Confirm your subscription - Singapore Home Intel Market Watchlist',
@@ -317,14 +334,13 @@ app.post('/api/leads/submit', leadsLimiter, async (req, res, next) => {
               </div>
             `
           });
+          if (mailResult.error || !mailResult.data?.id) return res.status(503).json({ error: 'Confirmation email could not be accepted. Please try again later.' });
         } catch (mailErr) {
           console.error('[Newsletter] Error sending confirmation email via Resend:', mailErr);
+          return res.status(503).json({ error: 'Confirmation email could not be accepted.' });
         }
       } else {
-        console.log(`[Newsletter] Dev mode - Confirmation URL for ${cleanEmail}: ${confirmUrl}`);
-        if (process.env.NODE_ENV !== 'production') {
-          await dbRun(`UPDATE leads SET confirmed_at = CURRENT_TIMESTAMP WHERE email = ? AND lead_type = 'newsletter'`, [cleanEmail]);
-        }
+        return res.status(503).json({ error: 'Confirmation email is not configured.' });
       }
 
       return res.json({
@@ -353,8 +369,7 @@ app.post('/api/leads/submit', leadsLimiter, async (req, res, next) => {
     const agentEmail = process.env.AGENT_NOTIFICATION_EMAIL || process.env.AGENT_EMAIL;
     if (process.env.RESEND_API_KEY && agentEmail) {
       try {
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
+        const mailResult = await sendEmail({
           from: process.env.SENDER_EMAIL || 'Singapore Home Intel Leads <leads@homeintel.sg>',
           to: agentEmail,
           subject: `[New Lead] ${enquiryType || 'Advisory'} Enquiry - ${projectInterest || 'General'}`,
@@ -371,8 +386,10 @@ app.post('/api/leads/submit', leadsLimiter, async (req, res, next) => {
             </div>
           `
         });
+        if (mailResult.error || !mailResult.data?.id) return res.status(503).json({ error: 'Agent notification could not be accepted.' });
       } catch (agentMailErr) {
         console.error('[Leads] Error notifying agent via Resend:', agentMailErr);
+        return res.status(503).json({ error: 'Agent notification could not be accepted.' });
       }
     }
 
@@ -832,6 +849,7 @@ app.use((err, req, res, next) => {
 
 // Startup logic
 async function startServer() {
+  await assertStagingDatabase(getDbPath());
   await initDb();
 
   const projectCount = await dbGet(`SELECT COUNT(*) as count FROM projects`);
@@ -852,7 +870,7 @@ async function startServer() {
   await initSaleValuationsCache();
 
   // Phase 0 containment: Do not run destructive cleanup on simple web server start
-  if (process.env.ENABLE_STARTUP_LEAD_CLEANUP === 'true') {
+  if (releaseFeatures().leadCleanup && process.env.ENABLE_STARTUP_LEAD_CLEANUP === 'true') {
     await cleanupExpiredLeads();
   } else {
     console.log('[Startup] Automatic lead retention cleanup on boot skipped (ENABLE_STARTUP_LEAD_CLEANUP !== "true").');

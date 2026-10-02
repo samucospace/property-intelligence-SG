@@ -1,76 +1,47 @@
-# Phase 0 Scope, Governance & Ownership Charter
+# Phase 0 scope, governance and ownership
 
-**Document Date:** 2 October 2026  
-**Governing Plan:** \`GO_LIVE_REMEDIATION_PLAN_2026-10-02.md\` (Phase 0, Task 5)  
-**Status:** **APPROVED & BASELINED**  
+Updated 2 October 2026 following independent validation and the owner's instruction to repair Phase 0. Governing documents: [readiness report](GO_LIVE_READINESS_REPORT_2026-10-02.md), [remediation plan](GO_LIVE_REMEDIATION_PLAN_2026-10-02.md), and [independent review](PHASE_0_TO_2_INDEPENDENT_VALIDATION_2026-10-02.md).
 
----
+## Accountable owner and deployment context
 
-## 1. Product Release Scope Decision
+**Sam Fraser is the release owner and operational contact**, confirmed directly in this chat on 2 October 2026. Sam approves release scope, retention/privacy decisions, recovery arrangements and any eventual production launch. Engineering implements and supplies evidence; implementation reports do not constitute Sam's approval.
 
-The project steering committee evaluated two release scope models:
+The project currently runs locally on Sam's machine and is not live. Sam confirmed that it will not go live until every identified issue is fixed and verified. Hosted backup setup is deferred until private deployment, with evidence required before public release. The planned strategy is daily DigitalOcean Droplet backups plus automated encrypted database copies to a separate cloud provider/account; Sam's machine may hold an additional copy. The cloud destination is not yet selected or configured. See the [deployment-stage backup strategy](PHASE_0_OPERATIONS_RUNBOOK.md#deployment-stage-backup-strategy-deferred-not-live). Local capture/restore is verified; hosted/off-host recovery remains unverified.
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    RELEASE SCOPE DECISION MATRIX                        │
-├────────────────────────────────────┬────────────────────────────────────┤
-│ Option A: Full Product Release     │ Option B: Phased Read-Only MVP     │
-├────────────────────────────────────┼────────────────────────────────────┤
-│ • Lead submission & Agent alerts   │ • Interactive condo map & search   │
-│ • Double opt-in newsletter system  │ • 584k URA sales & rental explorer │
-│ • PDPA consent & retention storage │ • Median yield & valuation engines │
-│ • Full Resend email delivery engine│ • Zero lead capture / Zero PII     │
-│ ⚠️ Scope: 20–35 engineering days   │ 🟢 Scope: Fast-track release       │
-└────────────────────────────────────┴────────────────────────────────────┘
-```
+## Initial release scope and enforcement
 
-### Adopted Decision: **Option B (Phased Read-Only Analytics MVP First, Phase 3 Email Fast-Follow)**
-1. **Initial Public Target:** Deliver the core real estate transaction engine, interactive map, price benchmarks, and rental yields as a secure, high-performance read-only analytics platform.
-2. **Personal Data Safeguard:** By decoupling lead capture and newsletter dispatching during the initial launch, the system eliminates immediate PDPA/spam-deliverability risk while dataset reconciliation (Phase 2) and startup concurrency (Phase 1) are executed.
-3. **Phase 3 Evolution:** Full double opt-in newsletter and agent advisory lead pipelines will be enabled only after completing the strict Resend `{data, error}` handling and consent lifecycle verification defined in Phase 3.
+Continue with the existing **read-only analytics MVP** scope. `RELEASE_SCOPE` defaults to `analytics-readonly` and invalid values reject startup.
 
----
+- `/api/features` supplies runtime scope to the client. Lead/advisory/newsletter UI stays hidden until enabled by the server; feature-fetch failure keeps it hidden.
+- Lead submission, newsletter confirmation and all admin routes reject requests server-side in the read-only release, including valid admin credentials.
+- Existing signed unsubscribe handling remains available to support withdrawal by existing contacts. Read-only scope does not make existing personal data unprotected or disposable.
+- All outbound email is disabled under this scope. Full-scope fixture testing in staging/test uses the shared fake adapter and cannot reach Resend.
+- Live email additionally requires explicit production enablement. This is containment, not completion of Phase 3 delivery/consent controls.
+- Data-sync APIs and the sync script default to disabled via `ENABLE_DATA_SYNC=false`; scheduler sync is disabled too. Phase 1 local write-safety corrections are verified, but target-image qualification and Phase 2 source reconciliation remain required before operational reenablement.
+- Lead cleanup defaults to disabled; startup and scheduled cleanup require explicit policy enablement under full scope. Do not enable until retention/preservation rules are approved and tested.
+- Operational rebuild remains quarantined regardless of `--force`. Only explicitly injected, isolated test fixtures can use its implementation. The [Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md) documents repaired isolation, preservation, checkpoints and crash recovery, plus the remaining source and target-platform gates.
 
-## 2. Feature Provenance & Disclosure Scope (Livability & SORA)
+All full-product controls remain subject to the original Phase 3 **email, consent, access and recovery** gates. The Phase 2 report's alternative pipeline-hardening title does not replace that scope.
 
-Per Findings **GL-07** and **GL-08**:
+## Staging and recovery safeguards
 
-### A. Livability Scoring Engine
-* **Current State:** 399 amenities are tagged `seed`; 200 projects rely on approximate district-centre coordinates.
-* **Scope Decision:** 
-  * Retain livability calculations in the analytics engine, but **quarantine approximate coordinates** from receiving precise scores (flagged as *"Location approximate — score withheld"*).
-  * Update UI copy to clearly state *"Estimated straight-line proximity (Seed dataset)"* rather than claiming *"Verified walking distances"*.
+Staging must load a separate explicit environment, use a prepared database marked `environment=staging`, and use mock provider credentials. Staging/test never automatically load the local `server/.env` or root `.env`.
 
-### B. SORA Interest Rate & Mortgage Modeling
-* **Current State:** SORA rates (1-month 2.40%, 3-month 2.44%) are hardcoded benchmark rates up to September 2026.
-* **Scope Decision:**
-  * Retain SORA rate display for net rental yield calculations with explicit labeling: *"Benchmark: MAS SORA (September 2026 Reference)"*.
-  * Remove destructive hardcoded truncation in `server/ingestion.js` during Phase 1.
+Staging preparation creates a new database from allowlisted public-market tables and inserts synthetic contacts. It never copies real contacts, tokens, suppression records or job logs. An existing target is rejected; staging creation cannot overwrite its source.
 
----
+Recovery captures use unique directories and a separately saved random key file. Restoration runs in a new process and verifies authentication, the complete snapshot hash, structural integrity, foreign keys and all table counts. Original October 2 baseline artifacts are preserved.
 
-## 3. Accountable Governance & RACI Roles
+## Features pending later gates
 
-To ensure every phase gate is strictly enforced without ambiguity, the following roles are established:
+Livability location-quality withholding, distance/coverage claims and amenity provenance still require Phase 2 corrections. SORA remains a hardcoded reference series whose provenance must be established or whose feature must be disabled before launch. Phase 0 containment does not certify these analytics for publication.
 
-| Role Title | Accountable Owner | Focus Areas & Deliverables | Sign-Off Responsibilities |
-| :--- | :--- | :--- | :--- |
-| **Release Owner** | Engineering / Product Lead | Overall release readiness, schedule, budget, gate approvals | Final Production Go-Live Decision |
-| **Platform & Concurrency Lead** | Backend / DevOps Engineer | Phase 1 (Startup, SQLite lock contention, scheduler) & Phase 4 (Load tests, Docker) | Phase 1 & Phase 4 Exit Gates |
-| **Data & Analytics Engineer** | Data Engineer | Phase 2 (Saint/Street normalization, 35 duplicate groups, yield harmonization) | Phase 2 Dataset Reconciliation Gate |
-| **Security & Operations Contact** | Operations / DPO Lead | Phase 0 (Baseline, quarantine) & Phase 3 (AES backups, PDPA compliance mailbox) | Phase 0 & Phase 3 Exit Gates |
+## Approval register
 
----
-
-## 4. Phase 0 Exit Gate Sign-Off Record
-
-All Phase 0 containment and baseline gates have been executed:
-
-- [x] **G0-1: Rebuild script quarantined:** `server/scripts/rebuild-clean-db.js` hard-aborts with code 1.
-- [x] **G0-2: PM2 deployment decoupled:** Cron jobs isolated into `ecosystem.maintenance.config.cjs`.
-- [x] **G0-3: Startup lead purge gated:** `ENABLE_STARTUP_LEAD_CLEANUP` defaults to false.
-- [x] **G0-4: Baseline recovery verified:** VACUUM snapshot encrypted with AES-256-GCM; isolated restore drill passed with 100% row match (584,140 transactions).
-- [x] **G0-5: Git baseline tagged:** Git tag `baseline-phase-0-start` created.
-- [x] **G0-6: Staging environment isolated:** `staging-property.db` created; `emailAdapter.js` mock transport implemented.
-- [x] **G0-7: Operational inventory published:** `OPERATIONAL_INVENTORY_2026-10-02.md` compiled without plaintext secrets.
-- [x] **G0-8: Scope & Governance approved:** Phased Read-Only MVP chosen with assigned RACI owners.
+| Decision | Evidence/status |
+|---|---|
+| Release owner and operational contact | Sam Fraser; direct user confirmation on 2 October 2026 |
+| Deployment context / future backup destination | Not live; daily DigitalOcean backups plus separate-provider encrypted copies planned for deployment; local machine optional additional copy |
+| Repair Phase 0 containment and local recovery | Direct instruction from Sam in this chat |
+| Read-only-first engineering scope | Existing charter retained and now implemented; public release remains NO-GO |
+| Full-product enablement, notices, retention, RPO/RTO, provider approval | Pending accountable-owner decisions and Phase 3/4 evidence |
+| Final public release approval | Sam requires every identified issue to be fixed and verified; deployment-stage backup validation must pass before launch; this charter is not go-live approval |

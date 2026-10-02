@@ -9,6 +9,7 @@ export const name = '002_project_identity';
 export async function up(conn) {
   const run = conn.run.bind(conn);
   const all = conn.all.bind(conn);
+  if ((await conn.get('PRAGMA foreign_keys')).foreign_keys !== 0) throw new Error('Table reconstruction must run through the transactional migration runner');
 
   const cols = await all(`PRAGMA table_info(projects)`);
   const colNames = new Set(cols.map(c => c.name));
@@ -19,8 +20,8 @@ export async function up(conn) {
   }
 
   // SQLite table reconstruction with foreign key safety
-  await run(`PRAGMA foreign_keys = OFF`);
-  await run(`BEGIN TRANSACTION`);
+
+  await run(`SAVEPOINT migration_table_rebuild`);
 
   try {
     await run(`
@@ -68,11 +69,12 @@ export async function up(conn) {
     await run(`CREATE INDEX IF NOT EXISTS idx_projects_planning_area ON projects(planning_area);`);
     await run(`CREATE INDEX IF NOT EXISTS idx_projects_landed ON projects(is_landed_aggregate);`);
 
-    await run(`COMMIT`);
+    await run(`RELEASE migration_table_rebuild`);
   } catch (err) {
-    await run(`ROLLBACK`).catch(() => {});
+    await run(`ROLLBACK TO migration_table_rebuild`);
+    await run(`RELEASE migration_table_rebuild`);
     throw err;
   } finally {
-    await run(`PRAGMA foreign_keys = ON`);
+
   }
 }

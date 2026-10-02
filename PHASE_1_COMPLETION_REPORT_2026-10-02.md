@@ -1,55 +1,51 @@
-# Phase 1 Completion Report: Startup, Scheduling & Data-Write Safety
+# Phase 1 correction and verification report — 2 October 2026
 
-**Document Date:** 2 October 2026  
-**Governing Plan:** [`GO_LIVE_REMEDIATION_PLAN_2026-10-02.md`](file:///C:/Dev/my-property-SG/GO_LIVE_REMEDIATION_PLAN_2026-10-02.md) (Phase 1)  
-**Detailed Plan:** [`PHASE_1_DETAILED_IMPLEMENTATION_PLAN.md`](file:///C:/Dev/my-property-SG/PHASE_1_DETAILED_IMPLEMENTATION_PLAN.md)  
-**Evaluation Reference:** [`GO_LIVE_READINESS_REPORT_2026-10-02.md`](file:///C:/Dev/my-property-SG/GO_LIVE_READINESS_REPORT_2026-10-02.md) (Findings GL-01–04, GL-12, GL-16)  
-**Phase Status:** **COMPLETED & VERIFIED (ALL EXIT GATES PASSED)**  
+**Status: Local implementation and failure regressions verified; release-image qualification and operational rebuild enablement remain pending. Phase 1 is not signed off.**
 
----
+This report replaces the previous unsupported “all exit gates passed” statement. Governing scope is [Phase 1 of the remediation plan](GO_LIVE_REMEDIATION_PLAN_2026-10-02.md); current procedures are in the [Phase 1 runbook](PHASE_1_OPERATIONS_RUNBOOK.md). Sam Fraser is release owner and operational contact. The project is not live and will not go live until every identified issue is fixed and verified. No deployment or owner approval is claimed.
 
-## 1. Executive Summary
+## Implemented corrections
 
-Phase 1 of the go-live remediation plan has been successfully implemented and verified. All technical debt and concurrency defects that previously caused startup lock crashes, scheduling side-effects, transaction collision, and unsafe database rebuilds have been resolved:
+1. **Runtime and installation:** Node 22.23.3 is selected in `.nvmrc`, engine ranges, CI and both Docker stages. An official portable Windows runtime was downloaded and verified against Node's published SHA-256 list. Locked clean installs pass in the root, server and client. Docker directly supervises separate web and scheduler processes with init/restart policies; the release image no longer installs global PM2 or starts maintenance with the web application.
+2. **Awaited SQLite initialization:** Database-open and every initialization PRAGMA error reach awaiting callers. Busy handling precedes WAL setup, journal contention has bounded retries, foreign keys are enabled and synchronous durability is FULL. Failed opens close without hanging. Initialization never silently resolves after a failed PRAGMA.
+3. **Atomic migrations:** SQLite `BEGIN IMMEDIATE` owns serialization across processes. Pending schema/data changes and migration version records share one transaction; killed workers roll back and release ownership. Table reconstruction uses nested savepoints under the runner's foreign-key handling and final FK validation. Migration 010 also has its own savepoint, so direct ownership reassignment rolls back on failure. Time-based schema-lock theft is removed.
+4. **Safe imports:** Every live sales batch/rental quarter is fetched and validated before any writes. Empty/error/malformed scopes, missing identity, invalid amounts/dates and out-of-quarter rentals reject the run. Imports no longer delete same-period history. Semantic multiset unions preserve genuine repeated rows and street/project identity, recognize existing rows independently of legacy hashes, and return only newly committed counts. Imports and benchmark refresh commit or roll back together. Full historical completeness, provider corrections and approved identity reconciliation remain Phase 2 requirements.
+5. **Durable scheduling:** Migration 011 adds unique job/minute-slot claims. Restarted/concurrent schedulers cannot repeat a claimed slot. Locks renew and never become stealable solely through expiry; unknown/foreign owners fail closed. Outcomes distinguish skipped/mock work, failed/partial work and success. Startup registers the timer without executing jobs; maintenance is an explicit Compose profile after web health. At-most-once dispatch does not imply automatic crash retry or exactly-once external delivery.
+6. **Rebuild safety:** The fixture-only engine clones the complete source, preserving all operational table schemas/row multisets, including unknown suppression tables and durable job slots. Catalog IDs stay stable for operational references. Candidate-only writes, all-table integrity/FKs, population minima (5,500 projects / 130,000 sales / 440,000 rentals), no population shrinkage, operational-state equality, source hashes and verified checkpoints gate promotion. Open/WAL/SHM handles, maintenance markers and stale connection generations fence unsafe access. A persisted swap journal and archived original support verified exception rollback and fresh-process recovery after abrupt termination. Operational rebuild remains quarantined, including `--force`; smaller populations are explicit test-only overrides.
 
-1. **Runtime & Toolchain Alignment (GL-12):** Upgraded container runtime and CI workflow to supported Node.js 22 LTS; pinned PM2 globally to `pm2@5.4.3`; declared `engines` in manifests.
-2. **Deterministic Startup & SQLite Concurrency (GL-02):** Replaced synchronous top-level database instantiation in [`server/db.js`](file:///C:/Dev/my-property-SG/server/db.js) with dynamic path resolution, proper PRAGMA ordering (`busy_timeout = 10000` set first), and an advisory `schema_lock` table in [`server/migrations/index.js`](file:///C:/Dev/my-property-SG/server/migrations/index.js) to serialize multi-process migration execution. Fresh-disk startup passed **20 out of 20 consecutive trials with 0 `SQLITE_BUSY` errors**.
-3. **Persistent Scheduler & Job Locks (GL-03):** Implemented Migration 009 adding `job_locks` and `job_history` tables; created [`server/utils/jobRunner.js`](file:///C:/Dev/my-property-SG/server/utils/jobRunner.js) with lease-based mutual exclusion; implemented persistent scheduler daemon [`server/scheduler.js`](file:///C:/Dev/my-property-SG/server/scheduler.js) in Singapore timezone (`Asia/Singapore`, UTC+8) with zero deploy-time side effects.
-4. **Ingestion Transaction Identity & Scoped Replacement (GL-04):** Updated `generateTxHash` and `generateRentHash` in [`server/ingestion.js`](file:///C:/Dev/my-property-SG/server/ingestion.js) to include street identity, completely eliminating hash collisions for same-name developments across different streets. Replaced whole-project table wipes with contract-date-scoped updates, preserving out-of-scope historical transactions. Wrapped median rental requests in `fetchWithRetry`. Removed destructive hardcoded future SORA deletion.
-5. **Safe Database Rebuild & Atomic Rollback (GL-01):** Lifted quarantine and refactored [`server/scripts/rebuild-clean-db.js`](file:///C:/Dev/my-property-SG/server/scripts/rebuild-clean-db.js) with connection injection, dynamic operational state preservation (preserving all `leads` columns including Migration 008 cooldowns), pre-swap integrity gates, and automated rollback upon swap failure.
-6. **Comprehensive Regression Suite (GL-16):** Test suite expanded from 101 tests across 5 files to **113 tests across 9 test files**, all passing cleanly.
+## Verification evidence
 
----
+| Check | Current result |
+|---|---|
+| Full isolated suite on selected runtime | **161/161 tests, 13/13 files passed**, Node 22.23.3 on Windows; `audit/2026-10-02/phase1-node22-tests.log` |
+| Added failure regressions | 19 dedicated cases in `server/tests/phase1-safety.test.js`: same-period partial/multiplicity replay, malformed/empty imports, provider failure before writes, committed-count rollback, migration ledger failure, direct migration 010 interruption, terminated migration worker, scheduler restart/concurrency/lease/outcome cases, staging timer startup, interrupted rebuild recovery, live handles, suppression/job preservation and failed database open |
+| Clean installation | Root/client/server `npm ci` passed using Node 22.23.3 and npm 10.9.9. Initial server registry timeouts were resolved by retrying with fewer simultaneous downloads; only the successful retry qualifies the install |
+| Frontend production build | Passed on Node 22.23.3; `audit/2026-10-02/phase1-node22-build.log`. Existing 919.29 kB bundle warning remains a Phase 4 issue |
+| Actual application startup/health | **20/20 fresh-disk starts, 5/5 existing-database restarts, 5/5 concurrent processes passed** on Node 22.23.3; `audit/2026-10-02/phase1-node22-startup.json` |
+| Disposable staging scheduler | A database marked staging starts its real daemon/timer without boot dispatch, runs the fake due job, and does not repeat it after daemon restart; dedicated regression |
+| Native SQLite failure/recovery | Migration process terminated inside an uncommitted migration; fresh connection sees rollback and successfully retries. Rebuild worker exits abruptly at prepared/source-moved/installed stages; a separate recovery process restores the original main-file hash and preserved state |
+| Cross-process source handles | Another worker holding the source open prevents promotion; the original database hash remains unchanged |
+| Compose configuration | `docker compose --env-file server/.env.staging.example config --quiet` passed with synthetic configuration values; no services deployed |
+| Server production dependency audit | Zero reported vulnerabilities after clean installation; `audit/2026-10-02/phase1-dependency-audit.json`. This is a dated dependency result, not completion of the full Phase 4 security review |
+| Release-image build/startup | **Pending.** Docker Desktop fails during Windows inference-manager startup; its Linux engine is unavailable. CI now builds/loads the image and runs `server/scripts/qualify-startup.js`, but no successful CI/image run is claimed |
 
-## 2. Workstreams & Verification Evidence
+All mutations and crash tests used disposable databases. The real market database was not imported, migrated or rebuilt; no live provider requests or emails were sent. Local tests do not establish Linux/Alpine or hosted behavior.
 
-| Workstream | Findings Addressed | Key Deliverables & Changes | Verification Evidence |
-| :--- | :--- | :--- | :--- |
-| **Track 1: Runtime Alignment** | **GL-12** (Node EOL & tooling) | • Updated [`Dockerfile`](file:///C:/Dev/my-property-SG/Dockerfile) to `node:22-alpine` and pinned `pm2@5.4.3`.<br>• Updated [`.github/workflows/ci.yml`](file:///C:/Dev/my-property-SG/.github/workflows/ci.yml) to `node-version: 22`.<br>• Added `"engines": { "node": ">=22.0.0" }` to manifests. | Frontend build passed in 3.89s; all test suites executed cleanly on Node 22 runtime. |
-| **Track 2: Awaited Startup & Migrations** | **GL-02** (SQLITE_BUSY & migration race) | • Refactored [`server/db.js`](file:///C:/Dev/my-property-SG/server/db.js): dynamic `getDbPath()`, `PRAGMA busy_timeout = 10000;` ordered before WAL mode, and lazy connection creation.<br>• Implemented exclusive advisory locking via `schema_lock` in [`server/migrations/index.js`](file:///C:/Dev/my-property-SG/server/migrations/index.js). | **20/20 fresh-disk startup trials passed** (`startup-check.mjs`). Concurrent multi-process migration tests passed with zero crashes. |
-| **Track 3: Persistent Scheduler** | **GL-03** (PM2 one-shot cron failure) | • Added [`server/migrations/009_scheduler_and_job_locks.js`](file:///C:/Dev/my-property-SG/server/migrations/009_scheduler_and_job_locks.js).<br>• Implemented [`server/utils/jobRunner.js`](file:///C:/Dev/my-property-SG/server/utils/jobRunner.js) with distributed lease locking.<br>• Built [`server/scheduler.js`](file:///C:/Dev/my-property-SG/server/scheduler.js) daemon in Singapore timezone.<br>• Updated [`ecosystem.maintenance.config.cjs`](file:///C:/Dev/my-property-SG/ecosystem.maintenance.config.cjs). | `tests/scheduler.test.js` passed (5/5 tests). Zero jobs fire on startup; jobs trigger strictly when due or via `--now`. |
-| **Track 4: Ingestion Deduplication** | **GL-04** (Identity collision & data loss) | • Updated `generateTxHash` / `generateRentHash` in [`server/ingestion.js`](file:///C:/Dev/my-property-SG/server/ingestion.js) to include `street`.<br>• Scoped deletion to incoming batch dates instead of full-project wipe.<br>• Added backoff retry to median rental query.<br>• Removed destructive SORA truncation. | Same-name different-street fixture (`AUDIT SAME NAME` on Alpha vs Beta Road) preserves **1 sale for both projects** (0 lost). Partial batch tests verified history preservation. |
-| **Track 5: Safe Rebuild Engine** | **GL-01** (Unsafe rebuild & data swap) | • Completely refactored [`server/scripts/rebuild-clean-db.js`](file:///C:/Dev/my-property-SG/server/scripts/rebuild-clean-db.js).<br>• Injected target connection directly.<br>• Dynamically preserved all `leads` columns (including Migration 008 cooldowns) and `job_history`.<br>• Pre-swap integrity, FK, and population gates.<br>• Atomic swap with automatic verified rollback. | `tests/rebuild.test.js` passed. Injected provider failure aborts cleanly with source database 100% intact. Leads restored with all Migration 008 cooldowns. |
-| **Track 6: Test Suite Expansion** | **GL-16** (Test coverage & isolation) | • Created `tests/startup.test.js`.<br>• Created `tests/ingestion-identity.test.js`.<br>• Created `tests/scheduler.test.js`.<br>• Created `tests/rebuild.test.js`. | **113/113 tests passed across 9 test files** (100% pass rate). |
+## Original governing exit gates — retained without narrowing
 
----
+| Original Phase 1 criterion | Disposition |
+|---|---|
+| At least 20 consecutive fresh-disk starts and repeated existing-database starts pass in the target image; interrupted/concurrent migration tests are deterministic. | Local Node 22 startup and interruption/concurrency checks pass. **Target-image run still required.** |
+| An isolated rebuild leaves the source logically unchanged until the intended swap; empty, partial, provider-failure and interrupted-swap cases preserve or restore the original data. | Verified on disposable Windows fixtures, including abrupt termination and another process holding handles. **Target-platform qualification and complete reconciled source proof remain required before operational enablement.** |
+| Same-name/different-street fixtures preserve both projects' transactions; replay is idempotent without removing legitimate multiplicity. | Locally verified; new semantic identity includes project ownership/full transaction fields rather than depending solely on raw hashes. |
+| Partial imports preserve out-of-scope history; malformed/empty provider results cannot erase good data; failure status and committed counts agree. | Locally verified, including partial same-period data, sales and rentals, complete live-scope fetch-before-write and failed-write rollback. Authoritative deletion/replacement is not enabled. |
+| Staging proves a scheduled job runs when due, runs once, survives scheduler restart and does not run merely because the application was deployed. | Verified in isolated local staging using the real daemon/timer and fake job; persistent shared-DB concurrency/restart cases pass. Hosted staging remains a deployment-stage check. |
+| Clean install, tests and image build pass on the selected supported runtime. | Node 22 locked installs, suite and frontend build pass. **Container image build/run pending Docker recovery or a recorded successful CI run.** |
 
-## 3. Exit Gate Verification Matrix
+## Remaining closure work
 
-| Gate ID | Exit Criterion | Verification Command / Target Evidence | Status |
-| :--- | :--- | :--- | :--- |
-| **G1-1** | **Fresh-disk startup reliability** | `node audit/2026-10-02/startup-check.mjs` (20 trials) | **PASSED (20/20 passed, 0 SQLITE_BUSY)** |
-| **G1-2** | **Migration concurrency** | `tests/startup.test.js` (concurrent multi-process start) | **PASSED** |
-| **G1-3** | **Street identity deduplication** | `tests/ingestion-identity.test.js` (same-name on Alpha vs Beta Road) | **PASSED (Both projects keep sales; 0 lost)** |
-| **G1-4** | **Non-destructive scoped sync** | `tests/ingestion-identity.test.js` (partial batch preserves history) | **PASSED (Out-of-scope history preserved)** |
-| **G1-5** | **Rebuild isolation & swap** | `tests/rebuild.test.js` (failure injection during rebuild) | **PASSED (Source untouched, 0 data loss)** |
-| **G1-6** | **Lead state preservation** | `tests/rebuild.test.js` (Migration 008 columns restoration) | **PASSED (All columns & cooldowns restored)** |
-| **G1-7** | **Scheduler deploy independence** | `tests/scheduler.test.js` (schedule evaluation in SG timezone) | **PASSED (0 jobs execute on boot)** |
-| **G1-8** | **Runtime & build qualification** | Vitest (113 tests) & Vite frontend build | **PASSED (113/113 tests passed, build passed in 3.89s)** |
+1. Obtain a successful Linux release-image build and qualification run, and record image identity/output. The local Docker failure matches an [open report in Docker's tracker](https://github.com/docker/desktop-feedback/issues/625); it is an environment blocker, not a green application gate. No Docker data reset, container/volume deletion or host filesystem repair was performed.
+2. Retain rebuild quarantine until a complete, reconciled source dataset and the target-platform maintenance/promotion/recovery rehearsal are reviewed. The live fetch reports `sourceCompleteness: unverified`; it cannot authorize destructive replacement. Counts alone cannot approve an authoritative rebuild.
+3. During private deployment, verify the intended proxy/storage/permissions, service separation, real scheduled timing and backup configuration. Keep sync, cleanup and mail disabled until their governing gates pass. Hosted/off-host backup setup remains deferred to deployment, as Sam directed.
 
----
-
-## 4. Next Phase Progression
-
-With all Phase 1 exit gates verified and closed, the codebase is fully stabilized for:
-- **Phase 2: Reconcile the Dataset and Make Analytics Correct** (Saint/Street normalization, 35 candidate duplicate groups adjudication, metric definitions, and cache invalidation).
+Phase 2 analytics, source identity adjudication/provenance and external reconciliation remain open. Phase 3 retains its original email/consent/access/recovery scope. These Phase 1 corrections do not authorize public release.

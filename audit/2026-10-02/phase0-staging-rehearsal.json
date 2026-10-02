@@ -1,0 +1,23 @@
+{
+  "verifiedAt": "2026-10-02T09:15:36.028Z",
+  "runtime": "v24.19.0",
+  "health": {
+    "status": "ok",
+    "db": "connected",
+    "timestamp": "2026-10-02T09:15:35.964Z"
+  },
+  "features": {
+    "scope": "analytics-readonly",
+    "leadCapture": false,
+    "outboundEmail": false,
+    "dataSync": false,
+    "leadCleanup": false
+  },
+  "routes": {
+    "POST /api/leads/submit": 403,
+    "GET /api/admin/leads": 403,
+    "GET /api/newsletter/confirm": 403,
+    "POST /api/ingest/ura": 403
+  },
+  "syntheticLeads": 2
+}

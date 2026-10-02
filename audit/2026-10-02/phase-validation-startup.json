@@ -1,0 +1,171 @@
+{
+  "runtime": "v24.19.0",
+  "freshStarts": [
+    {
+      "trial": 1,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 2,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 3,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 4,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 5,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 6,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 7,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 8,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 9,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 10,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 11,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 12,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 13,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 14,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 15,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 16,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 17,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 18,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 19,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    },
+    {
+      "trial": 20,
+      "exit": 0,
+      "passed": true,
+      "sqliteBusy": false,
+      "error": null
+    }
+  ],
+  "concurrentProcesses": [
+    {
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "exit": 0,
+      "stderr": ""
+    }
+  ],
+  "existingDatabaseMigration": {
+    "exit": 0,
+    "stderr": ""
+  }
+}

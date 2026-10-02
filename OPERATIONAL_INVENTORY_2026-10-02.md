@@ -1,100 +1,52 @@
-# Operational & Environment Inventory — 2 October 2026
+# Operational inventory — corrected 2 October 2026
 
-**Baseline Commit:** \`84a03b691b20ca372e3751e6eaeefdce03b38328\`  
-**Baseline Git Tag:** \`baseline-phase-0-start\`  
-**Context:** Phase 0 Inventory under \`GO_LIVE_REMEDIATION_PLAN_2026-10-02.md\` (Findings GL-03, GL-11).  
-**Confidentiality Note:** Sensitive secret values are **not** stored in this inventory. Only presence, configuration scope, type, and source definitions are recorded.
+**Release owner and operational contact:** Sam Fraser. **Deployment:** local machine only, as confirmed by Sam. No external hosting is currently established. The previous inventory's DNS/provider configuration assertions were not backed by deployment evidence and are not treated as verified here.
 
----
+## Processes and operating defaults
 
-## 1. Enabled Processes & Execution Mode
+| Entry point | Current policy |
+|---|---|
+| Compose `app` / Docker CMD | One web process; no maintenance launched on deploy; Docker init/restart supervision |
+| Compose `scheduler` / `maintenance` profile | Explicit separate scheduler; durable due slots; sync/cleanup/newsletters disabled by default; ecosystem files are legacy references |
+| `server/scripts/rebuild-clean-db.js` | Operationally quarantined, including `--force`; injected test fixtures only |
+| `server/scripts/sync-ura.js` and ingestion API | Require explicit `ENABLE_DATA_SYNC=true`; keep disabled until Phase 1 safety gates pass |
+| `server/scripts/cleanup-leads.js` | Defaults to skipped; full scope plus `ENABLE_LEAD_CLEANUP=true` required operationally |
+| Confirmation / advisory / weekly senders | Shared adapter; read-only release disables email; staging/test transport is fake |
+| Recurring backup | Production requires configured encryption; off-host transfer not yet configured |
 
-| Process Name | Entry Point | Target Runtime | Supervising Method | Phase 0 Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **\`property-intelligence-sg\`** | \`server/index.js\` | Node v20 LTS / v24 local | PM2 (\`ecosystem.config.cjs\`) | **ACTIVE** (Isolated web service) |
-| **\`cron-weekly-newsletter\`** | \`server/scripts/send-weekly-newsletter.js\` | Node v20 LTS / v24 local | Decoupled (\`ecosystem.maintenance.config.cjs\`) | **DECOUPLED / PAUSED** (Prevents deploy sends) |
-| **\`cron-ura-sync\`** | \`server/scripts/sync-ura.js\` | Node v20 LTS / v24 local | Decoupled (\`ecosystem.maintenance.config.cjs\`) | **DECOUPLED / PAUSED** (Prevents deploy contention) |
-| **\`cron-leads-cleanup\`** | \`server/scripts/cleanup-leads.js\` | Node v20 LTS / v24 local | Decoupled (\`ecosystem.maintenance.config.cjs\`) | **DECOUPLED / PAUSED** (Prevents deploy purge) |
-| **\`cron-db-backup\`** | \`server/scripts/backup-db.js\` | Node v20 LTS / v24 local | Decoupled (\`ecosystem.maintenance.config.cjs\`) | **DECOUPLED / PAUSED** (Scheduled off-cycle) |
-| **\`rebuild-clean-db\`** | \`server/scripts/rebuild-clean-db.js\` | Node v20 LTS / v24 local | Manual CLI | **QUARANTINED** (Hard abort on start) |
+## Runtime and storage
 
----
+Phase 0 verification used Node v24.19.0; Phase 1 now uses official checksum-verified **Node 22.23.3** on Windows. `.nvmrc`, CI, engines and Docker align to that runtime. Docker supervises separate processes directly; PM2 is not in the release image. See the [Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md) for current target-image qualification status.
 
-## 2. Recurring Operational Schedules
+- Market database: `server/property.db`; current dataset has 5,903 projects and 584,140 transactions.
+- Migration 011 (durable schedule slots) is verified in disposable fixtures; the actual market database was not migrated during this work. Apply pending migrations only through the transactional runner at a controlled startup.
+- Prepared staging: `server/staging-phase0-20261002.db`, with only public market data and two synthetic contacts.
+- Historical baseline: `server/backups/baseline-authoritative-20261002.db` and its historical recovery artifact; retained unchanged. Its old random encryption key was not saved by the previous drill.
+- New durable captures: unique `server/backups/baseline-*/` directories containing encrypted database, manifest and source/build snapshot.
+- Recovery key: `.recovery-keys/phase0.key`, excluded from Git and container builds, outside backup/restore directories. Retain separately and review OS access controls.
+- New-process restored copies: unique directories under `audit/recovery-drill/`.
+- Planned deployment-stage recovery: daily DigitalOcean Droplet backups plus automated encrypted database copies to a separate provider/account (destination not yet selected/configured), with separate key custody and tested restores before public release. Sam's local machine is an optional additional copy. See [backup strategy](PHASE_0_OPERATIONS_RUNBOOK.md#deployment-stage-backup-strategy-deferred-not-live). The project is not live; every identified issue must be fixed and verified before launch.
 
-All background schedules are specified for Singapore Standard Time (\`TZ=Asia/Singapore\`):
+Configured default web port is 3001; local prepared staging was rehearsed on 3002. Container/proxy configuration proposes ports 80/443 and persistent `/app/data`; this describes configuration, not an existing public deployment.
 
-| Job Name | Defined Cron Cadence | Intended Execution Time (SGT) | Operational Path |
-| :--- | :--- | :--- | :--- |
-| Weekly Market Digest | \`0 8 * * 1\` | Mondays at 08:00 SGT | \`ecosystem.maintenance.config.cjs\` |
-| Weekly URA Caveat/Rental Sync | \`0 2 * * 0\` | Sundays at 02:00 SGT | \`ecosystem.maintenance.config.cjs\` |
-| Monthly PDPA Lead Cleanup | \`0 3 1 * *\` | 1st of month at 03:00 SGT | \`ecosystem.maintenance.config.cjs\` |
-| Daily SQLite Online Backup | \`0 4 * * *\` | Daily at 04:00 SGT | \`ecosystem.maintenance.config.cjs\` |
+## Environment contract
 
----
+| Variable | Purpose / safe operating default |
+|---|---|
+| `NODE_ENV` | Staging/test never automatically load local `.env` |
+| `DB_PATH` | Explicit isolated prepared database required for staging |
+| `RELEASE_SCOPE` | `analytics-readonly` by default; only `full` is an alternate supported value |
+| `ENABLE_DATA_SYNC` | `false`; keep contained pending ingestion repair |
+| `ENABLE_LEAD_CLEANUP` | `false`; retention/preservation approval required before enabling |
+| `ENABLE_STARTUP_LEAD_CLEANUP` | `false`; also subject to lead-cleanup policy |
+| `ENABLE_OUTBOUND_EMAIL` | `false`; live use also requires full scope and production environment |
+| `ENABLE_SCHEDULED_NEWSLETTER` | `false`; subject to scope/outbound gates |
+| `MOCK_EMAIL` | Staging/test always fake, even if this flag is accidentally false |
+| `RESEND_API_KEY`, `URA_ACCESS_KEY` | Secret credentials; staging accepts only mock values, never copied from local production `.env` |
+| `ADMIN_API_KEY`, `UNSUBSCRIBE_SECRET` | Separate application secrets; no raw values in reports; admin routes disabled in read-only scope |
+| `BACKUP_KEY_FILE` | Separately retained backup key; preferred for recurring encrypted backup |
+| `BACKUP_ENCRYPTION_KEY` | Alternative secret encryption configuration; mandatory encryption in production |
+| `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` | Local recurring backup location/retention; not an off-host configuration |
+| `BASE_URL`, sender/recipient variables, `ALLOWED_ORIGIN`, `DOMAIN` | Hosted/sender/origin values require later deployment/provider verification |
 
-## 3. Environment Variables & Secret Configuration Audit
-
-| Variable Name | Classification | Required? | Present Locally? | Target / Description |
-| :--- | :--- | :--- | :--- | :--- |
-| \`PORT\` | Infrastructure | Yes (Default 3001) | Yes (\`3001\`) | Express HTTP listen port |
-| \`NODE_ENV\` | Runtime Config | Yes | Yes (\`development\` / \`production\`) | Node environment profile |
-| \`DB_PATH\` | Storage Path | Yes | Yes (\`server/property.db\`) | SQLite database file location |
-| \`TZ\` | Runtime Config | Recommended | Configured in PM2 (\`Asia/Singapore\`) | Timezone alignment for cron jobs |
-| \`ADMIN_API_KEY\` | **Secret** | Yes | Configured in \`server/.env\` | Authorizes \`/api/admin/*\` and ingestion endpoints |
-| \`UNSUBSCRIBE_SECRET\` | **Secret** | Yes | Configured in \`server/.env\` | HMAC-SHA256 signature key for lead unsubscribe links |
-| \`LEGACY_UNSUB_UNTIL\` | Configuration | Optional | Configured in \`server/.env\` | Grace period cutoff for legacy SHA-256 tokens |
-| \`URA_ACCESS_KEY\` | **Secret** | Required for sync | Configured in \`server/.env\` | URA Data Service developer API access token |
-| \`URA_RENTAL_START\` | Configuration | Optional | Configured in \`server/.env\` (\`21q1\`) | Starting quarter for rental transaction ingestion |
-| \`RESEND_API_KEY\` | **Secret** | Required for email | Configured in \`server/.env\` | Resend transactional email API key |
-| \`NEWSLETTER_FROM_EMAIL\` | Email Config | Yes | Configured in \`server/.env\` | Outbound sender envelope address |
-| \`SENDER_EMAIL\` | Email Config | Optional | Configured in compose | Notification sender address |
-| \`AGENT_NOTIFICATION_EMAIL\` | Email Config | Optional | Configured in compose | Advisory lead recipient address |
-| \`BASE_URL\` | Infrastructure | Yes | Configured in \`server/.env\` (\`https://homeintel.sg\`) | Public base URL for canonical links & double opt-in tokens |
-| \`ALLOWED_ORIGIN\` | Security Policy | Optional | Optional in \`server/.env\` | Cross-origin resource sharing whitelist |
-| \`BACKUP_ENCRYPTION_KEY\` | **Secret** | Required for secure backup | Configured in \`server/.env\` | 256-bit passphrase for AES-256-GCM backup encryption |
-| \`ENABLE_STARTUP_LEAD_CLEANUP\` | Feature Guard | Optional | Default \`false\` | Prevents automatic lead deletion on web server startup |
-| \`DOMAIN\` | Infrastructure | Yes (Caddy) | Injected via Docker Compose | Public domain for automated Caddy Let's Encrypt TLS |
-
----
-
-## 4. Deployment Ports, Networking & Storage Architecture
-
-### Networking & Routing
-- **Public Entry Points:**
-  - Port \`80\` (HTTP) ➔ Auto-redirected to HTTPS by Caddy reverse proxy.
-  - Port \`443\` (HTTPS) ➔ Terminated by Caddy reverse proxy using TLS (Let's Encrypt / ZeroSSL).
-- **Internal Service Routing:**
-  - Port \`3001\` ➔ Bound by Express application server; proxied internally from Caddy via \`reverse_proxy app:3001\`.
-  - Application sets \`trust proxy = 1\` to correctly extract client IP and protocols from Caddy.
-
-### Storage & Persistence
-- **Authoritative Database:**
-  - Local path: \`server/property.db\` (183.58 MB uncompacted, 148.86 MB vacuumed).
-  - Production Docker path: \`/app/data/property.db\` mapped via volume mount \`./data:/app/data\`.
-  - Journal mode: \`WAL\` (Write-Ahead Logging) with \`PRAGMA busy_timeout = 5000\`.
-- **Backup Storage:**
-  - Local path: \`server/backups/\`.
-  - Production Docker path: \`/app/data/backups/\`.
-  - File format: \`property-backup-YYYYMMDD-HHmmss.db.enc\` (AES-256-GCM encrypted).
-
----
-
-## 5. Domain, DNS & Email Architecture
-
-### Inbound Email Setup (Namecheap Domain Forwarding)
-- **Domain:** \`homeintel.sg\`
-- **MX Records:** Handled by Namecheap Free Email Forwarding.
-- **Aliases:**
-  - \`dpo@homeintel.sg\` ➔ Forwards to personal DPO mailbox (PDPA compliance requirement).
-  - \`contact@homeintel.sg\` ➔ Forwards to personal support mailbox.
-  - \`sponsor@homeintel.sg\` ➔ Forwards to commercial inquiries.
-
-### Outbound Email Setup (Resend)
-- **Provider:** Resend API.
-- **DKIM:** TXT record on \`resend._domainkey.homeintel.sg\`.
-- **SPF:** TXT / MX record on \`bounces.homeintel.sg\` / \`feedback-smtp.resend.com\`.
-- **DMARC:** TXT record on \`_dmarc.homeintel.sg\` (\`v=DMARC1; p=none;\`).
-- **Sender Addresses:**
-  - \`digest@homeintel.sg\` / \`Singapore Home Intel <digest@homeintel.sg>\` (Investor newsletters).
-  - Transactional confirmation emails for double opt-in subscriber verification.
+DNS, sender/domain verification, proxy/TLS behavior, alert routing, hosted storage and actual background schedules remain deployment evidence to collect. This inventory records configuration names and purpose; it does not expose credential values or certify those external systems.

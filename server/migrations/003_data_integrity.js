@@ -41,8 +41,8 @@ export async function up(conn) {
 
   if (areaSqmCol && areaSqmCol.notnull === 1) {
     console.log('[Migration 003] Rebuilding rental_transactions to allow nullable area and psft fields...');
-    await run(`PRAGMA foreign_keys = OFF`);
-    await run(`BEGIN TRANSACTION`);
+
+    await run(`SAVEPOINT migration_table_rebuild`);
 
     try {
       await run(`
@@ -81,13 +81,14 @@ export async function up(conn) {
       await run(`CREATE INDEX IF NOT EXISTS idx_rentals_project ON rental_transactions(project_id);`);
       await run(`CREATE INDEX IF NOT EXISTS idx_rentals_bedroom ON rental_transactions(bedroom_count);`);
 
-      await run(`COMMIT`);
+      await run(`RELEASE migration_table_rebuild`);
       console.log('[Migration 003] rental_transactions rebuilt successfully.');
     } catch (err) {
-      await run(`ROLLBACK`).catch(() => {});
+      await run(`ROLLBACK TO migration_table_rebuild`);
+    await run(`RELEASE migration_table_rebuild`);
       throw err;
     } finally {
-      await run(`PRAGMA foreign_keys = ON`);
+
     }
   }
 }

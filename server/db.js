@@ -6,6 +6,8 @@ import { runMigrations } from './migrations/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const openPaths = new Map();
+export function hasOpenConnections(file) { return (openPaths.get(path.resolve(file)) || 0) > 0; }
 
 /**
  * Returns current resolved database path dynamically.
@@ -17,41 +19,59 @@ export function getDbPath() {
 
 /**
  * Creates an isolated database connection with awaited PRAGMA initialization.
- * Order: busy_timeout (10s) -> journal_mode (WAL) -> synchronous (NORMAL) -> foreign_keys (ON).
+ * Order: busy_timeout (10s) -> journal_mode (WAL) -> synchronous (FULL) -> foreign_keys (ON).
  * @param {string} [customPath]
  * @returns {object} Connection object with promisified run, get, all, close methods
  */
-export function createConnection(customPath) {
+export function createConnection(customPath, { uri = false, maintenance = false } = {}) {
   const targetPath = customPath || getDbPath();
+  if (targetPath !== ':memory:' && (fs.existsSync(targetPath + '.swap.json') || (!maintenance && fs.existsSync(targetPath + '.maintenance')))) throw new Error('Database maintenance/recovery in progress; refusing connection');
+  const trackedPath = path.resolve(targetPath);
+  const generationFile = trackedPath + '.generation';
+  const generation = fs.existsSync(generationFile) ? fs.readFileSync(generationFile, 'utf8') : '';
+  openPaths.set(trackedPath, (openPaths.get(trackedPath) || 0) + 1);
   const dbDir = path.dirname(targetPath);
   if (targetPath !== ':memory:' && !fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
   }
 
-  const raw = new sqlite3.Database(targetPath);
+  let raw;
+  let openFailed = false;
+  let closed = false;
+  const opened = new Promise((resolve, reject) => {
+    raw = new sqlite3.Database(targetPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE | sqlite3.OPEN_FULLMUTEX | (uri ? sqlite3.OPEN_URI : 0), error => error ? reject(error) : resolve());
+  });
+  opened.catch(() => { openFailed = true; });
 
   // Prevent unhandled error event emissions on the raw database instance
   raw.on('error', () => {
     // Error is surfaced through query promises
   });
 
-  const readyPromise = new Promise((resolve) => {
-    raw.serialize(() => {
-      // 1. busy_timeout MUST be set before any contending write/journal pragmas
-      raw.run('PRAGMA busy_timeout = 10000;', () => {});
-      // 2. Set WAL mode
-      raw.run('PRAGMA journal_mode = WAL;', () => {});
-      // 3. Normal synchronous for WAL durability and performance
-      raw.run('PRAGMA synchronous = NORMAL;', () => {});
-      // 4. Enforce foreign keys
-      raw.run('PRAGMA foreign_keys = ON;', () => {
-        resolve();
-      });
-    });
+  const readyPromise = opened.then(async () => {
+    for (const sql of ['PRAGMA busy_timeout = 10000', 'PRAGMA journal_mode = WAL', 'PRAGMA synchronous = FULL', 'PRAGMA foreign_keys = ON']) {
+      const deadline = Date.now() + 10000;
+      while (true) {
+        try {
+          await new Promise((resolve, reject) => raw.run(sql, error => error ? reject(error) : resolve()));
+          break;
+        } catch (error) {
+          if (error.code !== 'SQLITE_BUSY' || Date.now() >= deadline) throw error;
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+    }
   });
+  readyPromise.catch(() => {});
 
   const ensureReady = async () => {
     await readyPromise;
+    if (closed) throw new Error('Database connection is closed');
+    if (targetPath !== ':memory:' && !maintenance) {
+      if (fs.existsSync(trackedPath + '.maintenance') || fs.existsSync(trackedPath + '.swap.json')) throw new Error('Database maintenance/recovery in progress');
+      const current = fs.existsSync(generationFile) ? fs.readFileSync(generationFile, 'utf8') : '';
+      if (current !== generation) throw new Error('Database was replaced; restart this connection');
+    }
   };
 
   return {
@@ -85,11 +105,22 @@ export function createConnection(customPath) {
       });
     },
     async close() {
-      await ensureReady();
+      await readyPromise.catch(() => {});
+      if (closed) return;
+      closed = true;
+      if (openFailed) {
+        openPaths.set(trackedPath, Math.max(0, (openPaths.get(trackedPath) || 1) - 1));
+        return;
+      }
       return new Promise((resolve, reject) => {
         raw.close((err) => {
-          if (err) reject(err);
-          else resolve();
+          if (err) {
+            closed = false;
+            reject(err);
+          } else {
+            openPaths.set(trackedPath, Math.max(0, (openPaths.get(trackedPath) || 1) - 1));
+            resolve();
+          }
         });
       });
     }
@@ -136,14 +167,20 @@ export function dbGet(sql, params = []) {
  */
 export async function withTransaction(conn, fn) {
   const run = conn?.run ? conn.run.bind(conn) : dbRun;
-  await run('BEGIN IMMEDIATE');
+  const nested = (conn?.transactionDepth || 0) > 0;
+  const savepoint = `nested_${conn?.transactionDepth || 0}`;
+  await run(nested ? `SAVEPOINT ${savepoint}` : 'BEGIN IMMEDIATE');
+  if (conn) conn.transactionDepth = (conn.transactionDepth || 0) + 1;
   try {
     const result = await fn();
-    await run('COMMIT');
+    await run(nested ? `RELEASE ${savepoint}` : 'COMMIT');
     return result;
   } catch (err) {
-    await run('ROLLBACK').catch(() => {});
+    await run(nested ? `ROLLBACK TO ${savepoint}` : 'ROLLBACK').catch(() => {});
+    if (nested) await run(`RELEASE ${savepoint}`).catch(() => {});
     throw err;
+  } finally {
+    if (conn) conn.transactionDepth--;
   }
 }
 
