@@ -1,0 +1,51 @@
+{
+  "node": "v24.19.0",
+  "samples": [
+    {
+      "name": "rental",
+      "cache": "cold",
+      "ms": 8327,
+      "jsonBytes": 9912360,
+      "rows": 2870
+    },
+    {
+      "name": "rental",
+      "cache": "warm",
+      "ms": 0,
+      "jsonBytes": 9912360,
+      "rows": 2870
+    },
+    {
+      "name": "price",
+      "cache": "cold",
+      "ms": 830,
+      "jsonBytes": 8074218,
+      "rows": 2379
+    },
+    {
+      "name": "price",
+      "cache": "warm",
+      "ms": 0,
+      "jsonBytes": 8074218,
+      "rows": 2379
+    },
+    {
+      "name": "projects",
+      "cache": "cold",
+      "ms": 95,
+      "jsonBytes": 1871151,
+      "rows": 4728
+    },
+    {
+      "name": "projects",
+      "cache": "warm",
+      "ms": 0,
+      "jsonBytes": 1871151,
+      "rows": 4728
+    }
+  ],
+  "twoDistrictConcurrentMs": 1552,
+  "radius": {
+    "tenKmReturned": 200
+  }
+}

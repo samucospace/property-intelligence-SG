@@ -1,0 +1,92 @@
+{
+  "identityCollision": [
+    {
+      "street_name": "AUDIT ALPHA ROAD",
+      "sales": 1
+    },
+    {
+      "street_name": "AUDIT BETA ROAD",
+      "sales": 0
+    }
+  ],
+  "lateDbPath": [
+    {
+      "name": "main",
+      "file": "fixture-1790909788361.db"
+    }
+  ],
+  "pricePagination": {
+    "first": [
+      1
+    ],
+    "second": [
+      1
+    ],
+    "reportedPage": 2,
+    "reportedLimit": 1
+  },
+  "staleValuation": {
+    "before": {
+      "medianPrice": 1000000,
+      "medianPsft": 929
+    },
+    "after": {
+      "medianPrice": 1000000,
+      "medianPsft": 929
+    },
+    "database": {
+      "rolling_24m_median_psft": 7777
+    }
+  },
+  "adminGuard": {
+    "status": 401,
+    "body": {
+      "error": "Unauthorized: Valid admin session token or X-Admin-Key required."
+    }
+  },
+  "missingConsent": {
+    "status": 400,
+    "body": {
+      "error": "Explicit Singapore PDPA consent is required to proceed."
+    }
+  },
+  "badName": {
+    "status": 500,
+    "body": {
+      "error": "An internal server error occurred.",
+      "requestId": "acd22ce3-c878-4f46-be2f-63326448d9e8"
+    }
+  },
+  "rejectedEmail": {
+    "status": 200,
+    "body": {
+      "status": "success",
+      "message": "Confirmation link sent to your email. Please check your inbox to confirm your subscription."
+    }
+  },
+  "emailSendAttempts": 1,
+  "cooldownDespiteFailure": {
+    "cooldownSet": 1,
+    "confirmed": 0
+  },
+  "fractionalLimit": {
+    "status": 500,
+    "body": {
+      "error": "An internal server error occurred.",
+      "requestId": "6ee8f9cf-bbb2-4024-a8e0-ab6ad0011526"
+    }
+  },
+  "badDateType": {
+    "status": 500,
+    "body": {
+      "error": "An internal server error occurred.",
+      "requestId": "7bf6b5e6-3ba4-4250-87d9-f6c60b6bc20b"
+    }
+  },
+  "staleToken": {
+    "status": 200,
+    "confirmed": {
+      "confirmed": 1
+    }
+  }
+}

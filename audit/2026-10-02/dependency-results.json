@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-10-02T02:56:53.765Z",
+  "scope": "All locked versions, includes dev; raw bulk advisories, not npm audit dependency-path analysis",
+  "projects": {
+    "server": {
+      "packageNames": 203,
+      "advisories": {}
+    },
+    "client": {
+      "packageNames": 190,
+      "advisories": {}
+    }
+  }
+}

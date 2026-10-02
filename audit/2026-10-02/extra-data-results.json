@@ -1,0 +1,134 @@
+{
+  "normalizedDuplicateGroups": 35,
+  "normalizedDuplicateProjects": 70,
+  "examples": [
+    [
+      {
+        "project_id": 329,
+        "project_name": "ST MICHAEL REGENCY",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "latitude": 1.32791955421654,
+        "longitude": 103.86384632382,
+        "geo_source": "svy21"
+      },
+      {
+        "project_id": 3515,
+        "project_name": "ST MICHAEL REGENCY",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "latitude": 1.32792,
+        "longitude": 103.863846,
+        "geo_source": "svy21"
+      }
+    ],
+    [
+      {
+        "project_id": 387,
+        "project_name": "AIRSTREAM",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "latitude": null,
+        "longitude": null,
+        "geo_source": null
+      },
+      {
+        "project_id": 3551,
+        "project_name": "AIRSTREAM",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "latitude": 1.327327,
+        "longitude": 103.864036,
+        "geo_source": "svy21"
+      }
+    ],
+    [
+      {
+        "project_id": 394,
+        "project_name": "ESPADA",
+        "street_name": "ST. THOMAS WALK",
+        "latitude": 1.29674185934241,
+        "longitude": 103.836883724004,
+        "geo_source": "svy21"
+      },
+      {
+        "project_id": 3555,
+        "project_name": "ESPADA",
+        "street_name": "STREET. THOMAS WALK",
+        "latitude": 1.297342,
+        "longitude": 103.836742,
+        "geo_source": "svy21"
+      }
+    ],
+    [
+      {
+        "project_id": 426,
+        "project_name": "ST MICHAEL'S CONDOMINIUM",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "latitude": null,
+        "longitude": null,
+        "geo_source": null
+      },
+      {
+        "project_id": 3563,
+        "project_name": "ST MICHAEL'S CONDOMINIUM",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "latitude": 1.326145,
+        "longitude": 103.86234,
+        "geo_source": "svy21"
+      }
+    ],
+    [
+      {
+        "project_id": 475,
+        "project_name": "ONE ST MICHAEL'S",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "latitude": null,
+        "longitude": null,
+        "geo_source": null
+      },
+      {
+        "project_id": 3586,
+        "project_name": "ONE ST MICHAEL'S",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "latitude": 1.324704,
+        "longitude": 103.864609,
+        "geo_source": "svy21"
+      }
+    ]
+  ],
+  "planningAreas": [
+    {
+      "planning_area": "Central",
+      "count": 3076
+    },
+    {
+      "planning_area": null,
+      "count": 2510
+    },
+    {
+      "planning_area": "PASIR PANJANG ROAD",
+      "count": 37
+    },
+    {
+      "planning_area": "BALESTIER ROAD",
+      "count": 10
+    },
+    {
+      "planning_area": "GRANGE ROAD",
+      "count": 9
+    },
+    {
+      "planning_area": "BUKIT TIMAH ROAD",
+      "count": 8
+    },
+    {
+      "planning_area": "JERVOIS ROAD",
+      "count": 8
+    },
+    {
+      "planning_area": "PASIR PANJANG HILL",
+      "count": 8
+    }
+  ],
+  "nonLandedWronglyFlagged": {
+    "count": 1
+  },
+  "radiusTenKmEligible": 4481
+}

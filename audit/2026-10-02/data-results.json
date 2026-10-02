@@ -1,0 +1,211 @@
+{
+  "integrity": [
+    {
+      "integrity_check": "ok"
+    }
+  ],
+  "foreign_keys": [],
+  "counts": [
+    {
+      "projects": 5938,
+      "sales": 133418,
+      "rentals": 450722,
+      "benchmarks": 3291,
+      "amenities": 399
+    }
+  ],
+  "districts": [
+    {
+      "total": 5938,
+      "valid": 5894,
+      "missing": 44
+    }
+  ],
+  "geo": [
+    {
+      "geo_source": null,
+      "count": 59,
+      "scored": 0
+    },
+    {
+      "geo_source": "district_centre",
+      "count": 200,
+      "scored": 200
+    },
+    {
+      "geo_source": "svy21",
+      "count": 5679,
+      "scored": 5679
+    }
+  ],
+  "missing_geo": [
+    {
+      "count": 59
+    }
+  ],
+  "dates_sales": [
+    {
+      "earliest": "2021-01-01",
+      "latest": "2026-09-01"
+    }
+  ],
+  "dates_rentals": [
+    {
+      "earliest": "2021-09",
+      "latest": "2026-08"
+    }
+  ],
+  "benchmarks_dates": [
+    {
+      "oldest": "2026-09-30 12:36:51",
+      "newest": "2026-09-30 12:36:51"
+    }
+  ],
+  "sora": [
+    {
+      "reference_month": "2026-09",
+      "sora_1m": 2.4,
+      "sora_3m": 2.44
+    }
+  ],
+  "migrations": [
+    {
+      "name": "001_baseline_schema"
+    },
+    {
+      "name": "002_project_identity"
+    },
+    {
+      "name": "003_data_integrity"
+    },
+    {
+      "name": "004_clean_data_integrity"
+    },
+    {
+      "name": "005_benchmarks_and_tenure"
+    },
+    {
+      "name": "006_precompute_livability"
+    },
+    {
+      "name": "007_leads_enhancements"
+    },
+    {
+      "name": "008_resilience_and_cooldowns"
+    }
+  ],
+  "amenities": [
+    {
+      "source": "seed",
+      "category": "hawker",
+      "count": 139
+    },
+    {
+      "source": "seed",
+      "category": "mrt",
+      "count": 95
+    },
+    {
+      "source": "seed",
+      "category": "park",
+      "count": 63
+    },
+    {
+      "source": "seed",
+      "category": "school",
+      "count": 22
+    },
+    {
+      "source": "seed",
+      "category": "supermarket",
+      "count": 80
+    }
+  ],
+  "sales_types": [
+    {
+      "property_type": "Apartment",
+      "count": 53714
+    },
+    {
+      "property_type": "Condominium",
+      "count": 50963
+    },
+    {
+      "property_type": "Detached",
+      "count": 1481
+    },
+    {
+      "property_type": "Executive Condominium",
+      "count": 16119
+    },
+    {
+      "property_type": "Semi-detached",
+      "count": 3605
+    },
+    {
+      "property_type": "Strata Detached",
+      "count": 100
+    },
+    {
+      "property_type": "Strata Semi-detached",
+      "count": 409
+    },
+    {
+      "property_type": "Strata Terrace",
+      "count": 1044
+    },
+    {
+      "property_type": "Terrace",
+      "count": 5983
+    }
+  ],
+  "rent_types": [
+    {
+      "property_type": "Detached House",
+      "count": 4965
+    },
+    {
+      "property_type": "Executive Condominium",
+      "count": 10374
+    },
+    {
+      "property_type": "Non-landed Properties",
+      "count": 415578
+    },
+    {
+      "property_type": "Semi-Detached House",
+      "count": 7463
+    },
+    {
+      "property_type": "Terrace House",
+      "count": 12342
+    }
+  ],
+  "planning": [
+    {
+      "populated": 3428,
+      "distinct_values": 136
+    }
+  ],
+  "same_name_different_street": [
+    {
+      "count": 328
+    }
+  ],
+  "unscored": [
+    {
+      "count": 0
+    }
+  ],
+  "no_benchmark": [
+    {
+      "count": 2647
+    }
+  ],
+  "coordinate_clusters": [
+    {
+      "clusters": 185,
+      "projects": 371
+    }
+  ]
+}

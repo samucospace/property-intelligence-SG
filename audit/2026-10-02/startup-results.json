@@ -1,0 +1,42 @@
+[
+  {
+    "attempt": 1,
+    "exit": 1,
+    "error": null,
+    "sqliteBusy": true,
+    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
+    "stdoutTail": ""
+  },
+  {
+    "attempt": 2,
+    "exit": 1,
+    "error": null,
+    "sqliteBusy": true,
+    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
+    "stdoutTail": ""
+  },
+  {
+    "attempt": 3,
+    "exit": 1,
+    "error": null,
+    "sqliteBusy": true,
+    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
+    "stdoutTail": ""
+  },
+  {
+    "attempt": 4,
+    "exit": 1,
+    "error": null,
+    "sqliteBusy": true,
+    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
+    "stdoutTail": ""
+  },
+  {
+    "attempt": 5,
+    "exit": 1,
+    "error": null,
+    "sqliteBusy": true,
+    "stderr": "◇ injected env (2) from server\\.env\n<anonymous_script>:0\r\n\r\n\r\n[Error: SQLITE_BUSY: database is locked\r\nEmitted 'error' event on Statement instance at:\r\n] {\r\n  errno: 5,\r\n  code: 'SQLITE_BUSY'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
+    "stdoutTail": ""
+  }
+]

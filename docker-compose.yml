@@ -16,7 +16,10 @@ services:
       - URA_ACCESS_KEY=${URA_ACCESS_KEY}
       - RESEND_API_KEY=${RESEND_API_KEY}
       - BASE_URL=${BASE_URL:?BASE_URL must be set (e.g. https://homeintel.sg)}
-      - NEWSLETTER_FROM_EMAIL=${NEWSLETTER_FROM_EMAIL}
+      - NEWSLETTER_FROM_EMAIL=${NEWSLETTER_FROM_EMAIL:-}
+      - SENDER_EMAIL=${SENDER_EMAIL:-}
+      - AGENT_NOTIFICATION_EMAIL=${AGENT_NOTIFICATION_EMAIL:-}
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-}
       - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-}
     volumes:
       # Persist SQLite database and WAL/journal across container restarts and updates
