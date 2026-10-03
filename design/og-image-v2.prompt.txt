@@ -1,0 +1,17 @@
+Generated with the built-in image generation tool on 3 October 2026.
+Final sharing asset: og-image-v2.png, resized to 1200 x 630 pixels.
+
+Upscale edit, built-in image generation tool, 3 October 2026:
+Prompt: Faithfully upscale the supplied finished image to exactly 3840 x 2016 pixels. Preserve its complete composition, margins, typography, exact copy, colors, architecture, greenery, sunlight and contour lines. Enhance fine architectural texture and crisp edges naturally without halos, oversharpening or invented elements. Do not add or remove anything.
+The tool returned 1731 x 909 pixels. The enhanced source is retained as og-image-v2-enhanced-source.png. The 3840 x 2016 master uses high-quality bicubic resampling; it is not a native 3840-pixel generation. The project's 1200 x 630 sharing asset was exported from the enhanced source.
+
+Use case: ads-marketing.
+Create a finished, beautiful premium OpenGraph social sharing image for Singapore Home Intel, an independent Singapore residential property research platform. Wide landscape canvas, exactly 1200 by 630 pixels (1.905:1 aspect ratio).
+Art direction: refined architectural editorial cover, stylish contemporary Singapore design, beautifully balanced typography and sophisticated tactile 3D architectural illustration. Warm ivory background #FFFAF0, deep forest green #244C3D, subtle sage, restrained terracotta #CB6D51. Soft sunlight and believable material texture.
+Composition: generous 64px safe margins. Left 55 percent is a clean editorial typographic field. Right 45 percent is an exquisite sculptural miniature of Singapore residential architecture: lush tropical trees, elegant modern condominium towers, heritage shophouses and a discreet recognizable Marina Bay Sands silhouette in the distance. Architectural model made of matte ivory stone and forest-green glass on softly layered topographic terraces. Cityscape extends gently into the lower-right edge. Extremely polished, sophisticated, not cartoonish. A few subtle fine contour lines on the bottom background hint at spatial research. No invented data visualizations.
+Exact copy only, carefully typeset:
+Small uppercase eyebrow at top left: "SINGAPORE HOME INTEL"
+Large expressive editorial serif headline on left, three lines: "A clearer view" / "of Singapore" / "property."
+Smaller clean sans-serif line below headline: "Transactions. Rentals. Neighbourhoods."
+Small footer bottom left: "homeintel.sg"
+Headline in deep forest green, secondary typography charcoal green. Strong readable hierarchy at small sharing-preview sizes. All text precisely spelled, ample spacing. No badges, no metrics, no yields, no claims of verified data, no dashboards, no UI cards, no stock-photo look, no additional slogans, no watermarks.
