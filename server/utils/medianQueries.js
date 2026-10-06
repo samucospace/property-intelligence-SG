@@ -4,7 +4,9 @@ let worker,sequence=0;
 const pending=new Map();
 function calculate(rows,specs) {
   if(!worker) {
-    worker=new Worker(new URL('./medianWorker.js',import.meta.url));
+    // A file-based worker cannot inherit the parent's eval/stdin-only input type.
+    const execArgv=process.execArgv.filter((arg,index,args)=>arg!=='--input-type' && !arg.startsWith('--input-type=') && args[index-1]!=='--input-type');
+    worker=new Worker(new URL('./medianWorker.js',import.meta.url),{execArgv});
     worker.on('message',message=>{
       const request=pending.get(message.id);if(!request) return;
       pending.delete(message.id);message.error ? request.reject(new Error(message.error)) : request.resolve(message.data);

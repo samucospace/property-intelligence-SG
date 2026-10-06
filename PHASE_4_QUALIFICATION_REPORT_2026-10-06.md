@@ -1,5 +1,7 @@
 # Phase 4 qualification report — 6 October 2026
 
+**CI follow-up:** The first remote run exposed a file-worker launch option inherited from the startup checker. The repair, two new regression tests and passing exact startup checks are documented in [CI failure repair](CI_FAILURE_REPAIR_2026-10-06.md). Earlier image/test figures below retain their historical provenance.
+
 **Status: local implementation and candidate qualification completed for the approved default-response targets; the full Phase 4 exit gate remains OPEN. Public launch remains NO-GO.** Broad uncached custom filters still take seconds, sustained target-host capacity is unverified, and received operational alerts/hosted recovery are outstanding. The original targets have not been relaxed.
 
 This continues the original readiness/remediation plan while Phase 3 infrastructure is deferred. The owner confirmed that the Droplet, DNS, Resend and independent backup account are not ready. The adviser relationship is an informal trial without a documented arrangement. Collection and outbound sending remain disabled; this work does not approve disclosure to an adviser or public release.

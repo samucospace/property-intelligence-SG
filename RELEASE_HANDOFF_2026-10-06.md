@@ -1,5 +1,7 @@
 # Release-readiness source handoff — 6 October 2026
 
+**CI follow-up:** The first remote run exposed a file-worker launch option inherited from the startup checker. The repair, two new regression tests and passing exact startup checks are documented in [CI failure repair](CI_FAILURE_REPAIR_2026-10-06.md). Earlier image/test figures below retain their historical provenance.
+
 This commit captures the accumulated Phase 2 corrections, Phase 3 repairs and Phase 4 local implementation/evidence. It does **not** authorize public launch. The canonical readiness/remediation reports link to the current status; earlier reports retain their historical evidence.
 
 ## Included work
