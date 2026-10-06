@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "runtime": "v22.23.3",
+  "platform": "win32",
+  "healthStatus": 200,
+  "analyticsStatus": 200,
+  "approvedIdentityCount": 35,
+  "independentMedianArithmeticMatch": true,
+  "projectId": 3515,
+  "grossYield": 3.02,
+  "realDatabaseTouched": false
+}

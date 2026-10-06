@@ -13,9 +13,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV TZ=Asia/Singapore
+# Heavy SQLite operations share the native worker pool; keep capacity for readiness
+# and metadata reads on their reserved connection.
+ENV UV_THREADPOOL_SIZE=16
 
 # Install tzdata for Singapore timezone and build essentials for native sqlite3 binaries
-RUN apk add --no-cache tzdata python3 make g++
+RUN apk add --no-cache tzdata python3 make g++ aws-cli
 
 # Ensure persistent data directory exists
 RUN mkdir -p /app/data

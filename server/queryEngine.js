@@ -1,6 +1,11 @@
-import { dbAll, dbGet, createConnection, withTransaction } from './db.js';
+import {marketVersion,loadAnalyticsSnapshot,storeAnalyticsSnapshot} from './utils/analyticsSnapshots.js';
+import {medianOne,medianRows} from './utils/medianQueries.js';
+import { BoundedJsonCache } from './utils/boundedJsonCache.js';
+import { matchedSaleValuations, saleWindow, projectYield } from './utils/yieldMetrics.js';
+import { invalidateLivabilityCache } from './livabilityEngine.js';
+import { dbAll, dbGet, createConnection, withTransaction, getMetadataConnection, getPrimaryConnection } from './db.js';
 import { calculateLivabilityScore, getProjectLivability, getGradeLabel, getGradeColor, DEFAULT_WEIGHTS } from './livabilityEngine.js';
-import { getDefaultDateRange } from './utils/dateUtils.js';
+import { getDefaultDateRange, getTodaySingaporeString } from './utils/dateUtils.js';
 import { calculateMedian } from './utils/math.js';
 import { haversineDistance, formatPlanningAreaFallback } from './utils/geo.js';
 
@@ -39,32 +44,49 @@ export function escapeLike(str) {
 
 // In-memory project sale valuations cache for instantaneous rental yield calculations
 let saleValuationsCache = new Map();
-const analyticsQueryCache = new Map();
-const CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
-const MAX_CACHE_ENTRIES = 50; // Cap memory footprint (~50 MB max)
-
-function getAnalyticsCache(key) {
-  const entry = analyticsQueryCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.timestamp >= CACHE_TTL_MS) {
-    analyticsQueryCache.delete(key);
-    return null;
+let valuationsLoaded=false;
+let valuationsFlight=null;
+const analyticsQueryCache = new BoundedJsonCache();
+const analyticsFlights = new Map();
+let analyticsGeneration = 0;
+let refreshPromise = null;
+let heavyActive=0;
+const heavyQueue=[];
+async function withAnalyticsCapacity(compute) {
+  if(heavyActive>=1) {
+    if(heavyQueue.length>=16) {const error=new Error('Analytics capacity is busy; retry shortly');error.status=503;throw error;}
+    await new Promise(resolve=>heavyQueue.push(resolve));
+  } else heavyActive++;
+  try {return await compute();} finally {
+    if(heavyQueue.length) heavyQueue.shift()();else heavyActive--;
   }
-  // Refresh recency for LRU
-  analyticsQueryCache.delete(key);
-  analyticsQueryCache.set(key, entry);
-  return entry.data;
 }
-
-function setAnalyticsCache(key, data) {
-  if (analyticsQueryCache.has(key)) {
-    analyticsQueryCache.delete(key);
-  } else if (analyticsQueryCache.size >= MAX_CACHE_ENTRIES) {
-    // Evict least-recently-used entry
-    const oldestKey = analyticsQueryCache.keys().next().value;
-    if (oldestKey) analyticsQueryCache.delete(oldestKey);
-  }
-  analyticsQueryCache.set(key, { data, timestamp: Date.now() });
+function getAnalyticsCache(key) { return analyticsQueryCache.get(key); }
+function setAnalyticsCache(key,data,generation=analyticsGeneration) {
+  if (generation===analyticsGeneration) analyticsQueryCache.set(key,data);
+}
+export function analyticsCacheStats() {return {...analyticsQueryCache.stats(),inFlight:analyticsFlights.size,heavyActive,queued:heavyQueue.length};}
+async function queryOnce(prefix,filters,compute) {
+  await syncCacheWithDataVersion();
+  const key=normalizeAnalyticsCacheKey(prefix,filters);
+  const cached=getAnalyticsCache(key);
+  if(cached) return cached;
+  const generation=analyticsGeneration,flightKey=generation+':'+key;
+  if(analyticsFlights.has(flightKey)) return analyticsFlights.get(flightKey);
+  const flight=(async()=>{
+    const active=getPrimaryConnection(),metadata=getMetadataConnection();
+    const version=await marketVersion(metadata);
+    const materialized=await loadAnalyticsSnapshot(metadata,prefix,filters);
+    if(materialized) {setAnalyticsCache(key,materialized,generation);return materialized;}
+    const data=await withAnalyticsCapacity(()=>compute(generation));
+    if(await marketVersion(metadata)!==version) {
+      invalidateAnalyticsCache();const error=new Error('Market data changed during analytics; retry after preparation');error.status=503;throw error;
+    }
+    await storeAnalyticsSnapshot(active,prefix,filters,data,version);
+    return data;
+  })();
+  analyticsFlights.set(flightKey,flight);
+  try {return await flight;} finally {analyticsFlights.delete(flightKey);}
 }
 
 /**
@@ -104,7 +126,7 @@ export function normalizeAnalyticsCacheKey(prefix, filters = {}) {
         const lat = parseFloat(val.lat);
         const lng = parseFloat(val.lng);
         if (!isNaN(lat) && !isNaN(lng)) {
-          normalized.centerCoords = { lat: lat.toFixed(4), lng: lng.toFixed(4) };
+          normalized.centerCoords = { lat, lng };
         }
       } else if (key === 'lifestyleWeights' && typeof val === 'object') {
         normalized.lifestyleWeights = Object.keys(val).sort().reduce((acc, k) => {
@@ -122,8 +144,7 @@ export function normalizeAnalyticsCacheKey(prefix, filters = {}) {
 
 /**
  * Finds project IDs within radiusKm using SQLite bounding-box pre-filtering,
- * exact haversine distance filtering, and an optional cap of maxProjects (ABU-01).
- * When maxProjects is null (default), returns all matching projects within the radius.
+ * exact haversine distance filtering across all projects within the radius.
  */
 export async function getMatchingProjectIdsByRadius(centerCoords, radiusKm, maxProjects = null) {
   if (!centerCoords || !centerCoords.lat || !centerCoords.lng || !radiusKm) {
@@ -134,7 +155,7 @@ export async function getMatchingProjectIdsByRadius(centerCoords, radiusKm, maxP
   const lng = parseFloat(centerCoords.lng);
   const maxRadius = parseFloat(radiusKm);
 
-  if (isNaN(lat) || isNaN(lng) || isNaN(maxRadius) || maxRadius <= 0) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(maxRadius) || maxRadius <= 0) {
     return [];
   }
 
@@ -163,9 +184,7 @@ export async function getMatchingProjectIdsByRadius(centerCoords, radiusKm, maxP
     .filter(p => p.dist <= maxRadius)
     .sort((a, b) => a.dist - b.dist);
 
-  if (maxProjects && maxProjects > 0) {
-    matches = matches.slice(0, maxProjects);
-  }
+
 
   return matches.map(p => p.id);
 }
@@ -177,43 +196,45 @@ let lastObservedDataVersion = null;
  * connection or process has committed data changes (GL-06).
  * @param {object} [conn] Optional database connection
  */
+let cacheConnection = null;
 export async function syncCacheWithDataVersion(conn = null) {
-  try {
-    const queryFn = conn?.get ? conn.get.bind(conn) : dbGet;
-    const row = await queryFn('PRAGMA data_version');
-    const currentVersion = row ? row.data_version : 0;
-    let invalidated = false;
-    if (lastObservedDataVersion !== null && currentVersion !== lastObservedDataVersion) {
-      analyticsQueryCache.clear();
-      await initSaleValuationsCache(conn);
-      invalidated = true;
-    }
-    lastObservedDataVersion = currentVersion;
-    return invalidated;
-  } catch {
-    // In-memory or environments where data_version is not supported
-    return false;
-  }
+  if(refreshPromise) await refreshPromise;
+  const active = conn || getMetadataConnection();
+  const currentVersion = await marketVersion(active);
+  const invalidated = cacheConnection !== active || lastObservedDataVersion !== currentVersion;
+  if(!invalidated) return false;
+  if(refreshPromise) {await refreshPromise;return syncCacheWithDataVersion(conn);}
+  const refresh=(async()=>{
+    invalidateAnalyticsCache();invalidateLivabilityCache();
+    saleValuationsCache=new Map();valuationsLoaded=false;
+    cacheConnection=active;lastObservedDataVersion=currentVersion;
+  })();
+  refreshPromise=refresh;
+  try {await refresh;} finally {if(refreshPromise===refresh) refreshPromise=null;}
+  return true;
 }
 
 /**
- * Loads pre-computed 24-month rolling median sale benchmarks into memory cache (Step 3.1).
- * Loads in < 2ms directly from project_benchmarks table.
+ * Loads date-filtered current valuations using the shared sample contract.
  * @param {object} [conn] Optional database connection for transaction/test isolation
  */
 export async function initSaleValuationsCache(conn = null) {
-  const queryFn = conn ? conn.all.bind(conn) : dbAll;
-  const rows = await queryFn(`
-    SELECT project_id, rolling_24m_median_price as median_price, rolling_24m_median_psft as median_psft
-    FROM project_benchmarks
-  `);
-  saleValuationsCache.clear();
-  for (const r of rows) {
-    saleValuationsCache.set(r.project_id, {
-      medianPrice: Math.round(r.median_price || 0),
-      medianPsft: Math.round(r.median_psft || 0)
-    });
-  }
+  const active=conn || getPrimaryConnection();
+  const before=await marketVersion(active);
+  const data=await matchedSaleValuations({propertyType:'all'},active);
+  const after=await marketVersion(active);
+  if(before!==after) {valuationsLoaded=false;throw new Error('Market changed during valuation preparation; retry after sync');}
+  saleValuationsCache=data;valuationsLoaded=true;cacheConnection=conn || getMetadataConnection();lastObservedDataVersion=after;
+}
+async function ensureValuations() {
+  if(valuationsLoaded) return;
+  if(!valuationsFlight) valuationsFlight=initSaleValuationsCache().finally(()=>{valuationsFlight=null;});
+  await valuationsFlight;
+}
+export async function prepareDefaultAnalytics() {
+  const began=Date.now();
+  await getPriceAnalytics();await getRentalYieldAnalytics();await getRentalYieldAnalytics({unitSizeMax:10000});
+  return {prepared:true,durationMs:Date.now()-began,marketVersion:await marketVersion(getPrimaryConnection())};
 }
 
 export async function invalidateSaleValuationsCache(conn = null) {
@@ -222,6 +243,7 @@ export async function invalidateSaleValuationsCache(conn = null) {
 }
 
 export function invalidateAnalyticsCache() {
+  analyticsGeneration++;
   analyticsQueryCache.clear();
 }
 export const clearAnalyticsCache = invalidateAnalyticsCache;
@@ -247,7 +269,7 @@ export async function refreshProjectBenchmarks(conn = null) {
                  ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY psft_sgd) AS rn,
                  COUNT(*) OVER (PARTITION BY project_id) AS cnt
           FROM property_transactions
-          WHERE contract_date >= date('now', '-24 months')
+          WHERE contract_date BETWEEN date('now', '-23 months', 'start of month') AND date('now') AND price_sgd > 0 AND psft_sgd > 0
             AND (no_of_units = 1 OR no_of_units IS NULL)
         ),
         med_psft AS (
@@ -263,7 +285,7 @@ export async function refreshProjectBenchmarks(conn = null) {
                  ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY price_sgd) AS rn,
                  COUNT(*) OVER (PARTITION BY project_id) AS cnt
           FROM property_transactions
-          WHERE contract_date >= date('now', '-24 months')
+          WHERE contract_date BETWEEN date('now', '-23 months', 'start of month') AND date('now') AND price_sgd > 0 AND psft_sgd > 0
             AND (no_of_units = 1 OR no_of_units IS NULL)
         ),
         med_price AS (
@@ -274,8 +296,8 @@ export async function refreshProjectBenchmarks(conn = null) {
           GROUP BY project_id
         )
         SELECT p.project_id,
-               pr.rolling_24m_median_price,
-               p.rolling_24m_median_psft,
+               CASE WHEN p.sale_count >= 3 THEN pr.rolling_24m_median_price END,
+               CASE WHEN p.sale_count >= 3 THEN p.rolling_24m_median_psft END,
                p.sale_count,
                CURRENT_TIMESTAMP
         FROM med_psft p
@@ -293,7 +315,9 @@ export async function refreshProjectBenchmarks(conn = null) {
   }
 }
 
-export function getProjectSaleValuation(projId) {
+export async function getProjectSaleValuation(projId) {
+  await syncCacheWithDataVersion();
+  await ensureValuations();
   const data = saleValuationsCache.get(projId);
   if (data && data.medianPrice && data.medianPsft) {
     return data;
@@ -311,26 +335,26 @@ export async function getSearchSuggestions(q) {
   const escaped = escapeLike(q.trim().toUpperCase());
   const term = `%${escaped}%`;
 
-  const projects = await dbAll(
+  const projects = await getMetadataConnection().all(
     `SELECT project_id as id, project_name as name, street_name as street, postal_district as district, planning_area as planningArea,
             latitude as lat, longitude as lng, geo_source as locationQuality
      FROM projects
-     WHERE UPPER(project_name) LIKE ? ESCAPE '\\' OR UPPER(street_name) LIKE ? ESCAPE '\\'
+     WHERE (UPPER(project_name) LIKE ? ESCAPE '\\' OR UPPER(street_name) LIKE ? ESCAPE '\\') AND NOT EXISTS (SELECT 1 FROM project_identity_review q WHERE q.project_id=projects.project_id AND q.status='pending')
      LIMIT 10`,
     [term, term]
   );
 
-  const streetsRows = await dbAll(
+  const streetsRows = await getMetadataConnection().all(
     `SELECT DISTINCT street_name FROM projects WHERE UPPER(street_name) LIKE ? ESCAPE '\\' LIMIT 5`,
     [term]
   );
 
-  const districtRows = await dbAll(
+  const districtRows = await getMetadataConnection().all(
     `SELECT DISTINCT postal_district FROM projects WHERE postal_district LIKE ? ESCAPE '\\' AND postal_district IS NOT NULL LIMIT 5`,
     [term]
   );
 
-  const planningRows = await dbAll(
+  const planningRows = await getMetadataConnection().all(
     `SELECT DISTINCT planning_area FROM projects WHERE UPPER(planning_area) LIKE ? ESCAPE '\\' AND planning_area IS NOT NULL LIMIT 5`,
     [term]
   );
@@ -344,7 +368,7 @@ export async function getSearchSuggestions(q) {
 }
 
 // 2. Price Analytics & Filter Query Engine
-export async function getPriceAnalytics(filters = {}) {
+async function calculatePriceAnalytics(filters = {},generation=analyticsGeneration) {
   await syncCacheWithDataVersion();
   const cacheKey = normalizeAnalyticsCacheKey('price', filters);
   const cachedData = getAnalyticsCache(cacheKey);
@@ -385,7 +409,7 @@ export async function getPriceAnalytics(filters = {}) {
   const sizeMinSqm = unitType === 'sqft' ? unitSizeMin / 10.7639 : unitSizeMin;
   const sizeMaxSqm = unitType === 'sqft' ? unitSizeMax / 10.7639 : unitSizeMax;
 
-  let whereClauses = ['t.contract_date >= ? AND t.contract_date <= ?', 't.area_sqm >= ? AND t.area_sqm <= ?'];
+  let whereClauses = ['t.contract_date >= ? AND t.contract_date <= ?', 't.area_sqm >= ? AND t.area_sqm <= ?', "NOT EXISTS (SELECT 1 FROM project_identity_review q WHERE q.project_id=p.project_id AND q.status='pending')"];
   let params = [effectiveDateFrom, effectiveDateTo, sizeMinSqm, sizeMaxSqm];
 
   // Specific project IDs or names
@@ -409,7 +433,7 @@ export async function getPriceAnalytics(filters = {}) {
 
   // District filter
   if (district) {
-    whereClauses.push(`p.postal_district = ?`);
+    whereClauses.push(`COALESCE(t.source_district,p.postal_district) = ?`);
     params.push(String(district).padStart(2, '0'));
   }
 
@@ -462,7 +486,7 @@ export async function getPriceAnalytics(filters = {}) {
         page: Math.max(1, parseInt(page, 10) || 1),
         limit: Math.min(Math.max(Number(limit) || 100, 1), 500)
       };
-      setAnalyticsCache(cacheKey, emptyResult);
+      setAnalyticsCache(cacheKey, emptyResult,generation);
       return emptyResult;
     }
     const placeholders = matchedIds.map(() => '?').join(',');
@@ -472,15 +496,10 @@ export async function getPriceAnalytics(filters = {}) {
 
   const sqlWhere = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
 
-  // Determine cutoff date for the past 24 months relative to effectiveDateTo
-  const dTo = new Date(effectiveDateTo);
-  const cutoffYear = isNaN(dTo.getFullYear()) ? new Date().getFullYear() - 2 : dTo.getFullYear() - 2;
-  const cutoffDate = `${cutoffYear}-${String(dTo.getMonth() + 1 || 12).padStart(2, '0')}-01`;
-
   const summaryWhereClauses = [...whereClauses];
   const summaryParams = [...params];
   summaryWhereClauses[0] = 't.contract_date >= ? AND t.contract_date <= ?';
-  summaryParams[0] = cutoffDate;
+  summaryParams[0] = effectiveDateFrom;
   summaryParams[1] = effectiveDateTo;
   const summarySqlWhere = 'WHERE ' + summaryWhereClauses.join(' AND ');
 
@@ -489,65 +508,29 @@ export async function getPriceAnalytics(filters = {}) {
     dbGet(
       `SELECT COUNT(*) as totalCount
        FROM property_transactions t
-       JOIN projects p ON t.project_id = p.project_id
+       JOIN projects p INDEXED BY idx_projects_filter_cover ON t.project_id = p.project_id
        ${sqlWhere}`,
       params
     ),
 
-    // 2. Summary for past 24 months with window-function medians (excluding bulk purchases)
-    dbGet(
-      `WITH ranked AS (
-         SELECT t.price_sgd, t.psqm_sgd, t.psft_sgd,
-                ROW_NUMBER() OVER (ORDER BY t.price_sgd) AS rn_price,
-                ROW_NUMBER() OVER (ORDER BY t.psqm_sgd) AS rn_psqm,
-                ROW_NUMBER() OVER (ORDER BY t.psft_sgd) AS rn_psft,
-                COUNT(*) OVER () AS total_count,
-                MIN(t.price_sgd) OVER () AS min_price,
-                MAX(t.price_sgd) OVER () AS max_price,
-                AVG(t.price_sgd) OVER () AS avg_price
-         FROM property_transactions t
-         JOIN projects p ON t.project_id = p.project_id
-         ${summarySqlWhere} AND (t.no_of_units = 1 OR t.no_of_units IS NULL)
-       )
-       SELECT total_count, min_price, max_price, ROUND(avg_price) as averagePrice,
-              ROUND(AVG(CASE WHEN rn_price IN ((total_count + 1)/2, (total_count + 2)/2) THEN price_sgd END)) AS medianPrice,
-              ROUND(AVG(CASE WHEN rn_psqm IN ((total_count + 1)/2, (total_count + 2)/2) THEN psqm_sgd END)) AS medianPsqm,
-              ROUND(AVG(CASE WHEN rn_psft IN ((total_count + 1)/2, (total_count + 2)/2) THEN psft_sgd END)) AS medianPsft
-       FROM ranked
-       WHERE rn_price IN ((total_count + 1)/2, (total_count + 2)/2)
-          OR rn_psqm IN ((total_count + 1)/2, (total_count + 2)/2)
-          OR rn_psft IN ((total_count + 1)/2, (total_count + 2)/2)`,
-      summaryParams
-    ),
+    medianOne(`SELECT COUNT(*) AS total_count,MIN(t.price_sgd) AS min_price,MAX(t.price_sgd) AS max_price,
+      ROUND(AVG(t.price_sgd)) AS averagePrice,
+      GROUP_CONCAT(CASE WHEN t.price_sgd IS NOT NULL THEN printf('%!.17g',t.price_sgd) END) AS prices,
+      GROUP_CONCAT(CASE WHEN t.psqm_sgd IS NOT NULL THEN printf('%!.17g',t.psqm_sgd) END) AS psqm_values,
+      GROUP_CONCAT(CASE WHEN t.psft_sgd IS NOT NULL THEN printf('%!.17g',t.psft_sgd) END) AS psft_values
+      FROM property_transactions t JOIN projects p INDEXED BY idx_projects_filter_cover ON t.project_id=p.project_id
+      ${summarySqlWhere} AND (t.no_of_units=1 OR t.no_of_units IS NULL)`,summaryParams,
+      [{source:'prices',count:'total_count',target:'medianPrice',digits:0},{source:'psqm_values',count:'total_count',target:'medianPsqm',digits:0},{source:'psft_values',count:'total_count',target:'medianPsft',digits:0}]),
 
-    // 3. Time Series Monthly with window-function medians
-    dbAll(
-      `WITH ranked AS (
-         SELECT SUBSTR(t.contract_date, 1, 7) AS period, t.psqm_sgd, t.psft_sgd, t.price_sgd,
-                ROW_NUMBER() OVER (PARTITION BY SUBSTR(t.contract_date, 1, 7) ORDER BY t.psqm_sgd) AS rn_psqm,
-                ROW_NUMBER() OVER (PARTITION BY SUBSTR(t.contract_date, 1, 7) ORDER BY t.psft_sgd) AS rn_psft,
-                ROW_NUMBER() OVER (PARTITION BY SUBSTR(t.contract_date, 1, 7) ORDER BY t.price_sgd) AS rn_price,
-                COUNT(*) OVER (PARTITION BY SUBSTR(t.contract_date, 1, 7)) AS cnt,
-                AVG(t.psqm_sgd) OVER (PARTITION BY SUBSTR(t.contract_date, 1, 7)) AS avg_psqm,
-                AVG(t.psft_sgd) OVER (PARTITION BY SUBSTR(t.contract_date, 1, 7)) AS avg_psft
-         FROM property_transactions t
-         JOIN projects p ON t.project_id = p.project_id
-         ${sqlWhere} AND (t.no_of_units = 1 OR t.no_of_units IS NULL)
-       )
-       SELECT period, cnt AS volume,
-              ROUND(AVG(CASE WHEN rn_psqm IN ((cnt + 1)/2, (cnt + 2)/2) THEN psqm_sgd END)) AS medianPsqm,
-              ROUND(avg_psqm) AS avgPsqm,
-              ROUND(AVG(CASE WHEN rn_psft IN ((cnt + 1)/2, (cnt + 2)/2) THEN psft_sgd END)) AS medianPsft,
-              ROUND(avg_psft) AS avgPsft,
-              ROUND(AVG(CASE WHEN rn_price IN ((cnt + 1)/2, (cnt + 2)/2) THEN price_sgd END)) AS medianPrice
-       FROM ranked
-       WHERE rn_psqm IN ((cnt + 1)/2, (cnt + 2)/2)
-          OR rn_psft IN ((cnt + 1)/2, (cnt + 2)/2)
-          OR rn_price IN ((cnt + 1)/2, (cnt + 2)/2)
-       GROUP BY period
-       ORDER BY period ASC`,
-      params
-    ),
+    medianRows(`SELECT substr(t.contract_date,1,7) AS period,COUNT(*) AS volume,
+      ROUND(AVG(t.psqm_sgd)) AS avgPsqm,ROUND(AVG(t.psft_sgd)) AS avgPsft,
+      GROUP_CONCAT(CASE WHEN t.price_sgd IS NOT NULL THEN printf('%!.17g',t.price_sgd) END) AS prices,
+      GROUP_CONCAT(CASE WHEN t.psqm_sgd IS NOT NULL THEN printf('%!.17g',t.psqm_sgd) END) AS psqm_values,
+      GROUP_CONCAT(CASE WHEN t.psft_sgd IS NOT NULL THEN printf('%!.17g',t.psft_sgd) END) AS psft_values
+      FROM property_transactions t JOIN projects p INDEXED BY idx_projects_filter_cover ON t.project_id=p.project_id
+      ${sqlWhere} AND (t.no_of_units=1 OR t.no_of_units IS NULL)
+      GROUP BY substr(t.contract_date,1,7) ORDER BY period`,params,
+      [{source:'prices',count:'volume',target:'medianPrice',digits:0},{source:'psqm_values',count:'volume',target:'medianPsqm',digits:0},{source:'psft_values',count:'volume',target:'medianPsft',digits:0}]),
 
     // 4. Scatter Points (paginated with sanitized page and limit)
     dbAll(
@@ -562,36 +545,27 @@ export async function getPriceAnalytics(filters = {}) {
               t.type_of_sale AS typeOfSale,
               t.project_id AS projectId
        FROM property_transactions t
-       JOIN projects p ON t.project_id = p.project_id
+       JOIN projects p INDEXED BY idx_projects_filter_cover ON t.project_id = p.project_id
        ${sqlWhere}
        ORDER BY t.contract_date DESC, t.transaction_id DESC
        LIMIT ? OFFSET ?`,
       [...params, sanitizedLimit, offset]
     ),
 
-    // 5. Distinct Developments for Map Display with SQL window medians
-    dbAll(
-      `WITH ranked AS (
-         SELECT t.project_id, t.psqm_sgd, t.psft_sgd,
-                ROW_NUMBER() OVER (PARTITION BY t.project_id ORDER BY t.psft_sgd) AS rn,
-                COUNT(*) OVER (PARTITION BY t.project_id) AS cnt
-         FROM property_transactions t
-         JOIN projects p ON t.project_id = p.project_id
-         ${sqlWhere} AND (t.no_of_units = 1 OR t.no_of_units IS NULL)
-       )
-       SELECT p.project_id AS id, p.project_name AS name, p.street_name AS street,
-              p.postal_district AS district, p.market_segment AS segment, p.planning_area AS planningArea,
-              p.latitude AS lat, p.longitude AS lng, p.geo_source AS locationQuality,
-              p.livability_score AS livabilityScore, p.livability_data AS livabilityData,
-              r.cnt AS txCount,
-              ROUND(AVG(CASE WHEN r.rn IN ((r.cnt + 1)/2, (r.cnt + 2)/2) THEN r.psqm_sgd END)) AS medianPsqm,
-              ROUND(AVG(CASE WHEN r.rn IN ((r.cnt + 1)/2, (r.cnt + 2)/2) THEN r.psft_sgd END)) AS medianPsft
-       FROM ranked r
-       JOIN projects p ON r.project_id = p.project_id
-       WHERE r.rn IN ((r.cnt + 1)/2, (r.cnt + 2)/2)
-       GROUP BY r.project_id`,
-      params
-    )
+    medianRows(`WITH aggregates AS (
+      SELECT t.project_id,COUNT(*) AS txCount,
+        GROUP_CONCAT(CASE WHEN t.psft_sgd IS NOT NULL THEN printf('%!.17g',t.psft_sgd) END) AS psft_values,
+        GROUP_CONCAT(CASE WHEN t.psft_sgd IS NULL THEN 'n' ELSE printf('%!.17g',t.psft_sgd) END || ':' || CASE WHEN t.psqm_sgd IS NULL THEN 'n' ELSE printf('%!.17g',t.psqm_sgd) END) AS paired_psqm
+      FROM property_transactions t JOIN projects p INDEXED BY idx_projects_filter_cover ON t.project_id=p.project_id
+      ${sqlWhere} AND (t.no_of_units=1 OR t.no_of_units IS NULL) GROUP BY t.project_id)
+      SELECT p.project_id AS id,p.project_name AS name,p.street_name AS street,p.postal_district AS district,
+        p.market_segment AS segment,p.planning_area AS planningArea,p.latitude AS lat,p.longitude AS lng,
+        p.geo_source AS locationQuality,p.livability_score AS livabilityScore,
+        CASE WHEN json_valid(p.livability_data) THEN json_object('subScores',json_extract(p.livability_data,'$.subScores')) END AS livabilityData,
+        a.txCount,a.psft_values,a.paired_psqm
+      FROM aggregates a JOIN projects p INDEXED BY idx_projects_filter_cover ON a.project_id=p.project_id`,params,
+      [{source:'psft_values',count:'txCount',target:'medianPsft',digits:0},{source:'paired_psqm',count:'txCount',target:'medianPsqm',digits:0,paired:true}])
+
   ]);
 
   const summary = {
@@ -638,13 +612,13 @@ export async function getPriceAnalytics(filters = {}) {
 
   const mapProjects = mapRows.map(p => {
     let livScore = p.livabilityScore;
-    if (p.locationQuality === 'district_centre') {
+    if (p.locationQuality === 'district_centre' || !p.lat || !p.lng) {
       livScore = null;
     }
     let livSubScores = { mrt: null, school: null, hawker: null, supermarket: null, park: null };
     let livNearest = {};
 
-    if (p.livabilityData) {
+    if (p.livabilityData && p.locationQuality !== 'district_centre' && p.lat && p.lng) {
       try {
         const parsedData = typeof p.livabilityData === 'string' ? JSON.parse(p.livabilityData) : p.livabilityData;
         livSubScores = parsedData.subScores || livSubScores;
@@ -690,7 +664,7 @@ export async function getPriceAnalytics(filters = {}) {
         label: getGradeLabel(livScore, p.locationQuality),
         color: getGradeColor(livScore),
         subScores: livSubScores,
-        nearest: livNearest
+        nearest: {}
       }
     };
   });
@@ -707,12 +681,12 @@ export async function getPriceAnalytics(filters = {}) {
     totalPages: Math.ceil((countRow?.totalCount || 0) / sanitizedLimit)
   };
 
-  setAnalyticsCache(cacheKey, result);
+  setAnalyticsCache(cacheKey, result,generation);
   return result;
 }
 
 // 3. Rental Yield Analytics Query Engine
-export async function getRentalYieldAnalytics(filters = {}) {
+async function calculateRentalAnalytics(filters = {},generation=analyticsGeneration) {
   await syncCacheWithDataVersion();
   const cacheKey = normalizeAnalyticsCacheKey('rental', filters);
   const cachedData = getAnalyticsCache(cacheKey);
@@ -750,7 +724,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
   const effectiveDateFrom = dateFrom || defaultDates.dateFrom;
   const effectiveDateTo = dateTo || defaultDates.dateTo;
 
-  let whereClauses = ['r.lease_date >= ? AND r.lease_date <= ?'];
+  let whereClauses = ['substr(r.lease_date,1,7) >= ? AND substr(r.lease_date,1,7) <= ?', "NOT EXISTS (SELECT 1 FROM project_identity_review q WHERE q.project_id=p.project_id AND q.status='pending')"];
   let params = [effectiveDateFrom.substring(0, 7), effectiveDateTo.substring(0, 7)];
 
   // Unit size / Floor area band filtering
@@ -782,7 +756,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
 
   // District filter
   if (district) {
-    whereClauses.push(`p.postal_district = ?`);
+    whereClauses.push(`COALESCE(r.source_district,p.postal_district) = ?`);
     params.push(String(district).padStart(2, '0'));
   }
 
@@ -841,7 +815,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
         page: Math.max(1, parseInt(page, 10) || 1),
         limit: Math.min(Math.max(Number(limit) || 100, 1), 500)
       };
-      setAnalyticsCache(cacheKey, emptyResult);
+      setAnalyticsCache(cacheKey, emptyResult,generation);
       return emptyResult;
     }
     const placeholders = matchedIds.map(() => '?').join(',');
@@ -851,15 +825,13 @@ export async function getRentalYieldAnalytics(filters = {}) {
 
   const sqlWhere = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
 
-  // 24-month cutoff date for headline summary metrics
+  // Rental headline summaries use the selected month window.
   const endMonth = effectiveDateTo.substring(0, 7);
-  const yr = Number(endMonth.slice(0, 4));
-  const cutoff24m = `${isNaN(yr) ? new Date().getFullYear() - 2 : yr - 2}-${endMonth.slice(5, 7)}`;
 
   const summaryWhereClauses = [...whereClauses];
   const summaryParams = [...params];
-  summaryWhereClauses[0] = 'r.lease_date >= ? AND r.lease_date <= ?';
-  summaryParams[0] = cutoff24m;
+  summaryWhereClauses[0] = 'substr(r.lease_date,1,7) >= ? AND substr(r.lease_date,1,7) <= ?';
+  summaryParams[0] = effectiveDateFrom.substring(0,7);
   summaryParams[1] = endMonth;
   const summarySqlWhere = 'WHERE ' + summaryWhereClauses.join(' AND ');
 
@@ -868,66 +840,31 @@ export async function getRentalYieldAnalytics(filters = {}) {
     dbGet(
       `SELECT COUNT(*) as totalCount
        FROM rental_transactions r
-       JOIN projects p ON r.project_id = p.project_id
+       JOIN projects p INDEXED BY idx_projects_filter_cover ON r.project_id = p.project_id
        ${sqlWhere}`,
       params
     ),
 
-    // 2. Headline Summary for past 24 months with SQL medians
-    dbGet(
-      `WITH ranked_rent AS (
-         SELECT r.rent_sgd,
-                ROW_NUMBER() OVER (ORDER BY r.rent_sgd) AS rn_rent,
-                COUNT(*) OVER () AS total_count,
-                MIN(r.rent_sgd) OVER () AS min_rent,
-                MAX(r.rent_sgd) OVER () AS max_rent
-         FROM rental_transactions r
-         JOIN projects p ON r.project_id = p.project_id
-         ${summarySqlWhere}
-       ),
-       ranked_psft AS (
-         SELECT r.rent_psft, r.rent_psqm,
-                ROW_NUMBER() OVER (ORDER BY r.rent_psft) AS rn_psft,
-                ROW_NUMBER() OVER (ORDER BY r.rent_psqm) AS rn_psqm,
-                COUNT(*) OVER () AS psft_count
-         FROM rental_transactions r
-         JOIN projects p ON r.project_id = p.project_id
-         ${summarySqlWhere} AND r.rent_psft IS NOT NULL
-       )
-       SELECT 
-         (SELECT total_count FROM ranked_rent LIMIT 1) AS total_count,
-         (SELECT min_rent FROM ranked_rent LIMIT 1) AS min_rent,
-         (SELECT max_rent FROM ranked_rent LIMIT 1) AS max_rent,
-         (SELECT ROUND(AVG(rent_sgd)) FROM ranked_rent WHERE rn_rent IN ((total_count + 1)/2, (total_count + 2)/2)) AS median_rent,
-         (SELECT ROUND(AVG(rent_psft), 2) FROM ranked_psft WHERE rn_psft IN ((psft_count + 1)/2, (psft_count + 2)/2)) AS median_rent_psft,
-         (SELECT ROUND(AVG(rent_psqm), 2) FROM ranked_psft WHERE rn_psqm IN ((psft_count + 1)/2, (psft_count + 2)/2)) AS median_rent_psqm`,
-      [...summaryParams, ...summaryParams]
-    ),
+    medianOne(`SELECT COUNT(*) AS total_count,MIN(r.rent_sgd) AS min_rent,MAX(r.rent_sgd) AS max_rent,
+      COUNT(CASE WHEN r.rent_psft>0 THEN 1 END) AS psft_count,
+      GROUP_CONCAT(CASE WHEN r.rent_sgd IS NOT NULL THEN printf('%!.17g',r.rent_sgd) END) AS rents,
+      GROUP_CONCAT(CASE WHEN r.rent_psft>0 THEN printf('%!.17g',r.rent_psft) END) AS psft_values,
+      GROUP_CONCAT(CASE WHEN r.rent_psft>0 AND r.rent_psqm IS NOT NULL THEN printf('%!.17g',r.rent_psqm) END) AS psqm_values
+      FROM rental_transactions r JOIN projects p INDEXED BY idx_projects_filter_cover ON r.project_id=p.project_id ${summarySqlWhere}`,summaryParams,
+      [{source:'rents',count:'total_count',target:'median_rent',digits:0},{source:'psft_values',count:'psft_count',target:'median_rent_psft',digits:2},{source:'psqm_values',count:'psft_count',target:'median_rent_psqm',digits:2}]),
 
-    // 2b. Matching 24-month median sale psft across the same filtered projects (eliminates hardcoded 1650 psf)
-    dbGet(
-      `SELECT ROUND(AVG(b.rolling_24m_median_psft), 2) as medianSalePsft
-       FROM project_benchmarks b
-       WHERE b.rolling_24m_median_psft IS NOT NULL
-         AND b.project_id IN (
-           SELECT DISTINCT r.project_id
-           FROM rental_transactions r
-           JOIN projects p ON r.project_id = p.project_id
-           ${sqlWhere}
-         )`,
-      params
-    ),
+    matchedSaleValuations({ ...filters, dateTo: effectiveDateTo }),
 
     // 3. Time Series Monthly Breakdown
     dbAll(
-      `SELECT r.lease_date as month,
+      `SELECT substr(r.lease_date,1,7) as month,
               COUNT(*) as count,
               ROUND(AVG(r.rent_sgd)) as avgRent,
               ROUND(AVG(r.rent_psft), 2) as avgRentPsft
        FROM rental_transactions r
-       JOIN projects p ON r.project_id = p.project_id
+       JOIN projects p INDEXED BY idx_projects_filter_cover ON r.project_id = p.project_id
        ${sqlWhere}
-       GROUP BY r.lease_date
+       GROUP BY substr(r.lease_date,1,7)
        ORDER BY r.lease_date ASC`,
       params
     ),
@@ -939,7 +876,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
               ROUND(AVG(r.rent_sgd)) as avgRent,
               ROUND(AVG(r.rent_psft), 2) as avgPsft
        FROM rental_transactions r
-       JOIN projects p ON r.project_id = p.project_id
+       JOIN projects p INDEXED BY idx_projects_filter_cover ON r.project_id = p.project_id
        ${sqlWhere}
        GROUP BY r.bedroom_count
        ORDER BY bedroom ASC`,
@@ -956,41 +893,29 @@ export async function getRentalYieldAnalytics(filters = {}) {
               p.project_name as projectName, p.street_name as streetName, p.postal_district as district,
               p.market_segment as marketSegment, p.planning_area as planningArea
        FROM rental_transactions r
-       JOIN projects p ON r.project_id = p.project_id
+       JOIN projects p INDEXED BY idx_projects_filter_cover ON r.project_id = p.project_id
        ${sqlWhere}
-       ORDER BY r.lease_date DESC
+       ORDER BY r.lease_date DESC, r.rental_id DESC
        LIMIT ? OFFSET ?`,
       [...params, sanitizedLimit, offset]
     ),
 
-    // 6. Map Projects Aggregation with window-function medians
-    dbAll(
-      `WITH ranked AS (
-         SELECT r.project_id, r.rent_sgd, r.rent_psft,
-                ROW_NUMBER() OVER (PARTITION BY r.project_id ORDER BY r.rent_sgd) AS rn_rent,
-                ROW_NUMBER() OVER (PARTITION BY r.project_id ORDER BY CASE WHEN r.rent_psft IS NULL THEN 1 ELSE 0 END, r.rent_psft) AS rn_psft,
-                COUNT(*) OVER (PARTITION BY r.project_id) AS cnt,
-                COUNT(r.rent_psft) OVER (PARTITION BY r.project_id) AS psft_cnt
-         FROM rental_transactions r
-         JOIN projects p ON r.project_id = p.project_id
-         ${sqlWhere}
-       )
-       SELECT p.project_id AS id, p.project_name AS name, p.street_name AS street,
-              p.postal_district AS district, p.market_segment AS segment, p.planning_area AS planningArea,
-              p.latitude AS lat, p.longitude AS lng, p.geo_source AS locationQuality,
-              p.livability_score AS livabilityScore, p.livability_data AS livabilityData,
-              r.cnt AS txCount,
-              ROUND(AVG(CASE WHEN r.rn_rent IN ((r.cnt + 1)/2, (r.cnt + 2)/2) THEN r.rent_sgd END)) AS medianRent,
-              ROUND(AVG(CASE WHEN r.psft_cnt > 0 AND r.rn_psft IN ((r.psft_cnt + 1)/2, (r.psft_cnt + 2)/2) THEN r.rent_psft END), 2) AS medianRentPsft
-       FROM ranked r
-       JOIN projects p ON r.project_id = p.project_id
-       GROUP BY r.project_id`,
-      params
-    )
+    medianRows(`WITH aggregates AS (
+      SELECT r.project_id,COUNT(*) AS txCount,COUNT(CASE WHEN r.rent_psft>0 THEN 1 END) AS usableRentalCount,
+        GROUP_CONCAT(CASE WHEN r.rent_sgd IS NOT NULL THEN printf('%!.17g',r.rent_sgd) END) AS rents,
+        GROUP_CONCAT(CASE WHEN r.rent_psft>0 THEN printf('%!.17g',r.rent_psft) END) AS psft_values
+      FROM rental_transactions r JOIN projects p INDEXED BY idx_projects_filter_cover ON r.project_id=p.project_id ${sqlWhere} GROUP BY r.project_id)
+      SELECT p.project_id AS id,p.project_name AS name,p.street_name AS street,p.postal_district AS district,
+        p.market_segment AS segment,p.planning_area AS planningArea,p.latitude AS lat,p.longitude AS lng,
+        p.geo_source AS locationQuality,p.livability_score AS livabilityScore,
+        CASE WHEN json_valid(p.livability_data) THEN json_object('subScores',json_extract(p.livability_data,'$.subScores')) END AS livabilityData,
+        a.txCount,a.usableRentalCount,a.rents,a.psft_values
+      FROM aggregates a JOIN projects p INDEXED BY idx_projects_filter_cover ON a.project_id=p.project_id`,params,
+      [{source:'rents',count:'txCount',target:'medianRent',digits:0},{source:'psft_values',count:'usableRentalCount',target:'medianRentPsft',digits:2}])
+
   ]);
 
-  const medianRentPsft = summaryRow?.median_rent_psft || 0;
-  const benchmarkSalePsft = matchingSaleStats?.medianSalePsft || null;
+  const medianRentPsft = summaryRow?.median_rent_psft ?? null;
 
   const startMonth = effectiveDateFrom.substring(0, 7);
   const allMonths = generateMonthRange(startMonth, endMonth);
@@ -1006,53 +931,52 @@ export async function getRentalYieldAnalytics(filters = {}) {
   });
 
   const bedroomBreakdown = bedroomRows.map(b => ({
-    bedroom: b.bedroom,
-    count: b.count,
-    avgRent: b.avgRent,
-    avgPsft: b.avgPsft,
-    avgYield: (b.avgPsft && benchmarkSalePsft)
-      ? parseFloat(((b.avgPsft * 12.0 / benchmarkSalePsft) * 100).toFixed(2))
-      : null
+    bedroom: b.bedroom, count: b.count, avgRent: b.avgRent, avgPsft: b.avgPsft,
+    avgYield: null, yieldReason: 'No bedroom-matched sales field is available.'
   }));
-
+  const rentalSamples = new Map(mapRows.map(p => [p.id, p.usableRentalCount]));
+  const benchmarkWindow = saleWindow(effectiveDateTo);
+  const metricContract = {version: 'phase2-v1', formula: 'median rent psf * 12 / median sale psf * 100',
+    aggregation: 'median of eligible project yields', minimumSales: 3, minimumUsableRentals: 3,
+    rentalWindow: {dateFrom: effectiveDateFrom.slice(0,7), dateTo: endMonth}, saleWindow: benchmarkWindow,
+    matching: 'same project, property type, tenure and unit-size filters; bedrooms and rent-price filters apply to rentals only',
+    areaMethod: 'rental area-band midpoint estimate; open-ended bands excluded from psf estimates'};
   const rentalCaveats = caveats.map(r => {
-    const val = getProjectSaleValuation(r.projectId);
+    const val = matchingSaleStats.get(r.projectId);
     const annualRentPsft = r.rentPsft ? r.rentPsft * 12 : null;
-    const grossYield = (annualRentPsft && val?.medianPsft)
-      ? parseFloat(((annualRentPsft / val.medianPsft) * 100).toFixed(2))
-      : null;
+    const grossYield = projectYield(r.rentPsft, rentalSamples.get(r.projectId), val);
     const estimatedSalePrice = (r.areaSqft && val?.medianPsft)
       ? Math.round(r.areaSqft * val.medianPsft)
       : null;
     return {
       ...r,
       estimatedSaleValuation: estimatedSalePrice,
+      saleBenchmark: val || { ...benchmarkWindow, saleCount: 0, medianPsft: null },
+      usableRentalCount: rentalSamples.get(r.projectId) || 0,
       grossYield
     };
   });
 
   const projectYields = [];
   const mapProjects = mapRows.map(p => {
-    const val = getProjectSaleValuation(p.id);
-    const grossYield = (p.medianRentPsft && val?.medianPsft && val?.medianPsft > 0)
-      ? parseFloat(((p.medianRentPsft * 12 / val.medianPsft) * 100).toFixed(2))
-      : null;
+    const val = matchingSaleStats.get(p.id) || { ...benchmarkWindow, saleCount: 0, medianPrice: null, medianPsft: null };
+    const grossYield = projectYield(p.medianRentPsft, p.usableRentalCount, val);
 
     // Option A: Only include projects with >= 3 transactions in the window for median headline calculation
-    if (grossYield !== null && isFinite(grossYield) && grossYield > 0 && grossYield < 50 && p.txCount >= 3) {
+    if (grossYield !== null && isFinite(grossYield) && grossYield > 0) {
       projectYields.push(grossYield);
     }
 
     // Step 3.1: Synchronous livability score derivation without distance scans
     let livScore = p.livabilityScore;
-    if (p.locationQuality === 'district_centre') {
+    if (p.locationQuality === 'district_centre' || !p.lat || !p.lng) {
       livScore = null;
     }
 
     let livSubScores = { mrt: null, school: null, hawker: null, supermarket: null, park: null };
     let livNearest = {};
 
-    if (p.livabilityData) {
+    if (p.livabilityData && p.locationQuality !== 'district_centre' && p.lat && p.lng) {
       try {
         const parsedData = typeof p.livabilityData === 'string' ? JSON.parse(p.livabilityData) : p.livabilityData;
         livSubScores = parsedData.subScores || livSubScores;
@@ -1093,6 +1017,9 @@ export async function getRentalYieldAnalytics(filters = {}) {
       medianRent: p.medianRent,
       medianRentPsft: p.medianRentPsft,
       medianSaleValuation: val.medianPrice,
+      medianSalePsft: val.medianPsft,
+      saleBenchmark: val,
+      usableRentalCount: p.usableRentalCount,
       grossYield,
       locationQuality: p.locationQuality,
       livability: {
@@ -1100,7 +1027,7 @@ export async function getRentalYieldAnalytics(filters = {}) {
         label: getGradeLabel(livScore, p.locationQuality),
         color: getGradeColor(livScore),
         subScores: livSubScores,
-        nearest: livNearest
+        nearest: {}
       }
     };
   });
@@ -1117,9 +1044,9 @@ export async function getRentalYieldAnalytics(filters = {}) {
   }
 
   const summary = {
-    medianRent: summaryRow?.median_rent || 0,
+    medianRent: summaryRow?.median_rent ?? null,
     medianRentPsft,
-    medianRentPsqm: summaryRow?.median_rent_psqm || 0,
+    medianRentPsqm: summaryRow?.median_rent_psqm ?? null,
     avgGrossYield,
     grossYieldPct: avgGrossYield,
     yieldSampleProjects: projectYields.length,
@@ -1134,20 +1061,22 @@ export async function getRentalYieldAnalytics(filters = {}) {
     rentalCaveats,
     scatter: rentalCaveats,
     mapProjects,
-    totalCount: summaryRow?.total_count || 0,
+    metricContract,
+    totalCount: countRow?.totalCount || 0,
     page: sanitizedPage,
     limit: sanitizedLimit,
-    totalPages: Math.ceil((summaryRow?.total_count || 0) / sanitizedLimit)
+    totalPages: Math.ceil((countRow?.totalCount || 0) / sanitizedLimit)
   };
 
-  setAnalyticsCache(cacheKey, result);
+  setAnalyticsCache(cacheKey, result,generation);
   return result;
 }
 
 // 5. Get all projects overview for map initialize (Step 3.1 & 3.3.4)
-export async function getAllProjects(lifestyleWeights = null) {
+async function calculateAllProjects(lifestyleWeights = null,generation=analyticsGeneration) {
   await syncCacheWithDataVersion();
-  const cacheKey = 'allProjects:' + JSON.stringify(lifestyleWeights);
+  await ensureValuations();
+  const cacheKey = normalizeAnalyticsCacheKey('allProjects',{lifestyleWeights});
   const cachedData = getAnalyticsCache(cacheKey);
   if (cachedData) {
     return cachedData;
@@ -1158,24 +1087,25 @@ export async function getAllProjects(lifestyleWeights = null) {
     `SELECT p.project_id as id, p.project_name as name, p.street_name as street, p.postal_district as district,
             p.market_segment as segment, p.planning_area as planningArea, p.latitude as lat, p.longitude as lng,
             p.geo_source as locationQuality,
-            p.livability_score as livabilityScore, p.livability_data as livabilityData,
+            p.livability_score as livabilityScore, CASE WHEN json_valid(p.livability_data) THEN json_object('subScores',json_extract(p.livability_data,'$.subScores')) END AS livabilityData,
             p.tenure_class as tenureClass,
             COALESCE(b.sale_count, 0) as txCount,
-            b.rolling_24m_median_psft as avgPsft,
-            b.rolling_24m_median_price as medianPrice
+            CASE WHEN b.sale_count >= 3 THEN b.rolling_24m_median_psft END as avgPsft,
+            CASE WHEN b.sale_count >= 3 THEN b.rolling_24m_median_price END as medianPrice
      FROM projects p
      LEFT JOIN project_benchmarks b ON p.project_id = b.project_id
-     WHERE p.is_landed_aggregate = 0`
+     WHERE p.is_landed_aggregate = 0 AND NOT EXISTS (SELECT 1 FROM project_identity_review q WHERE q.project_id=p.project_id AND q.status='pending')`
   );
 
   const result = projects.map(p => {
+    const currentValuation = saleValuationsCache.get(p.id);
     let livScore = p.livabilityScore;
-    if (p.locationQuality === 'district_centre') {
+    if (p.locationQuality === 'district_centre' || !p.lat || !p.lng) {
       livScore = null;
     }
     let subScores = { mrt: null, school: null, hawker: null, supermarket: null, park: null };
 
-    if (p.livabilityData) {
+    if (p.livabilityData && p.locationQuality !== 'district_centre' && p.lat && p.lng) {
       try {
         const parsed = typeof p.livabilityData === 'string' ? JSON.parse(p.livabilityData) : p.livabilityData;
         subScores = parsed.subScores || subScores;
@@ -1212,9 +1142,9 @@ export async function getAllProjects(lifestyleWeights = null) {
       lat: p.lat,
       lng: p.lng,
       locationQuality: p.locationQuality,
-      txCount: p.txCount,
-      avgPsft: p.avgPsft,
-      medianPrice: p.medianPrice,
+      txCount: currentValuation?.saleCount || 0,
+      avgPsft: currentValuation?.medianPsft ?? null,
+      medianPrice: currentValuation?.medianPrice ?? null,
       tenureClass: p.tenureClass,
       livability: {
         score: livScore,
@@ -1225,6 +1155,10 @@ export async function getAllProjects(lifestyleWeights = null) {
     };
   });
 
-  setAnalyticsCache(cacheKey, result);
+  setAnalyticsCache(cacheKey, result,generation);
   return result;
 }
+
+export function getPriceAnalytics(filters={}) {return queryOnce('price',filters,generation=>calculatePriceAnalytics(filters,generation));}
+export function getRentalYieldAnalytics(filters={}) {return queryOnce('rental',filters,generation=>calculateRentalAnalytics(filters,generation));}
+export function getAllProjects(lifestyleWeights=null) {return queryOnce('allProjects',{lifestyleWeights},generation=>calculateAllProjects(lifestyleWeights,generation));}

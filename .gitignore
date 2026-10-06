@@ -13,6 +13,10 @@ client/node_modules/
 server/property.db
 server/property.db-journal
 data/
+!server/data/
+!server/data/**
+!server/migrations/data/
+!server/migrations/data/**
 server/backups/
 /.recovery-keys/
 *.db.enc
@@ -45,6 +49,7 @@ server/scripts/newsletter-preview.html
 
 # Internal review documents
 audit/2026-10-02/toolchain/
+audit/2026-10-05/provider-source*/
 server/tests/temp-phase1-*/
 *.maintenance
 *.swap.json
@@ -59,3 +64,14 @@ POST_REMEDIATION_VERIFICATION_REPORT.md
 SECURITY_AND_RESILIENCE_REVIEW.md
 
 
+# Privacy event ledgers and transient regression results
+*.privacy.jsonl
+privacy/
+privacy-replica/
+server/tests/phase3-*-results.json
+server/tests/phase4-results.json
+
+server/tests/phase4-operations-results.json
+
+# Temporary browser debugging captures; successful qualification screenshots remain versioned.
+audit/**/phase4-dialog-failure.*

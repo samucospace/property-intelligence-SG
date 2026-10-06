@@ -1,0 +1,172 @@
+{
+  "runtime": "v24.19.0",
+  "source": "Independent window-SQL implementation captured before median optimization",
+  "cases": [
+    {
+      "mode": "price",
+      "filters": {},
+      "totalCount": 100963,
+      "projects": 2350,
+      "exactMatch": true
+    },
+    {
+      "mode": "price",
+      "filters": {
+        "district": "09"
+      },
+      "totalCount": 5539,
+      "projects": 209,
+      "exactMatch": true
+    },
+    {
+      "mode": "price",
+      "filters": {
+        "dateFrom": "2022-01-01",
+        "dateTo": "2022-12-31"
+      },
+      "totalCount": 19680,
+      "projects": 1764,
+      "exactMatch": true
+    },
+    {
+      "mode": "price",
+      "filters": {
+        "bedroomCount": "3-Bedder"
+      },
+      "totalCount": 100963,
+      "projects": 2350,
+      "exactMatch": true
+    },
+    {
+      "mode": "price",
+      "filters": {
+        "unitSizeMin": 500,
+        "unitSizeMax": 1000
+      },
+      "totalCount": 48644,
+      "projects": 1415,
+      "exactMatch": true
+    },
+    {
+      "mode": "price",
+      "filters": {
+        "lifestyleWeights": {
+          "mrt": 1,
+          "school": 0,
+          "hawker": 0,
+          "supermarket": 0,
+          "park": 0
+        }
+      },
+      "totalCount": 100963,
+      "projects": 2350,
+      "exactMatch": true
+    },
+    {
+      "mode": "price",
+      "filters": {
+        "centerCoords": {
+          "lat": 1.3,
+          "lng": 103.8
+        },
+        "radiusKm": 1.5
+      },
+      "totalCount": 3440,
+      "projects": 50,
+      "exactMatch": true
+    },
+    {
+      "mode": "price",
+      "filters": {
+        "tenure": "freehold",
+        "propertyType": "all"
+      },
+      "totalCount": 37834,
+      "projects": 2992,
+      "exactMatch": true
+    },
+    {
+      "mode": "rental",
+      "filters": {},
+      "totalCount": 412085,
+      "projects": 2870,
+      "exactMatch": true
+    },
+    {
+      "mode": "rental",
+      "filters": {
+        "district": "09"
+      },
+      "totalCount": 42380,
+      "projects": 272,
+      "exactMatch": true
+    },
+    {
+      "mode": "rental",
+      "filters": {
+        "dateFrom": "2022-01-01",
+        "dateTo": "2022-12-31"
+      },
+      "totalCount": 84731,
+      "projects": 2540,
+      "exactMatch": true
+    },
+    {
+      "mode": "rental",
+      "filters": {
+        "bedroomCount": "3-Bedder"
+      },
+      "totalCount": 118388,
+      "projects": 1849,
+      "exactMatch": true
+    },
+    {
+      "mode": "rental",
+      "filters": {
+        "unitSizeMin": 500,
+        "unitSizeMax": 1000
+      },
+      "totalCount": 178151,
+      "projects": 1826,
+      "exactMatch": true
+    },
+    {
+      "mode": "rental",
+      "filters": {
+        "lifestyleWeights": {
+          "mrt": 1,
+          "school": 0,
+          "hawker": 0,
+          "supermarket": 0,
+          "park": 0
+        }
+      },
+      "totalCount": 412085,
+      "projects": 2870,
+      "exactMatch": true
+    },
+    {
+      "mode": "rental",
+      "filters": {
+        "centerCoords": {
+          "lat": 1.3,
+          "lng": 103.8
+        },
+        "radiusKm": 1.5
+      },
+      "totalCount": 13160,
+      "projects": 55,
+      "exactMatch": true
+    },
+    {
+      "mode": "rental",
+      "filters": {
+        "tenure": "freehold",
+        "propertyType": "all"
+      },
+      "totalCount": 190354,
+      "projects": 2698,
+      "exactMatch": true
+    }
+  ]
+}

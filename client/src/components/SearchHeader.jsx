@@ -186,9 +186,14 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
       <div className="filter-grid">
         {/* Autocomplete Search Box */}
         <div className="filter-group" style={{ gridColumn: 'span 2' }}>
-          <label className="filter-label">Search Development, Street, District or Planning Area</label>
+          <label htmlFor="development-search" className="filter-label">Search Development, Street, District or Planning Area</label>
           <div style={{ position: 'relative' }}>
             <input
+              id="development-search"
+              aria-label="Search development, street, district or planning area"
+              aria-expanded={showDropdown && !!suggestions}
+              aria-controls="search-suggestions"
+              onKeyDown={event => { if(event.key==='Escape') setShowDropdown(false); if(event.key==='ArrowDown') {event.preventDefault(); dropdownRef.current.querySelector('#search-suggestions button')?.focus();} }}
               type="text"
               className="input-box"
               placeholder="e.g. Reflections at Keppel Bay, Keppel Bay View, District 04, Bedok..."
@@ -202,18 +207,18 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
 
           {/* Suggestions Dropdown */}
           {showDropdown && suggestions && (
-            <div className="autocomplete-dropdown">
+            <div id="search-suggestions" className="autocomplete-dropdown" aria-label="Search suggestions">
               {suggestions.projects.length > 0 && (
                 <>
                   <div className="dropdown-section-title">Developments</div>
                   {suggestions.projects.map(p => (
-                    <div key={p.id} className="dropdown-item" onClick={() => handleSelectProject(p.name)}>
+                    <button type="button" key={p.id} className="dropdown-item" onClick={() => handleSelectProject(p.name)}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
                         <Building size={14} color="var(--color-primary-green)" />
                         {p.name}
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>D{p.district} • {p.planningArea}</span>
-                    </div>
+                    </button>
                   ))}
                 </>
               )}
@@ -222,13 +227,13 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
                 <>
                   <div className="dropdown-section-title">Streets</div>
                   {suggestions.streets.map((s, idx) => (
-                    <div key={idx} className="dropdown-item" onClick={() => handleSelectStreet(s)}>
+                    <button type="button" key={idx} className="dropdown-item" onClick={() => handleSelectStreet(s)}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <MapPin size={14} color="var(--color-accent-teal)" />
                         {s}
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Street</span>
-                    </div>
+                    </button>
                   ))}
                 </>
               )}
@@ -237,13 +242,13 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
                 <>
                   <div className="dropdown-section-title">Postal Districts</div>
                   {suggestions.districts.map((d, idx) => (
-                    <div key={idx} className="dropdown-item" onClick={() => handleSelectDistrict(d)}>
+                    <button type="button" key={idx} className="dropdown-item" onClick={() => handleSelectDistrict(d)}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Map size={14} color="var(--color-primary-terracotta)" />
                         District {d}
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Postal District</span>
-                    </div>
+                    </button>
                   ))}
                 </>
               )}
@@ -252,13 +257,13 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
                 <>
                   <div className="dropdown-section-title">Planning Areas</div>
                   {suggestions.planningAreas.map((pa, idx) => (
-                    <div key={idx} className="dropdown-item" onClick={() => handleSelectPlanningArea(pa)}>
+                    <button type="button" key={idx} className="dropdown-item" onClick={() => handleSelectPlanningArea(pa)}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <MapPin size={14} color="var(--color-primary-green)" />
                         {pa}
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Planning Area</span>
-                    </div>
+                    </button>
                   ))}
                 </>
               )}
@@ -269,7 +274,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
         {/* Date From */}
         <div className="filter-group">
           <label className="filter-label">Transaction Date From</label>
-          <input
+          <input aria-label={'Transaction Date From'}
             type="date"
             className="input-box"
             value={filters.dateFrom}
@@ -280,7 +285,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
         {/* Date To */}
         <div className="filter-group">
           <label className="filter-label">Transaction Date To</label>
-          <input
+          <input aria-label={'Transaction Date To'}
             type="date"
             className="input-box"
             value={filters.dateTo}
@@ -291,7 +296,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
         {/* Tenure Filter (Freehold vs Leasehold) */}
         <div className="filter-group">
           <label className="filter-label">Tenure</label>
-          <select
+          <select aria-label={'Tenure'}
             className="input-box"
             value={filters.tenure || 'all'}
             onChange={e => setFilters(prev => ({ ...prev, tenure: e.target.value }))}
@@ -305,7 +310,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
         {/* Min Price / Rent */}
         <div className="filter-group">
           <label className="filter-label">{viewMode === 'rental' ? 'Min Rent ($/mo)' : 'Min Price ($ SGD)'}</label>
-          <input
+          <input aria-label={viewMode === 'rental' ? 'Min Rent ($/mo)' : 'Min Price ($ SGD)'}
             type="number"
             className="input-box"
             placeholder={viewMode === 'rental' ? 'e.g. 2000' : 'e.g. 1000000'}
@@ -317,7 +322,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
         {/* Max Price / Rent */}
         <div className="filter-group">
           <label className="filter-label">{viewMode === 'rental' ? 'Max Rent ($/mo)' : 'Max Price ($ SGD)'}</label>
-          <input
+          <input aria-label={viewMode === 'rental' ? 'Max Rent ($/mo)' : 'Max Price ($ SGD)'}
             type="number"
             className="input-box"
             placeholder={viewMode === 'rental' ? 'e.g. 8000' : 'e.g. 3500000'}
@@ -330,7 +335,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
         {viewMode === 'rental' && (
           <div className="filter-group">
             <label className="filter-label">Bedroom Count</label>
-            <select
+            <select aria-label={'Bedroom Count'}
               className="input-box"
               value={filters.bedroomCount || 'all'}
               onChange={e => setFilters(prev => ({ ...prev, bedroomCount: e.target.value }))}
@@ -348,7 +353,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
         {/* Unit Size Min/Max */}
         <div className="filter-group">
           <label className="filter-label">Floor Area Max (Sqft)</label>
-          <input
+          <input aria-label={'Floor Area Max (Sqft)'}
             type="number"
             className="input-box"
             placeholder="e.g. 2500"
@@ -364,7 +369,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
           <div key={idx} className="pill">
             <Building size={12} />
             <span>{p}</span>
-            <X size={12} className="pill-remove" onClick={() => removeProjectPill(p)} />
+            <button type="button" className="icon-button pill-remove" aria-label="Remove filter" onClick={() => removeProjectPill(p)}><X size={12} /></button>
           </div>
         ))}
 
@@ -372,7 +377,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
           <div className="pill">
             <MapPin size={12} />
             <span>Street: {filters.street}</span>
-            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, street: null }))} />
+            <button type="button" className="icon-button pill-remove" aria-label="Remove filter" onClick={() => setFilters(prev => ({ ...prev, street: null }))}><X size={12} /></button>
           </div>
         )}
 
@@ -380,7 +385,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
           <div className="pill">
             <Map size={12} />
             <span>District {filters.district}</span>
-            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, district: null }))} />
+            <button type="button" className="icon-button pill-remove" aria-label="Remove filter" onClick={() => setFilters(prev => ({ ...prev, district: null }))}><X size={12} /></button>
           </div>
         )}
 
@@ -388,28 +393,28 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
           <div className="pill">
             <MapPin size={12} />
             <span>Area: {filters.planningArea}</span>
-            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, planningArea: null }))} />
+            <button type="button" className="icon-button pill-remove" aria-label="Remove filter" onClick={() => setFilters(prev => ({ ...prev, planningArea: null }))}><X size={12} /></button>
           </div>
         )}
 
         {filters.tenure && filters.tenure !== 'all' && (
           <div className="pill" style={{ borderColor: 'var(--color-primary-green)', color: 'var(--color-primary-green)', background: '#ECFDF5' }}>
             <span>Tenure: {filters.tenure === 'freehold' ? 'Freehold / 999-yr' : 'Leasehold'}</span>
-            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, tenure: 'all' }))} />
+            <button type="button" className="icon-button pill-remove" aria-label="Remove filter" onClick={() => setFilters(prev => ({ ...prev, tenure: 'all' }))}><X size={12} /></button>
           </div>
         )}
 
         {filters.priceMin != null && filters.priceMin !== '' && (
           <div className="pill" style={{ borderColor: 'var(--color-accent-teal)', color: 'var(--color-accent-teal)', background: '#F0FDFA' }}>
             <span>Min {viewMode === 'rental' ? 'Rent' : 'Price'}: ${Number(filters.priceMin).toLocaleString()}</span>
-            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, priceMin: null }))} />
+            <button type="button" className="icon-button pill-remove" aria-label="Remove filter" onClick={() => setFilters(prev => ({ ...prev, priceMin: null }))}><X size={12} /></button>
           </div>
         )}
 
         {filters.priceMax != null && filters.priceMax !== '' && (
           <div className="pill" style={{ borderColor: 'var(--color-accent-teal)', color: 'var(--color-accent-teal)', background: '#F0FDFA' }}>
             <span>Max {viewMode === 'rental' ? 'Rent' : 'Price'}: ${Number(filters.priceMax).toLocaleString()}</span>
-            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, priceMax: null }))} />
+            <button type="button" className="icon-button pill-remove" aria-label="Remove filter" onClick={() => setFilters(prev => ({ ...prev, priceMax: null }))}><X size={12} /></button>
           </div>
         )}
 
@@ -417,7 +422,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
           <div className="pill" style={{ borderColor: 'var(--color-primary-terracotta)', color: 'var(--color-primary-terracotta)', background: 'rgba(203, 109, 81, 0.12)' }}>
             <MapPin size={12} />
             <span>Radius: {filters.radiusKm} km around ({filters.centerCoords.lat.toFixed(3)}, {filters.centerCoords.lng.toFixed(3)})</span>
-            <X size={12} className="pill-remove" onClick={() => setFilters(prev => ({ ...prev, radiusKm: null, centerCoords: null }))} />
+            <button type="button" className="icon-button pill-remove" aria-label="Remove filter" onClick={() => setFilters(prev => ({ ...prev, radiusKm: null, centerCoords: null }))}><X size={12} /></button>
           </div>
         )}
       </div>

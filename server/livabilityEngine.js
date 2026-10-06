@@ -1,4 +1,4 @@
-import { dbAll, dbRun, dbGet, createConnection, withTransaction } from './db.js';
+import { dbAll, dbRun, dbGet, createConnection, withTransaction, getPrimaryConnection } from './db.js';
 import { seedAmenitiesData } from './amenitiesData.js';
 import { haversineDistance } from './utils/geo.js';
 
@@ -6,6 +6,8 @@ export const AMENITIES_SEED_VERSION = 1;
 
 // In-memory caches for startup pre-calculation (Phase 1.1)
 let parsedAmenitiesCache = null;
+let amenityConnection = null;
+let amenityVersion = null;
 const defaultLivabilityCache = new Map();
 const trimmedLivabilityCache = new Map();
 
@@ -29,6 +31,14 @@ export async function getParsedAmenities(conn = null) {
         details: extra
       };
     });
+  }
+  const active = getPrimaryConnection();
+  const row = await active.get('PRAGMA data_version');
+  const version = row.data_version + ':' + active.revision;
+  if (amenityConnection !== active || amenityVersion !== version) {
+    parsedAmenitiesCache = null;
+    amenityConnection = active;
+    amenityVersion = version;
   }
   if (parsedAmenitiesCache) return parsedAmenitiesCache;
   const rows = await dbAll(`SELECT amenity_id, category, name, latitude, longitude, details FROM amenities`);
@@ -55,10 +65,10 @@ export async function getParsedAmenities(conn = null) {
 export function getGradeLabel(score, locationQuality = null) {
   if (locationQuality === 'district_centre') return 'Location approximate';
   if (score == null) return 'Location unavailable';
-  if (score >= 80) return "Walker's Paradise";
-  if (score >= 65) return 'Highly Walkable';
-  if (score >= 50) return 'Somewhat Walkable';
-  return 'Car Dependent';
+  if (score >= 80) return 'High amenity proximity';
+  if (score >= 65) return 'Good amenity proximity';
+  if (score >= 50) return 'Moderate amenity proximity';
+  return 'Limited catalog proximity';
 }
 
 export function getGradeColor(score) {
@@ -121,7 +131,7 @@ export async function seedAmenities(forceRefresh = false, targetConn = null) {
       return countRow ? countRow.count : seedAmenitiesData.length;
     }
 
-    console.log(`Synchronizing ${seedAmenitiesData.length} authoritative Singapore amenities (v${AMENITIES_SEED_VERSION}) into database...`);
+    console.log(`Synchronizing ${seedAmenitiesData.length} curated seed amenities (coverage incomplete) (v${AMENITIES_SEED_VERSION}) into database...`);
     await withTransaction(conn, async () => {
       // Step 2.6: Delete only source = 'seed' rows; preserve OSM greenery
       await conn.run(`DELETE FROM amenities WHERE source = 'seed' OR source IS NULL`);
@@ -336,66 +346,20 @@ export async function initLivabilityCache() {
 
 // Fast access helper using pre-computed database fields (Step 3.1)
 export async function getProjectLivability(projectId, lat, lng, customWeights = null, { trimmed = false } = {}) {
-  // 1. Try reading pre-computed livability from projects table
   if (projectId) {
-    const row = await dbGet(
-      `SELECT livability_score, livability_data, latitude, longitude FROM projects WHERE project_id = ?`,
-      [projectId]
-    );
-
-    if (row && (row.livability_score !== null || row.livability_data !== null)) {
-      let data = {};
-      try {
-        data = typeof row.livability_data === 'string' ? JSON.parse(row.livability_data) : (row.livability_data || {});
-      } catch (e) {
-        data = {};
-      }
-
-      const subScores = data.subScores || { mrt: null, school: null, hawker: null, supermarket: null, park: null };
-      const nearest = data.nearest || {};
-
-      if (!customWeights) {
-        return {
-          score: row.livability_score,
-          label: getGradeLabel(row.livability_score),
-          color: getGradeColor(row.livability_score),
-          subScores,
-          ...(trimmed ? {} : { nearest, weights: DEFAULT_WEIGHTS })
-        };
-      }
-
-      // Step 3.1: Compute custom-weight scores from stored sub-scores (weighted sum, no distance scan)
-      const weights = normalizeWeights(customWeights);
-      if (row.livability_score === null) {
-        return {
-          score: null,
-          label: 'Location unavailable',
-          color: '#94A3B8',
-          subScores,
-          ...(trimmed ? {} : { nearest, weights })
-        };
-      }
-
-      const customScore = Math.round(
-        (subScores.mrt || 0) * weights.mrt +
-        (subScores.school || 0) * weights.school +
-        (subScores.hawker || 0) * weights.hawker +
-        (subScores.supermarket || 0) * weights.supermarket +
-        (subScores.park || 0) * weights.park
-      );
-
-      return {
-        score: customScore,
-        label: getGradeLabel(customScore),
-        color: getGradeColor(customScore),
-        subScores,
-        ...(trimmed ? {} : { nearest, weights })
-      };
+    const row = await dbGet('SELECT latitude,longitude,geo_source,(SELECT status FROM project_identity_review q WHERE q.project_id=projects.project_id) AS identity_status FROM projects WHERE project_id=?',[projectId]);
+    if (!row || row.identity_status === 'pending' || row.geo_source === 'district_centre' || !row.latitude || !row.longitude) {
+      return {score:null,label:row?.geo_source === 'district_centre' ? 'Location approximate' : 'Location unavailable',
+        color:'#94A3B8',subScores:{mrt:null,school:null,hawker:null,supermarket:null,park:null},
+        ...(trimmed ? {} : {nearest:{}}),provenance:{distanceMethod:'straight-line',coverage:'incomplete curated catalog'}};
     }
+    lat=row.latitude; lng=row.longitude;
   }
-
-  // 2. Fallback for on-the-fly calculation if not yet stored
-  return calculateLivabilityScore(lat, lng, customWeights, null, { trimmed });
+  const amenities = await getParsedAmenities();
+  const result = await calculateLivabilityScore(lat,lng,customWeights,amenities,{trimmed});
+  return {...result,provenance:{distanceMethod:'straight-line haversine',timeEstimate:'distance / 80 metres per minute; not a walking route',
+    catalogCount:amenities.length,schoolCount:amenities.filter(a=>a.category==='school').length,
+    source:'curated seed and any locally imported POIs; not a verified full national catalog',coverage:'incomplete'}};
 }
 
 function normalizeWeights(raw) {

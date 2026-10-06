@@ -1,0 +1,14 @@
+{
+  "sourceSha256": "e6067d6033aac82c3392db8108fd7221ecefa576e44c7efb247ead6b381fa252",
+  "originalBaselineSha256": "7f9cd7c1cfe1ef1fbb62f79566c8945463eee6b0fbd978b36dc2cb96cd7b9c3b",
+  "sourceUnmodified": true,
+  "identityEvidence": "local preservation evidence only; external identity approval pending",
+  "sourceCounts": {
+    "projects": 5903,
+    "property_transactions": 133418,
+    "rental_transactions": 450722,
+    "leads": 0,
+    "amenities": 399,
+    "sora_rates": 69
+  }
+}

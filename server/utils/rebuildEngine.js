@@ -7,7 +7,7 @@ import { seedAmenities } from '../livabilityEngine.js';
 import { seedSoraRates } from '../ingestion.js';
 import { openReadonly, databaseMetrics, fileHash } from './databaseArtifacts.js';
 
-const marketTables = new Set(['projects', 'property_transactions', 'rental_transactions', 'project_benchmarks', 'amenities', 'sora_rates', 'seed_versions', 'schema_migrations', 'schema_lock']);
+const marketTables = new Set(['projects', 'property_transactions', 'rental_transactions', 'project_benchmarks', 'amenities', 'sora_rates', 'seed_versions', 'schema_migrations', 'schema_lock', 'project_identity_review', 'source_snapshot_archive','market_versions','analytics_snapshots']);
 const quote = name => '"' + name.replaceAll('"', '""') + '"';
 
 function isolated(target) {
@@ -16,7 +16,7 @@ function isolated(target) {
   }
 }
 
-async function operationalState(file) {
+export async function operationalState(file) {
   const conn = openReadonly(file);
   try {
     const result = {};
@@ -27,6 +27,15 @@ async function operationalState(file) {
     }
     return JSON.stringify(result);
   } finally { await conn.close(); }
+}
+
+export async function operationalStatePreserved(original, candidate, allowEmptyAddedTables = []) {
+  const before = JSON.parse(typeof original === 'string' && original.startsWith('{') ? original : await operationalState(original));
+  const after = JSON.parse(await operationalState(candidate));
+  for (const name of allowEmptyAddedTables) {
+    if (!(name in before) && after[name]?.rows.length === 0) delete after[name];
+  }
+  return JSON.stringify(before) === JSON.stringify(after);
 }
 
 function persist(file, record) {
@@ -114,6 +123,7 @@ export async function rebuildCleanDb(options = {}) {
     if (!result || result.status !== 'success' || result.sourceCompleteness === 'unverified') throw new Error('Data ingestion failed or returned partial results; authoritative completeness required');
     await seedAmenities(true, conn);
     await seedSoraRates(conn);
+    await conn.run('DELETE FROM analytics_snapshots');
     await checkpoint(conn);
     await conn.close();
     conn = null;

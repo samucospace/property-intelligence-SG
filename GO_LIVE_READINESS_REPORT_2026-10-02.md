@@ -1,5 +1,11 @@
 # Go-live readiness evaluation — 2 October 2026
 
+**6 October Phase 4 update:** Compact complete-map contracts, bounded/coalesced queries, prepared default analytics, browser/accessibility and operational monitoring are implemented and locally qualified. The original default-response/payload/concurrent-delay targets pass; broad cold custom filters and full hosted qualification remain open. See [Phase 4 qualification](PHASE_4_QUALIFICATION_REPORT_2026-10-06.md) and [operations runbook](PHASE_4_OPERATIONS_RUNBOOK.md). Public launch remains NO-GO.
+
+**6 October Phase 3 update:** Implementation gaps identified by the independent review have been repaired; see the [corrected Phase 3 report](PHASE_3_COMPLETION_REPORT_2026-10-06.md). The findings below retain their original 2 October evidence. Hosted verification, owner privacy/communications approval and later release phases remain open; public release remains NO-GO.
+
+**5 October update:** this evaluation records the original findings. Phase 2 is now complete locally, including all 35 identity approvals, source reconciliation, backed-up database promotion and final Linux qualification; see the [current completion report](PHASE_2_COMPLETION_REPORT_2026-10-05.md). Public launch remains NO-GO pending later-phase and hosted checks.
+
 **Decision: NO-GO for the currently advertised product.** The hardening work has materially improved the application, but reproducible failures remain in startup, ingestion identity, analytics, and email delivery handling. The database rebuild procedure is unsafe. Deployment, recovery, and production email operation also lack sufficient evidence for release.
 
 This assessment supersedes the readiness conclusions and inventory figures in `CANONICAL_HARDENING_AND_SECURITY_REPORT.md` for the working tree evaluated here. It does not invalidate the historical reports or imply that every earlier defect remains open. The implementation plan is in `GO_LIVE_REMEDIATION_PLAN_2026-10-02.md`.

@@ -1,0 +1,14 @@
+# Optional separate private administrative listener. Keep the public Caddyfile's
+# header stripping. Set ADMIN_DOMAIN, ADMIN_ALLOWED_CIDRS and ADMIN_GATEWAY_SECRET
+# only after verifying private network access and TLS on the target host.
+{$ADMIN_DOMAIN} {
+    @private remote_ip {$ADMIN_ALLOWED_CIDRS}
+    handle @private {
+        reverse_proxy app:3001 {
+            header_up X-Admin-Gateway {$ADMIN_GATEWAY_SECRET}
+        }
+    }
+    handle {
+        respond "Private administrative access required" 403
+    }
+}

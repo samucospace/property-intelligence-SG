@@ -1,21 +1,29 @@
 # Singapore Home Intel (`homeintel.sg`)
 
+[Source handoff and remaining release gates](RELEASE_HANDOFF_2026-10-06.md) records the accumulated Phase 2–4 work, candidate provenance and deployment prerequisites.
+
+**6 October Phase 4 update:** Compact complete-map contracts, bounded/coalesced queries, prepared default analytics, browser/accessibility and operational monitoring are implemented and locally qualified. The original default-response/payload/concurrent-delay targets pass; broad cold custom filters and full hosted qualification remain open. See [Phase 4 qualification](PHASE_4_QUALIFICATION_REPORT_2026-10-06.md) and [operations runbook](PHASE_4_OPERATIONS_RUNBOOK.md). Public launch remains NO-GO.
+
+**Phase 3 update (6 October):** Email/consent/access/recovery code repairs pass 238 tests on Windows and Node 22/Linux. The [corrected report](PHASE_3_COMPLETION_REPORT_2026-10-06.md) and [Phase 3 operations runbook](PHASE_3_OPERATIONS_RUNBOOK.md) govern these controls. Hosted evidence and owner approvals remain open; public launch remains NO-GO.
+
+Phase 2 corrections and live-source evidence are recorded in the [5 October report](PHASE_2_COMPLETION_REPORT_2026-10-05.md). Sam Fraser approved the [metric definitions and exclusions](PHASE_2_METRIC_CONTRACT.md). No public launch is approved.
+
 **Current status (2 October 2026): local development, NO-GO for public release.** The default release is read-only analytics; lead/admin/email features and unsafe sync/cleanup are contained. Operational rebuild is quarantined. Use the [Phase 0 runbook](PHASE_0_OPERATIONS_RUNBOOK.md) and [corrected Phase 0 report](PHASE_0_COMPLETION_REPORT_2026-10-02.md). The capability/deployment descriptions below are intended functionality and plans, not evidence of a hosted service.
 
-Phase 1 local corrections pass 161 tests on Node 22.23.3. Use the [Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md) and [current operations runbook](PHASE_1_OPERATIONS_RUNBOOK.md); release-image qualification remains pending. Every identified issue must be fixed and verified before public launch.
+Phase 1/2 corrections pass 189 tests on Windows and Linux with Node 22.23.3. Phase 2 is complete locally: all 35 identity approvals are applied and the reconciled database is promoted with verified backups. The release image passes repeated startup, production health/frontend and packaging checks ([Docker qualification](DOCKER_QUALIFICATION_REPORT_2026-10-05.md)). Use the [Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md) and [current operations runbook](PHASE_1_OPERATIONS_RUNBOOK.md); general rebuild enablement and hosted checks remain gated. Every identified issue must be fixed and verified before public launch.
 
 An institutional-grade Singapore private residential transaction price intelligence engine, rental yield tracker, and livability analytics portal powered by official **Urban Redevelopment Authority (URA) Data Service** transaction caveats and **SLA OneMap** spatial data. Intended domain: `homeintel.sg`; external hosting is not yet established.
 
-The platform includes built-in programmatic SEO, a verified Council for Estate Agencies (CEA) partner lead-generation engine, an automated weekly investor newsletter via Resend, and Docker Compose deployment with automated HTTPS and separately enabled maintenance.
+The read-only release scope exposes research analytics. Lead capture, outbound newsletters and maintenance imports remain disabled until their release gates pass. Partner identity and sender readiness are pending verification.
 
 ---
 
 ## 🚀 Key Features
 
 - **Official Data Integrity & Transparent Geocoding**: Powered by official URA private residential caveats and rental contracts under the Singapore Open Data Licence, OneMap SVY21 coordinate geocoding, and OpenStreetMap amenities (ODbL, with attribution). Rental floor areas represent approximate contract ranges, and projects without exact coordinates are clearly designated at district centroids.
-- **Pre-Populated Database**: Includes 5,900+ condominium developments, >133,000 official sales transaction caveats, and >450,000 rental contract records (582,000+ total transactions with 99.3% authoritative Singapore postal districts).
+- **Reconciled Local Database**: Includes 5,905 project/estate catalog entries, 132,305 sales and 451,165 rentals. The captured URA source version matches exactly; 59 older sales remain active and original replaced rows are archived. This does not establish complete earlier provider history. See the Phase 2 completion report.
 - **Transaction Price Focus**: Clear focus on actual transaction prices rather than automated appraisals.
-- **Past 24-Month Headline Metric Cards**: Top summary cards specifically reflect current market conditions based on transactions recorded within the past 24 months.
+- **Selected-period summaries**: Summary cards use the chosen period and filters. Rental yields use period-matched sale windows and minimum usable samples, as defined in the [approved metric contract](PHASE_2_METRIC_CONTRACT.md).
 - **Per Square Feet (PSFT) Standard**: Uses per square feet ($/sqft) metrics throughout the app for intuitive market comparison.
 - **Comprehensive Search Filters**:
   - Development, street, postal district, and planning area autocomplete.
@@ -31,8 +39,8 @@ The platform includes built-in programmatic SEO, a verified Council for Estate A
   - Powered by official **Singapore Land Authority (SLA) OneMap** basemap tiles (compliant with commercial use under the Singapore Open Data Licence).
   - Built-in style switcher supporting **Default (Color)**, **Grey (Minimalist)**, **Night (Dark Mode)**, and **Original** basemaps.
   - Smooth marker clustering via `react-leaflet-cluster` for responsive rendering across thousands of developments.
-  - Interactive radius circles (0.5km to 5km) and active property walking distance rings (400m / 5-min walk & 800m / 10-min walk).
-  - Walking distance livability density scoring across MRT stations, primary schools, hawker centres, supermarkets, and parks.
+  - Interactive radius circles (0.5km to 5km) and active straight-line distance rings (400m and 800m).
+  - Amenity proximity estimates from an incomplete curated catalog across MRT stations, primary schools, hawker centres, supermarkets, and parks.
 - **Comprehensive Singapore POI Amenities Dataset (399 POIs)**:
   - **139 Hawker Centres & Eating Houses**: Sourced from official National Environment Agency (NEA) records (`data.gov.sg`) with stall counts, addresses, and prominent neighborhood eating houses (e.g. Binjai Park, Beauty World Food Centre, Cheong Chin Nam, Greenwood, Sixth Ave).
   - **80 Supermarkets**: Islandwide coverage across FairPrice Finest, FairPrice Xtra, CS Fresh, Cold Storage, Sheng Siong, Don Don Donki, Meidi-Ya, and Giant (including newly opened stores like FairPrice Finest @ Dunearn Village).
@@ -182,7 +190,7 @@ cp server/.env.example server/.env
 | `POST` | `/api/analytics/price-trends` | Aggregates price trends ($/sqft), time series, and scatter points (cached with key normalization). |
 | `POST` | `/api/analytics/rental-yields` | Aggregates rental contracts and gross rental yields. |
 | `GET` | `/api/projects` | Overview list of all registered developments. |
-| `GET` | `/api/projects/:id/livability` | Computes project livability index and nearby amenity walking breakdown. |
+| `GET` | `/api/projects/:id/livability` | Computes project livability index and straight-line amenity proximity and coverage disclosures. |
 | `GET` | `/api/amenities` | Retrieves GIS map POIs (MRT stations, schools, supermarkets, parks). |
 
 ### Lead Capture & Singapore PDPA
@@ -252,7 +260,7 @@ node server/scripts/backup-db.js
 *(Optionally configure `BACKUP_ENCRYPTION_KEY` in `server/.env`).*
 
 ### 5. Automated Clean Database Rebuild & Verification
-Performs an automated clean-slate ingest from official URA APIs, seeds amenities, calculates postal districts, segregates non-landed developments, pre-computes livability, and calculates true 24-month rolling median benchmarks. Includes an active-server concurrency guard and `PRAGMA wal_checkpoint(TRUNCATE)`:
+The general clean-slate operational flow remains disabled pending authoritative future source coverage and hosted qualification. The reviewed Phase 2 snapshot has been promoted locally through its separate procedure. Use the current runbooks; no HTTP port check alone establishes database maintenance exclusivity:
 ```bash
 npm run rebuild-db
 # or directly:
@@ -304,3 +312,9 @@ The proposed Docker deployment runs the web application and Caddy. Maintenance i
 ## 📄 License
 
 This repository is maintained privately by [samucospace](https://github.com/samucospace/property-intelligence-SG).
+
+## Phase 4 API contracts and readiness
+
+`POST /api/analytics/price-trends` and `POST /api/analytics/rental-yields` return `phase4-v1` summaries/chart data with explicitly paginated examples. They no longer repeat complete `mapProjects`. Fetch `POST /api/analytics/map` with `{mode: "sale" | "rental", filters: ...}` for all matching map projects. This and `GET /api/projects` return `phase4-map-v1` columnar data (`columns`, `rows`, nested `structures`, `totalProjects`); decode using `client/src/utils/mapContract.js`. These are coordinated client/server contract changes; older consumers expecting project object arrays must update. Full amenity detail remains at `GET /api/projects/:id/livability`.
+
+`/api/health/live` checks the process; `/api/health/ready` checks required migrations, populated data and current prepared defaults. Legacy `/api/health` is only database connectivity. Docker prepares defaults before serving and sets `UV_THREADPOOL_SIZE=16`; outside Docker set that variable before launching Node. See the Phase 4 runbook for alert settings, freshness thresholds, temporary capacity errors and rollback.

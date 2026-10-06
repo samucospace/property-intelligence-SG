@@ -3,6 +3,9 @@
 
 {$DOMAIN:localhost} {
     encode gzip zstd
-    reverse_proxy app:3001
+    reverse_proxy app:3001 {
+        # Only a separately protected administrative gateway may supply this.
+        header_up -X-Admin-Gateway
+    }
 }
 

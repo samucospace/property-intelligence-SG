@@ -1,0 +1,2 @@
+# Preserve captured qualification JSON bytes: manifests hash the actual artifacts.
+audit/**/*.json -text

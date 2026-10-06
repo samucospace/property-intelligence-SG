@@ -1,0 +1,14 @@
+{
+  "candidate": "sha256:dd1227de60814d222c0156a0e41fe93bdc03354c3466fee8ce7ab7fa0d6c4dcc",
+  "passed": true,
+  "runtime": "v22.23.3",
+  "platform": "linux",
+  "uid": 1000,
+  "productionConfiguration": true,
+  "healthStatus": 200,
+  "frontendStatus": 200,
+  "bakedCredentials": false,
+  "bakedMarketDatabase": false,
+  "externalNetwork": false,
+  "limitation": "Fresh empty-database production packaging smoke; full market readiness is established by separate staged HTTP evidence, not legacy healthStatus"
+}

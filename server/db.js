@@ -23,7 +23,7 @@ export function getDbPath() {
  * @param {string} [customPath]
  * @returns {object} Connection object with promisified run, get, all, close methods
  */
-export function createConnection(customPath, { uri = false, maintenance = false } = {}) {
+export function createConnection(customPath, { uri = false, maintenance = false, readonly = false } = {}) {
   const targetPath = customPath || getDbPath();
   if (targetPath !== ':memory:' && (fs.existsSync(targetPath + '.swap.json') || (!maintenance && fs.existsSync(targetPath + '.maintenance')))) throw new Error('Database maintenance/recovery in progress; refusing connection');
   const trackedPath = path.resolve(targetPath);
@@ -38,8 +38,9 @@ export function createConnection(customPath, { uri = false, maintenance = false 
   let raw;
   let openFailed = false;
   let closed = false;
+  let revision = 0;
   const opened = new Promise((resolve, reject) => {
-    raw = new sqlite3.Database(targetPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE | sqlite3.OPEN_FULLMUTEX | (uri ? sqlite3.OPEN_URI : 0), error => error ? reject(error) : resolve());
+    raw = new sqlite3.Database(targetPath, (readonly ? sqlite3.OPEN_READONLY : sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE) | sqlite3.OPEN_FULLMUTEX | (uri ? sqlite3.OPEN_URI : 0), error => error ? reject(error) : resolve());
   });
   opened.catch(() => { openFailed = true; });
 
@@ -49,7 +50,7 @@ export function createConnection(customPath, { uri = false, maintenance = false 
   });
 
   const readyPromise = opened.then(async () => {
-    for (const sql of ['PRAGMA busy_timeout = 10000', 'PRAGMA journal_mode = WAL', 'PRAGMA synchronous = FULL', 'PRAGMA foreign_keys = ON']) {
+    for (const sql of (readonly ? ['PRAGMA busy_timeout = 1000', 'PRAGMA query_only = ON'] : ['PRAGMA busy_timeout = 10000', 'PRAGMA journal_mode = WAL', 'PRAGMA synchronous = FULL', 'PRAGMA foreign_keys = ON'])) {
       const deadline = Date.now() + 10000;
       while (true) {
         try {
@@ -76,13 +77,14 @@ export function createConnection(customPath, { uri = false, maintenance = false 
 
   return {
     raw,
+    get revision() { return revision; },
     path: targetPath,
     async run(sql, params = []) {
       await ensureReady();
       return new Promise((resolve, reject) => {
         raw.run(sql, params, function (err) {
           if (err) reject(err);
-          else resolve(this);
+          else { revision++; resolve(this); }
         });
       });
     },
@@ -127,6 +129,18 @@ export function createConnection(customPath, { uri = false, maintenance = false 
   };
 }
 
+let metadataConn=null,metadataPath=null;
+// Reserve a read connection for tiny freshness/snapshot queries. Heavy custom
+// analytics must not queue cached/default responses behind their SQLite work.
+export function getMetadataConnection() {
+  const target=getDbPath();
+  if(target===':memory:') return getPrimaryConnection();
+  if(!metadataConn || metadataPath!==target) {
+    if(metadataConn) metadataConn.close().catch(()=>{});
+    metadataConn=createConnection(target,{readonly:true});metadataPath=target;
+  }
+  return metadataConn;
+}
 let primaryConn = null;
 let currentPrimaryPath = null;
 
@@ -202,6 +216,7 @@ export async function initDb(customPath) {
  * Cleanly closes the primary database connection.
  */
 export async function closeDb() {
+  if(metadataConn) {const conn=metadataConn;metadataConn=null;metadataPath=null;await conn.close();}
   if (primaryConn) {
     const connToClose = primaryConn;
     primaryConn = null;

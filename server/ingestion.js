@@ -1,3 +1,4 @@
+import fs from 'fs';
 import axios from 'axios';
 import crypto from 'crypto';
 import { dbRun, dbGet, dbAll, createConnection, withTransaction } from './db.js';
@@ -53,8 +54,8 @@ export function generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCoun
 
 // Helper: Parse area range string (e.g. "1100-1200", ">3000", "<400") into numeric midpoint value
 export function parseAreaRange(rangeStr) {
-  if (!rangeStr) return null;
-  const nums = String(rangeStr).match(/\d+/g);
+  if (!rangeStr || /[<>]|above|below|more than|less than/i.test(String(rangeStr))) return null;
+  const nums = String(rangeStr).match(/\d+(?:\.\d+)?/g);
   if (!nums || nums.length === 0) return null;
   if (nums.length >= 2) return (parseFloat(nums[0]) + parseFloat(nums[1])) / 2;
   return parseFloat(nums[0]);
@@ -150,7 +151,7 @@ export function validateImportPayload(projects, required = null) {
     for (const rental of rentals) {
       const date = normalizeLeaseDate(rental?.leaseDate || rental?.lease_date);
       if (!date || !/^\d{4}-(0[1-9]|1[0-2])$/.test(date) || !Number.isFinite(Number(rental.rent ?? rental.rent_sgd)) || Number(rental.rent ?? rental.rent_sgd) <= 0) throw new Error('Malformed rental record');
-      for (const area of [rental.areaSqft, rental.areaSqm]) if (area != null && (!parseAreaRange(area) || parseAreaRange(area) <= 0)) throw new Error('Malformed rental area');
+      for (const area of [rental.areaSqft, rental.areaSqm]) if (area != null && !/^\s*[<>]=?\s*\d+(?:\.\d+)?\s*$/.test(String(area)) && (!parseAreaRange(area) || parseAreaRange(area) <= 0)) throw new Error('Malformed rental area');
     }
   }
 }
@@ -164,8 +165,10 @@ async function insertOccurrence(conn, table, columns, values, occurrence, existi
   const ordinal = (occurrence.get(key) || 0) + 1;
   occurrence.set(key, ordinal);
   if (!existing.has(key)) {
-    const row = await conn.get('SELECT COUNT(*) AS count FROM ' + table + ' WHERE ' + identity.map(({name}) => name + ' IS ?').join(' AND '), params);
-    existing.set(key, row.count);
+    const districtIndex = identity.findIndex(({name}) => name === 'source_district');
+    const legacy = [...params];
+    if (districtIndex >= 0) legacy[districtIndex] = null;
+    existing.set(key, districtIndex >= 0 && params[districtIndex] != null ? (existing.get(table + JSON.stringify(legacy)) || 0) : 0);
   }
   if (ordinal <= existing.get(key)) return false;
   values[fields.indexOf('raw_hash')] = crypto.createHash('sha256').update(key + '|' + ordinal).digest('hex');
@@ -193,6 +196,15 @@ export async function importRealUraData(jsonData, targetConn = null) {
 
   try {
     await withTransaction(conn, async () => {
+      // Load original multiplicities once, before inserting. Per-record COUNT scans
+      // become quadratic for high-volume projects during a full source rehearsal.
+      for (const [table, fields] of [
+        ['property_transactions', ['project_id','area_sqm','price_sgd','contract_date','floor_range','tenure','type_of_sale','property_type','no_of_units','source_district']],
+        ['rental_transactions', ['project_id','area_sqm','rent_sgd','lease_date','bedroom_count','floor_area_range','property_type','source_district']]
+      ]) {
+        const rows = await conn.all(`SELECT ${fields.join(',')}, COUNT(*) AS original_count FROM ${table} GROUP BY ${fields.join(',')}`);
+        for (const row of rows) existing.set(table + JSON.stringify(fields.map(field => row[field])), row.original_count);
+      }
       for (const rawProj of resultData) {
         const projName = (rawProj.project || rawProj.project_name || '').trim().toUpperCase();
         if (!projName) continue;
@@ -250,8 +262,8 @@ export async function importRealUraData(jsonData, targetConn = null) {
           const rawHash = generateTxHash(projName, contractDate, priceSgd, areaSqm, floorRange, occurrenceIndex, noOfUnits, propertyType, resolvedDistrict, street);
 
           if (await insertOccurrence(conn, 'property_transactions',
-            'project_id, area_sqm, area_sqft, price_sgd, psqm_sgd, psft_sgd, contract_date, floor_range, tenure, type_of_sale, property_type, no_of_units, tenure_class, raw_hash',
-            [projId, areaSqm, areaSqft, priceSgd, psqmSgd, psftSgd, contractDate, floorRange, tenure, typeOfSale, propertyType, noOfUnits, tenureClass, rawHash], occurrences, existing)) totalSalesIngested++;
+            'project_id, area_sqm, area_sqft, price_sgd, psqm_sgd, psft_sgd, contract_date, floor_range, tenure, type_of_sale, property_type, no_of_units, tenure_class, raw_hash, source_district',
+            [projId, areaSqm, areaSqft, priceSgd, psqmSgd, psftSgd, contractDate, floorRange, tenure, typeOfSale, propertyType, noOfUnits, tenureClass, rawHash, tx.district ? String(tx.district).padStart(2,'0') : null], occurrences, existing)) totalSalesIngested++;
 
         }
 
@@ -327,8 +339,8 @@ export async function importRealUraData(jsonData, targetConn = null) {
           const rawHash = generateRentHash(projName, leaseDate, rentSgd, sqft, bedroomCount, floorAreaRange, occurrenceIndex, resolvedDistrict, street);
 
           if (await insertOccurrence(conn, 'rental_transactions',
-            'project_id, area_sqm, area_sqft, rent_sgd, rent_psqm, rent_psft, lease_date, bedroom_count, floor_area_range, property_type, raw_hash',
-            [projId, sqm, sqft, rentSgd, rentPsqm, rentPsft, leaseDate, bedroomCount, floorAreaRange, propertyType, rawHash], occurrences, existing)) totalRentalsIngested++;
+            'project_id, area_sqm, area_sqft, rent_sgd, rent_psqm, rent_psft, lease_date, bedroom_count, floor_area_range, property_type, raw_hash, source_district',
+            [projId, sqm, sqft, rentSgd, rentPsqm, rentPsft, leaseDate, bedroomCount, floorAreaRange, propertyType, rawHash, r.district ? String(r.district).padStart(2,'0') : null], occurrences, existing)) totalRentalsIngested++;
 
         }
       }
@@ -348,83 +360,7 @@ export async function seedSoraRates(targetConn = null) {
   console.log('Seeding 1M & 3M Compounded SORA benchmark historical rate data...');
   
   // Step 2.4: Removed future months (2026-10 to 2026-12)
-  const soraData = [
-    // 2021
-    { month: '2021-01', sora1m: 0.24, sora3m: 0.28 },
-    { month: '2021-02', sora1m: 0.25, sora3m: 0.29 },
-    { month: '2021-03', sora1m: 0.23, sora3m: 0.27 },
-    { month: '2021-04', sora1m: 0.24, sora3m: 0.26 },
-    { month: '2021-05', sora1m: 0.25, sora3m: 0.28 },
-    { month: '2021-06', sora1m: 0.26, sora3m: 0.29 },
-    { month: '2021-07', sora1m: 0.28, sora3m: 0.31 },
-    { month: '2021-08', sora1m: 0.27, sora3m: 0.30 },
-    { month: '2021-09', sora1m: 0.29, sora3m: 0.32 },
-    { month: '2021-10', sora1m: 0.31, sora3m: 0.33 },
-    { month: '2021-11', sora1m: 0.32, sora3m: 0.35 },
-    { month: '2021-12', sora1m: 0.34, sora3m: 0.37 },
-    // 2022
-    { month: '2022-01', sora1m: 0.38, sora3m: 0.35 },
-    { month: '2022-02', sora1m: 0.45, sora3m: 0.40 },
-    { month: '2022-03', sora1m: 0.55, sora3m: 0.48 },
-    { month: '2022-04', sora1m: 0.72, sora3m: 0.61 },
-    { month: '2022-05', sora1m: 0.98, sora3m: 0.82 },
-    { month: '2022-06', sora1m: 1.25, sora3m: 1.02 },
-    { month: '2022-07', sora1m: 1.58, sora3m: 1.34 },
-    { month: '2022-08', sora1m: 1.92, sora3m: 1.62 },
-    { month: '2022-09', sora1m: 2.22, sora3m: 1.85 },
-    { month: '2022-10', sora1m: 2.55, sora3m: 2.18 },
-    { month: '2022-11', sora1m: 2.88, sora3m: 2.52 },
-    { month: '2022-12', sora1m: 3.10, sora3m: 2.82 },
-    // 2023
-    { month: '2023-01', sora1m: 3.25, sora3m: 3.05 },
-    { month: '2023-02', sora1m: 3.42, sora3m: 3.28 },
-    { month: '2023-03', sora1m: 3.58, sora3m: 3.45 },
-    { month: '2023-04', sora1m: 3.61, sora3m: 3.52 },
-    { month: '2023-05', sora1m: 3.63, sora3m: 3.58 },
-    { month: '2023-06', sora1m: 3.65, sora3m: 3.60 },
-    { month: '2023-07', sora1m: 3.68, sora3m: 3.62 },
-    { month: '2023-08', sora1m: 3.71, sora3m: 3.65 },
-    { month: '2023-09', sora1m: 3.68, sora3m: 3.66 },
-    { month: '2023-10', sora1m: 3.69, sora3m: 3.67 },
-    { month: '2023-11', sora1m: 3.70, sora3m: 3.68 },
-    { month: '2023-12', sora1m: 3.70, sora3m: 3.68 },
-    // 2024
-    { month: '2024-01', sora1m: 3.68, sora3m: 3.68 },
-    { month: '2024-02', sora1m: 3.65, sora3m: 3.66 },
-    { month: '2024-03', sora1m: 3.62, sora3m: 3.64 },
-    { month: '2024-04', sora1m: 3.60, sora3m: 3.62 },
-    { month: '2024-05', sora1m: 3.59, sora3m: 3.61 },
-    { month: '2024-06', sora1m: 3.58, sora3m: 3.60 },
-    { month: '2024-07', sora1m: 3.55, sora3m: 3.57 },
-    { month: '2024-08', sora1m: 3.48, sora3m: 3.52 },
-    { month: '2024-09', sora1m: 3.42, sora3m: 3.48 },
-    { month: '2024-10', sora1m: 3.30, sora3m: 3.38 },
-    { month: '2024-11', sora1m: 3.18, sora3m: 3.26 },
-    { month: '2024-12', sora1m: 3.05, sora3m: 3.18 },
-    // 2025
-    { month: '2025-01', sora1m: 2.95, sora3m: 3.08 },
-    { month: '2025-02', sora1m: 2.90, sora3m: 3.00 },
-    { month: '2025-03', sora1m: 2.85, sora3m: 2.92 },
-    { month: '2025-04', sora1m: 2.78, sora3m: 2.86 },
-    { month: '2025-05', sora1m: 2.70, sora3m: 2.80 },
-    { month: '2025-06', sora1m: 2.65, sora3m: 2.75 },
-    { month: '2025-07', sora1m: 2.60, sora3m: 2.68 },
-    { month: '2025-08', sora1m: 2.55, sora3m: 2.62 },
-    { month: '2025-09', sora1m: 2.50, sora3m: 2.58 },
-    { month: '2025-10', sora1m: 2.45, sora3m: 2.52 },
-    { month: '2025-11', sora1m: 2.42, sora3m: 2.48 },
-    { month: '2025-12', sora1m: 2.40, sora3m: 2.45 },
-    // 2026 (Past and current months only; future months deleted)
-    { month: '2026-01', sora1m: 2.38, sora3m: 2.43 },
-    { month: '2026-02', sora1m: 2.36, sora3m: 2.42 },
-    { month: '2026-03', sora1m: 2.35, sora3m: 2.40 },
-    { month: '2026-04', sora1m: 2.35, sora3m: 2.40 },
-    { month: '2026-05', sora1m: 2.36, sora3m: 2.41 },
-    { month: '2026-06', sora1m: 2.38, sora3m: 2.42 },
-    { month: '2026-07', sora1m: 2.40, sora3m: 2.44 },
-    { month: '2026-08', sora1m: 2.42, sora3m: 2.45 },
-    { month: '2026-09', sora1m: 2.40, sora3m: 2.44 }
-  ];
+  const soraData = JSON.parse(fs.readFileSync(new URL('./data/sora_rates_historical.json', import.meta.url),'utf8')).rates;
 
   const conn = targetConn || createConnection();
   const shouldClose = !targetConn;
@@ -432,12 +368,9 @@ export async function seedSoraRates(targetConn = null) {
     await withTransaction(conn, async () => {
       for (const item of soraData) {
         await conn.run(
-          `INSERT INTO sora_rates (reference_month, sora_1m, sora_3m)
-           VALUES (?, ?, ?)
-           ON CONFLICT(reference_month) DO UPDATE SET
-             sora_1m = excluded.sora_1m,
-             sora_3m = excluded.sora_3m,
-             updated_at = CURRENT_TIMESTAMP`,
+          `INSERT INTO sora_rates (reference_month, sora_1m, sora_3m, source, verified)
+           VALUES (?, ?, ?, 'legacy-seed-unverified', 0)
+           ON CONFLICT(reference_month) DO NOTHING`,
           [item.month, item.sora1m, item.sora3m]
         );
       }

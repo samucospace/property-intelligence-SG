@@ -58,4 +58,7 @@ jobs:
           load: true
 
       - name: Qualify startup in the release image
-        run: docker run --rm --entrypoint node property-intelligence-sg:ci server/scripts/qualify-startup.js
+        run: docker run --rm --network none --read-only --tmpfs /tmp:rw,nosuid,size=128m --entrypoint node property-intelligence-sg:ci server/scripts/qualify-startup.js
+
+      - name: Verify production startup and release-image packaging
+        run: docker run --rm --network none --read-only --tmpfs /tmp:rw,nosuid,size=128m --entrypoint node property-intelligence-sg:ci server/scripts/qualify-release-image.js

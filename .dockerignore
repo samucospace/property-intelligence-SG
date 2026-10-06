@@ -11,6 +11,10 @@ server/backups/
 audit/
 backups/
 data/
+!server/data/
+!server/data/**
+!server/migrations/data/
+!server/migrations/data/**
 *.db
 *.db-journal
 *.db-wal
@@ -23,8 +27,21 @@ data/
 .gitignore
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
 !.env.staging.example
+!**/.env.example
+!**/.env.staging.example
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db-shm
+**/*.sqlite
+**/*.sqlite3
+**/*.sqlite-wal
+**/*.sqlite-shm
+**/backups/
 
 # Logs & OS artifacts
 *.log
@@ -47,3 +64,8 @@ server/scripts/newsletter-preview.html
 # Internal review & planning docs
 TECHNICAL_REVIEW.md
 REMEDIATION_PLAN.md
+# Never bake privacy ledgers or local test outputs into release artifacts
+*.privacy.jsonl
+privacy/
+privacy-replica/
+server/tests/*results.json

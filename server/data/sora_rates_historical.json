@@ -1,0 +1,628 @@
+{
+  "version": 1,
+  "provenance": "legacy hardcoded seed; not verified against MAS",
+  "verified": false,
+  "rates": [
+    {
+      "month": "2021-01",
+      "sora1m": 0.24,
+      "sora3m": 0.28,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-02",
+      "sora1m": 0.25,
+      "sora3m": 0.29,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-03",
+      "sora1m": 0.23,
+      "sora3m": 0.27,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-04",
+      "sora1m": 0.24,
+      "sora3m": 0.26,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-05",
+      "sora1m": 0.25,
+      "sora3m": 0.28,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-06",
+      "sora1m": 0.26,
+      "sora3m": 0.29,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-07",
+      "sora1m": 0.28,
+      "sora3m": 0.31,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-08",
+      "sora1m": 0.27,
+      "sora3m": 0.3,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-09",
+      "sora1m": 0.29,
+      "sora3m": 0.32,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-10",
+      "sora1m": 0.31,
+      "sora3m": 0.33,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-11",
+      "sora1m": 0.32,
+      "sora3m": 0.35,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2021-12",
+      "sora1m": 0.34,
+      "sora3m": 0.37,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-01",
+      "sora1m": 0.38,
+      "sora3m": 0.35,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-02",
+      "sora1m": 0.45,
+      "sora3m": 0.4,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-03",
+      "sora1m": 0.55,
+      "sora3m": 0.48,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-04",
+      "sora1m": 0.72,
+      "sora3m": 0.61,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-05",
+      "sora1m": 0.98,
+      "sora3m": 0.82,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-06",
+      "sora1m": 1.25,
+      "sora3m": 1.02,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-07",
+      "sora1m": 1.58,
+      "sora3m": 1.34,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-08",
+      "sora1m": 1.92,
+      "sora3m": 1.62,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-09",
+      "sora1m": 2.22,
+      "sora3m": 1.85,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-10",
+      "sora1m": 2.55,
+      "sora3m": 2.18,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-11",
+      "sora1m": 2.88,
+      "sora3m": 2.52,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2022-12",
+      "sora1m": 3.1,
+      "sora3m": 2.82,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-01",
+      "sora1m": 3.25,
+      "sora3m": 3.05,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-02",
+      "sora1m": 3.42,
+      "sora3m": 3.28,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-03",
+      "sora1m": 3.58,
+      "sora3m": 3.45,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-04",
+      "sora1m": 3.61,
+      "sora3m": 3.52,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-05",
+      "sora1m": 3.63,
+      "sora3m": 3.58,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-06",
+      "sora1m": 3.65,
+      "sora3m": 3.6,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-07",
+      "sora1m": 3.68,
+      "sora3m": 3.62,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-08",
+      "sora1m": 3.71,
+      "sora3m": 3.65,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-09",
+      "sora1m": 3.68,
+      "sora3m": 3.66,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-10",
+      "sora1m": 3.69,
+      "sora3m": 3.67,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-11",
+      "sora1m": 3.7,
+      "sora3m": 3.68,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2023-12",
+      "sora1m": 3.7,
+      "sora3m": 3.68,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-01",
+      "sora1m": 3.68,
+      "sora3m": 3.68,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-02",
+      "sora1m": 3.65,
+      "sora3m": 3.66,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-03",
+      "sora1m": 3.62,
+      "sora3m": 3.64,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-04",
+      "sora1m": 3.6,
+      "sora3m": 3.62,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-05",
+      "sora1m": 3.59,
+      "sora3m": 3.61,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-06",
+      "sora1m": 3.58,
+      "sora3m": 3.6,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-07",
+      "sora1m": 3.55,
+      "sora3m": 3.57,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-08",
+      "sora1m": 3.48,
+      "sora3m": 3.52,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-09",
+      "sora1m": 3.42,
+      "sora3m": 3.48,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-10",
+      "sora1m": 3.3,
+      "sora3m": 3.38,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-11",
+      "sora1m": 3.18,
+      "sora3m": 3.26,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2024-12",
+      "sora1m": 3.05,
+      "sora3m": 3.18,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-01",
+      "sora1m": 2.95,
+      "sora3m": 3.08,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-02",
+      "sora1m": 2.9,
+      "sora3m": 3,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-03",
+      "sora1m": 2.85,
+      "sora3m": 2.92,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-04",
+      "sora1m": 2.78,
+      "sora3m": 2.86,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-05",
+      "sora1m": 2.7,
+      "sora3m": 2.8,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-06",
+      "sora1m": 2.65,
+      "sora3m": 2.75,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-07",
+      "sora1m": 2.6,
+      "sora3m": 2.68,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-08",
+      "sora1m": 2.55,
+      "sora3m": 2.62,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-09",
+      "sora1m": 2.5,
+      "sora3m": 2.58,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-10",
+      "sora1m": 2.45,
+      "sora3m": 2.52,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-11",
+      "sora1m": 2.42,
+      "sora3m": 2.48,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2025-12",
+      "sora1m": 2.4,
+      "sora3m": 2.45,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2026-01",
+      "sora1m": 2.38,
+      "sora3m": 2.43,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2026-02",
+      "sora1m": 2.36,
+      "sora3m": 2.42,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2026-03",
+      "sora1m": 2.35,
+      "sora3m": 2.4,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2026-04",
+      "sora1m": 2.35,
+      "sora3m": 2.4,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2026-05",
+      "sora1m": 2.36,
+      "sora3m": 2.41,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2026-06",
+      "sora1m": 2.38,
+      "sora3m": 2.42,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2026-07",
+      "sora1m": 2.4,
+      "sora3m": 2.44,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2026-08",
+      "sora1m": 2.42,
+      "sora3m": 2.45,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    },
+    {
+      "month": "2026-09",
+      "sora1m": 2.4,
+      "sora3m": 2.44,
+      "source": "legacy-seed",
+      "verified": false,
+      "sourceUrl": null,
+      "observedAt": null
+    }
+  ]
+}

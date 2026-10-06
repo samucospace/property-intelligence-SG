@@ -10,6 +10,7 @@ export async function runMigrations(conn) {
   try {
     await conn.run('BEGIN IMMEDIATE');
     begun = true;
+    conn.transactionDepth = 1;
     await conn.run('CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     const applied = new Set((await conn.all('SELECT name FROM schema_migrations')).map(r => r.name));
     for (const file of fs.readdirSync(directory).filter(f => f.endsWith('.js') && f !== 'index.js').sort()) {
@@ -26,5 +27,5 @@ export async function runMigrations(conn) {
   } catch (error) {
     if (begun) await conn.run('ROLLBACK').catch(() => {});
     throw error;
-  } finally { await conn.run('PRAGMA foreign_keys = ON'); }
+  } finally { conn.transactionDepth = 0; await conn.run('PRAGMA foreign_keys = ON'); }
 }

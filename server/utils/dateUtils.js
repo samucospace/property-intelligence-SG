@@ -38,7 +38,7 @@ export function getDefaultDateRange(yearsBack = 5, now = new Date()) {
   const day = parts.find(p => p.type === 'day').value;
 
   const dateTo = `${year}-${month}-${day}`;
-  const dateFrom = `${year - yearsBack}-${month}-${day}`;
+  const dateFrom = `${year - yearsBack}-${month}-${String(Math.min(Number(day), new Date(Date.UTC(year - yearsBack, Number(month), 0)).getUTCDate())).padStart(2, '0')}`;
   return { dateFrom, dateTo };
 }
 

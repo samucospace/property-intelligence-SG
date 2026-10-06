@@ -1,0 +1,26 @@
+{
+  "scope": "Local staging real timer ticks; fake transport; no external network",
+  "candidateDuringObservation": "sha256:63abafa858ebd899feb7a30c75adf823c57ad1708fb946f62e2c84399f2822ae",
+  "jobs": [
+    {
+      "job_name": "cron-operations-monitor",
+      "status": "skipped",
+      "started_at": "2026-10-06 06:12:43",
+      "finished_at": "2026-10-06 06:12:43"
+    },
+    {
+      "job_name": "cron-operations-monitor",
+      "status": "success",
+      "started_at": "2026-10-06 06:13:13",
+      "finished_at": "2026-10-06 06:13:13"
+    }
+  ],
+  "alerts": [
+    {
+      "issue_key": "backup-stale",
+      "event_type": "raised",
+      "status": "pending",
+      "attempts": 0
+    }
+  ]
+}

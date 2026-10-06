@@ -1,0 +1,80 @@
+{
+  "recordedAt": "2026-10-06T06:40:40.996753+00:00",
+  "status": "Local approved-default targets pass; full Phase 4 exit gate open; public release NO-GO",
+  "head": "42c8a3c68c012c61f33d0af473cff853f9cf66cc",
+  "workingTreeBuild": true,
+  "releaseImage": "property-intelligence-sg:phase4-candidate-20261006",
+  "imageIdentity": "sha256:dd1227de60814d222c0156a0e41fe93bdc03354c3466fee8ce7ab7fa0d6c4dcc",
+  "testImage": "property-intelligence-sg:phase4-tests-20261006",
+  "testImageIdentity": "sha256:0da609a432ee0fc41043ce5b0878f46f67c5b376f2d4b208478418deca69e1e2",
+  "windows": {
+    "runtime": "v24.19.0",
+    "passed": 254,
+    "failed": 0
+  },
+  "linux": {
+    "runtime": "v22.23.3",
+    "passed": 254,
+    "failed": 0
+  },
+  "approvedOriginalTargets": {
+    "salesDefault": true,
+    "rentalDefault": true,
+    "projectsPayload": true,
+    "concurrentAdditional": true
+  },
+  "exactArithmeticCases": 16,
+  "browserPassed": true,
+  "sourceDatabase": {
+    "path": "server/property.db",
+    "sha256": "dd6ad961ade71ad5c4830b2595a0edbc07ec08dcebbc5467465723ce6e62c8dc",
+    "matchesPhase2Promotion": true,
+    "migratedOrModified": false
+  },
+  "limitations": [
+    "Broad cold custom filters remain slow; final raw rental about three seconds",
+    "Proposed mixed p95/p99 budgets remain provisional and measured latency misses them",
+    "Short local workload; actual host and sustained soak unverified",
+    "Scheduled observations use fake alerts and previous candidate before readiness-only guard",
+    "No real alert receipt, independent offsite restore, live sender or proxy/TLS qualification",
+    "No committed/published release or remote CI run claimed"
+  ],
+  "evidence": [
+    {
+      "path": "audit/2026-10-06/phase4-linux-results.json",
+      "sha256": "49acd40976ca16b2a338d9aad026823c69034208e1b1a41e3291528aa47b9d6f"
+    },
+    {
+      "path": "audit/2026-10-06/phase4-http-final.json",
+      "sha256": "542ea77d83c2db2d9300f44d73dd1fe68ded7d0e8d6924eef3291e520395f8e9"
+    },
+    {
+      "path": "audit/2026-10-06/phase4-browser.json",
+      "sha256": "d4d04268d3e2486fc926fbf0c6f1becef37dd93156a590c55c5fa4588e92412a"
+    },
+    {
+      "path": "audit/2026-10-06/phase4-arithmetic-parity.json",
+      "sha256": "ee5b0ff11d9da2be177742d15dfc21ee04c5e2eef25eed0f1237f91d1ac8ee51"
+    },
+    {
+      "path": "audit/2026-10-06/phase4-dependency-audits.json",
+      "sha256": "ed4a2c89461c634747df8fd37878af691c6908c43b79c187cadb8b5df2cc15cd"
+    },
+    {
+      "path": "audit/2026-10-06/phase4-final-resource-observation.json",
+      "sha256": "df12e9e0b9924a716a4f2e5dc0bc9535e664d60f1529dc603ba8e80b8f945b04"
+    },
+    {
+      "path": "audit/2026-10-06/phase4-production-qualification.json",
+      "sha256": "b02704dca9ac58f6eb2635be852ff9313a9f06cd00dd4f17b5c1ef34557ab3a7"
+    },
+    {
+      "path": "audit/2026-10-06/phase4-scheduled-observation.json",
+      "sha256": "72d3ff044817cd90a737ab73dc25450665777f3c322a4435145cc19401e02498"
+    },
+    {
+      "path": "audit/2026-10-06/phase4-application-rollback.json",
+      "sha256": "5f2f94b5547e5132d1e5d8d5ddffe853c5aaaf503b463ce92119df56ff668940"
+    }
+  ]
+}

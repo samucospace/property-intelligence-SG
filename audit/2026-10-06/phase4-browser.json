@@ -1,0 +1,45 @@
+{
+  "recordedAt": "2026-10-06T06:37:44.709Z",
+  "browser": "154.0.8037.97",
+  "base": "http://127.0.0.1:3414",
+  "externalServices": "blocked; local API is real",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "sales": true,
+      "rental": true,
+      "map": true,
+      "amenityDetailKeyboard": true,
+      "searchKeyboard": true,
+      "dialogFocusEscapeRestore": true,
+      "leadAdminContainment": true,
+      "overflow": {
+        "page": 1440,
+        "viewport": 1440
+      }
+    },
+    {
+      "viewport": "mobile",
+      "sales": true,
+      "rental": true,
+      "map": true,
+      "amenityDetailKeyboard": true,
+      "searchKeyboard": true,
+      "dialogFocusEscapeRestore": true,
+      "leadAdminContainment": true,
+      "overflow": {
+        "page": 390,
+        "viewport": 390
+      }
+    },
+    {
+      "loading": true,
+      "error": true,
+      "retry": true,
+      "empty": true,
+      "simulatedResponses": true
+    }
+  ],
+  "errors": [],
+  "passed": true
+}

@@ -94,16 +94,16 @@ describe('Phase 0 operational containment and recoverable baseline', () => {
     try {
       const base = `http://127.0.0.1:${server.address().port}`;
       const submit = data => fetch(base + '/api/leads/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pdpaConsent: true, ...data }) });
-      expect((await submit({ email: 'newsletter@example.invalid', leadType: 'newsletter' })).status).toBe(200);
-      expect((await submit({ email: 'advisory@example.invalid', phone: '91234567', leadType: 'agent_advisory', enquiryType: 'General' })).status).toBe(200);
-      expect(getCapturedEmails()).toHaveLength(2);
+      expect((await submit({ email: 'newsletter@example.invalid', leadType: 'newsletter' })).status).toBe(202);
+      expect((await submit({ email: 'advisory@example.invalid', phone: '91234567', leadType: 'agent_advisory', enquiryType: 'General' })).status).toBe(202);
+      expect(getCapturedEmails()).toHaveLength(0);
       await conn.run("UPDATE leads SET confirmed_at=CURRENT_TIMESTAMP WHERE lead_type='newsletter'");
       const summary = await sendWeeklyNewsletter(conn);
-      expect(summary.mockedCount).toBe(1);
+      expect(summary.queuedCount).toBe(1);
       expect((await conn.get("SELECT last_newsletter_sent_at FROM leads WHERE lead_type='newsletter'")).last_newsletter_sent_at).toBeNull();
-      expect(getCapturedEmails()).toHaveLength(3);
+      expect(getCapturedEmails()).toHaveLength(0);
       process.env.SIMULATE_EMAIL_ERROR = '500';
-      expect((await submit({ email: 'failure@example.invalid', leadType: 'newsletter' })).status).toBe(503);
+      expect((await submit({ email: 'failure@example.invalid', leadType: 'newsletter' })).status).toBe(202);
       // Only our loopback HTTP requests used fetch; no Resend/provider requests occurred.
       expect(outbound.mock.calls.every(([url]) => String(url).startsWith(base))).toBe(true);
     } finally { await new Promise(resolve => server.close(resolve)); await conn.close(); }
@@ -154,8 +154,18 @@ describe('Phase 0 operational containment and recoverable baseline', () => {
     await source.run("INSERT INTO leads(email,lead_type,confirmation_token) VALUES('restore@example.invalid','newsletter','restore-token')");
     await source.close();
     const keyFile = path.join(dir, 'keys', 'recovery.key');
-    const options = { sourcePath, backupRoot: path.join(dir, 'backups'), restoreRoot: path.join(dir, 'restores'), keyFile, createKey: true };
+    const workspaceRoot = path.join(dir, 'workspace');
+    fs.mkdirSync(workspaceRoot);
+    fs.writeFileSync(path.join(workspaceRoot,'app.js'),'export const fixture = true;');
+    fs.writeFileSync(path.join(workspaceRoot,'.env'),'PRIVATE_FIXTURE=must-not-be-copied');
+    expect(spawnSync('git',['init','-q',workspaceRoot]).status).toBe(0);
+    expect(spawnSync('git',['-C',workspaceRoot,'add','app.js']).status).toBe(0);
+    expect(spawnSync('git',['-C',workspaceRoot,'-c','user.name=Qualification','-c','user.email=qualification@example.invalid','commit','-qm','Fixture baseline']).status).toBe(0);
+    const options = { sourcePath, backupRoot: path.join(dir, 'backups'), restoreRoot: path.join(dir, 'restores'), keyFile, createKey: true, workspaceRoot };
     const manifest = await captureBaseline(options);
+    expect(manifest.workingTree.head).toMatch(/^[a-f0-9]{40,64}$/);
+    expect(manifest.workingTree.files.map(f=>f.path)).toEqual(['app.js']);
+    expect(fs.existsSync(path.join(path.dirname(manifest.encryptedBackup),'working-tree','.env'))).toBe(false);
     expect(manifest.restoreProcess).toMatch(/Fresh/);
     expect((await databaseMetrics(manifest.restoredPath)).counts.leads).toBe(1);
     expect(fs.readFileSync(keyFile, 'utf8')).toMatch(/^[a-f0-9]{64}$/);

@@ -1,0 +1,248 @@
+{
+  "completedAt": "2026-10-05T13:07:27.761289+00:00",
+  "phase2LocalComplete": true,
+  "publicRelease": "NO-GO",
+  "counts": {
+    "projects": 5905,
+    "property_transactions": 132305,
+    "rental_transactions": 451165,
+    "schema_migrations": 14
+  },
+  "approvedReviews": 35,
+  "pendingReviews": 0,
+  "databaseSha256": "dd6ad961ade71ad5c4830b2595a0edbc07ec08dcebbc5467465723ce6e62c8dc",
+  "originalRollbackSha256": "e6067d6033aac82c3392db8108fd7221ecefa576e44c7efb247ead6b381fa252",
+  "preparationApprovalMapSha256": "1def1ddd50f787a2726e7121aac1ed53c9e41f3d512012fccf289051955299e4",
+  "finalApprovalMapSha256": "cc8681a145cd42bce260441f5b9957cee300b5e92a74f4a3ef683d4ec50ffa16",
+  "approvalMapChangeAfterPromotion": "Root status text only; reviewer decisions and evidence unchanged. Final image rebuilt and requalified.",
+  "releaseImage": {
+    "tag": "property-intelligence-sg:phase2-final-20261005",
+    "id": "sha256:3e8c4f1755c5bab0c1f995fcef341528bf624c90ce4cb4129fb55b4762108c79"
+  },
+  "testImage": {
+    "tag": "property-intelligence-sg:phase2-final-tests-20261005",
+    "id": "sha256:e49227c015d472882d58507b91fe0f68519de6a3d826e10c5bae77ec906e8d99"
+  },
+  "windowsTests": 189,
+  "linuxTests": 189,
+  "testFiles": 15,
+  "startup": {
+    "runtime": "v22.23.3",
+    "platform": "linux",
+    "fresh": [
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      }
+    ],
+    "existing": [
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      },
+      {
+        "exit": 0,
+        "passed": true,
+        "error": null
+      }
+    ],
+    "concurrent": [
+      {
+        "exit": 0,
+        "passed": true
+      },
+      {
+        "exit": 0,
+        "passed": true
+      },
+      {
+        "exit": 0,
+        "passed": true
+      },
+      {
+        "exit": 0,
+        "passed": true
+      },
+      {
+        "exit": 0,
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "productionSmoke": {
+    "passed": true,
+    "runtime": "v22.23.3",
+    "platform": "linux",
+    "uid": 1000,
+    "productionConfiguration": true,
+    "healthStatus": 200,
+    "frontendStatus": 200,
+    "bakedCredentials": false,
+    "bakedMarketDatabase": false,
+    "externalNetwork": false
+  },
+  "linuxRealDataApi": {
+    "passed": true,
+    "runtime": "v22.23.3",
+    "platform": "linux",
+    "healthStatus": 200,
+    "analyticsStatus": 200,
+    "approvedIdentityCount": 35,
+    "independentMedianArithmeticMatch": true,
+    "projectId": 3515,
+    "grossYield": 3.02,
+    "realDatabaseTouched": false
+  },
+  "localPromotedDataApi": {
+    "passed": true,
+    "runtime": "v22.23.3",
+    "platform": "win32",
+    "healthStatus": 200,
+    "analyticsStatus": 200,
+    "approvedIdentityCount": 35,
+    "independentMedianArithmeticMatch": true,
+    "projectId": 3515,
+    "grossYield": 3.02,
+    "realDatabaseTouched": false
+  },
+  "build": "passed with existing frontend bundle warning",
+  "preservation": {
+    "passed": true,
+    "operationalStatePreserved": true,
+    "sales": {
+      "olderRecordsPreserved": 59,
+      "coveredOriginalRecordsArchived": 133359,
+      "identityDatesAmountsMatch": true
+    },
+    "rentals": {
+      "olderRecordsPreserved": 0,
+      "coveredOriginalRecordsArchived": 450722,
+      "identityDatesAmountsMatch": true
+    }
+  },
+  "freshProcessEncryptedRestore": true,
+  "scheduledImportsMailCleanupEnabled": false,
+  "deployment": "not performed",
+  "commitPush": "not performed",
+  "logs": {
+    "phase2-final-tests.log": "995a69ec75cd909b2cfff8a8eb94e717a1b41c8bcc0719dca9f441bdfe0c4cd4",
+    "docker-phase2-final-tests.log": "4d9bf1c38542caa3cf582bbb14eaf084c87715287ee6e8b2437847c2939bd9fb",
+    "docker-phase2-final-startup.log": "d2056d3ce052c3fd624499aa3fc3f2e2824ee764234f309c4a36e80a27ddf74c",
+    "docker-phase2-final-production.log": "235de68e22fa3f3440a0275c90c96219673470dd47c3de26bbe57e9b107dd851",
+    "docker-phase2-final-data.log": "e121003d43fc74d7a8c2d65b1baee061143bb64f3b525565c3a0639cf81f5a61",
+    "phase2-final-client-build.log": "79e6f62743122c7f99159cb8d6cbaccfa2bc6211c536d18535efa2b9c19666ce"
+  }
+}

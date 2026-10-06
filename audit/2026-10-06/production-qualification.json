@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "runtime": "v22.23.3",
+  "platform": "linux",
+  "uid": 1000,
+  "productionConfiguration": true,
+  "healthStatus": 200,
+  "frontendStatus": 200,
+  "bakedCredentials": false,
+  "bakedMarketDatabase": false,
+  "externalNetwork": false,
+  "imageId": "sha256:4db8f540825d93c0c2b891b5d54ae1ce0bc5bcc25ba43e78351a18a5442ca65a"
+}

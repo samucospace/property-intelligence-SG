@@ -8,15 +8,21 @@ import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { sendEmail } from './utils/emailAdapter.js';
+import { submitLead, confirmLead } from './utils/leadService.js';
 import { releaseFeatures } from './utils/releasePolicy.js';
-import { initDb, dbGet, dbAll, dbRun, closeDb, getDbPath } from './db.js';
+import { initDb, dbGet, dbAll, dbRun, closeDb, getDbPath, createConnection, withTransaction } from './db.js';
+import { assertProductionCollection } from './utils/productionControls.js';
+import { Resend } from 'resend';
+import {analyticsSummary,encodeMapProjects} from './utils/analyticsContract.js';
+import {readinessStatus} from './utils/operationalStatus.js';
+import {openReadonly} from './utils/databaseArtifacts.js';
 import { assertStagingDatabase } from './utils/databaseArtifacts.js';
 import { fetchUraData, importRealUraData, seedSoraRates } from './ingestion.js';
-import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics, initSaleValuationsCache, invalidateSaleValuationsCache, invalidateAnalyticsCache } from './queryEngine.js';
+import { getSearchSuggestions, getPriceAnalytics, getAllProjects, getRentalYieldAnalytics, initSaleValuationsCache, invalidateSaleValuationsCache, invalidateAnalyticsCache, prepareDefaultAnalytics } from './queryEngine.js';
 import { seedAmenities, calculateLivabilityScore, initLivabilityCache, invalidateLivabilityCache, getProjectLivability } from './livabilityEngine.js';
-import { safeEqual, escapeHtml, verifyUnsubscribeToken, checkAdminKey, generateAdminSession, verifyAdminSession, isPlaceholderSecret } from './utils/security.js';
-import { validateFilters } from './utils/validation.js';
+import { safeEqual, escapeHtml, verifyUnsubscribeToken, checkAdminKey, generateAdminSession, verifyAdminSession, isPlaceholderSecret, isTokenRevoked, revokeAdminToken, logAdminAction } from './utils/security.js';
+import { validateFilters, validateLeadSubmission } from './utils/validation.js';
+import { isEmailSuppressed, suppressEmail } from './utils/suppression.js';
 import { cleanupLeads } from './scripts/cleanup-leads.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,16 +59,58 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 app.use(compression());
-const allowedOrigin = process.env.ALLOWED_ORIGIN;
+app.get('/api/health/live',(req,res)=>res.set('Cache-Control','no-store').json({status:'alive'}));
+let readinessFlight=null,readinessCache=null,readinessExpires=0,readinessPath=null;
+app.get('/api/health/ready',async(req,res)=>{
+  if(readinessPath!==getDbPath()) {readinessPath=getDbPath();readinessCache=null;readinessExpires=0;}
+  if(!readinessCache || Date.now()>=readinessExpires) {
+    if(!readinessFlight) readinessFlight=(async()=>{
+      let conn;
+      try {if(fs.existsSync(getDbPath()+'.maintenance') || fs.existsSync(getDbPath()+'.swap.json')) throw new Error('Database maintenance in progress');conn=openReadonly(getDbPath());return await readinessStatus(conn);} catch {return {ready:false,checks:{database:false},dataState:'unavailable'};}
+      finally {if(conn) await conn.close();}
+    })().then(result=>{readinessCache=result;readinessExpires=Date.now()+5000;return result;}).finally(()=>{readinessFlight=null;});
+    await readinessFlight;
+  }
+  res.set('Cache-Control','no-store').status(readinessCache.ready?200:503).json(readinessCache);
+});
+app.post('/api/email/webhook', express.raw({type:'application/json',limit:'100kb'}), async (req,res,next) => {
+  if (!process.env.RESEND_WEBHOOK_SECRET) return res.status(503).json({error:'Email webhook not configured'});
+  let event;
+  try {
+    event=new Resend('re_verification_only').webhooks.verify({payload:req.body.toString('utf8'),webhookSecret:process.env.RESEND_WEBHOOK_SECRET,
+      headers:{id:req.get('svix-id'),timestamp:req.get('svix-timestamp'),signature:req.get('svix-signature')}});
+  } catch { return res.status(401).json({error:'Invalid webhook signature'}); }
+  const db=createConnection();
+  try {
+    await withTransaction(db,async () => {
+      const inserted=await db.run('INSERT OR IGNORE INTO email_provider_events(event_id,provider_message_id,event_type) VALUES(?,?,?)',[req.get('svix-id'),event.data?.email_id || null,event.type]);
+      if (!inserted.changes) return;
+      const reason=event.type==='email.bounced' ? 'bounced' : event.type==='email.complained' ? 'complaint' : null;
+      if (reason) for (const email of event.data?.to || []) {
+        if (typeof email!=='string') throw new Error('Invalid event recipient');
+        await suppressEmail({email,reason,sourceVersion:'provider-webhook'},db);
+        await db.run('UPDATE leads SET unsubscribed_at=CURRENT_TIMESTAMP WHERE LOWER(email)=?',[email.trim().toLowerCase()]);
+      }
+    });
+    res.json({status:'recorded'});
+  } catch(error) { next(error); } finally { await db.close(); }
+});
+const allowedOrigin = process.env.ALLOWED_ORIGIN || process.env.ALLOWED_ORIGINS;
 if (allowedOrigin) {
   const allowedOrigins = allowedOrigin.split(',').map(s => s.trim()).filter(Boolean);
   app.use(cors({
     origin: allowedOrigins,
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'X-Admin-Key']
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'X-Admin-Session'],
+    credentials: true
   }));
 } else if (process.env.NODE_ENV !== 'production') {
-  app.use(cors()); // Allow all in local development only
+  app.use(cors({
+    origin: true,
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'X-Admin-Session'],
+    credentials: true
+  }));
 }
 
 // Step 3.4.2: Strict 100kb body limit for public routes (exempting dedicated 50mb import-data route)
@@ -72,6 +120,7 @@ app.use((req, res, next) => {
   }
   express.json({ limit: '100kb' })(req, res, next);
 });
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
 // General Rate Limiter (300 requests per 15 minutes per IP)
 const apiLimiter = rateLimit({
@@ -82,6 +131,12 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests from this IP, please try again later.' }
 });
 app.use('/api/', apiLimiter);
+app.use(['/api/admin','/api/ingest'],(req,res,next) => {
+  if (process.env.NODE_ENV==='production' && !safeEqual(req.get('x-admin-gateway'),process.env.ADMIN_GATEWAY_SECRET)) {
+    return res.status(403).json({error:'Private administrative gateway required.'});
+  }
+  next();
+});
 
 // Enforce the selected release scope before parsing or executing protected flows.
 app.use((req, res, next) => {
@@ -97,7 +152,9 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.get('/api/features', (req, res) => res.set('Cache-Control', 'no-store').json(releaseFeatures()));
+app.get('/api/features', (req, res) => res.set('Cache-Control', 'no-store').json({...releaseFeatures(),
+  advisoryPartnerName:process.env.ADVISORY_PARTNER_NAME || null,advisoryPartnerRegistration:process.env.ADVISORY_PARTNER_CEA_REGISTRATION || null,
+  hostingProcessorName:process.env.HOSTING_PROCESSOR_NAME || null,backupProcessorName:process.env.BACKUP_PROCESSOR_NAME || null}));
 
 // Step 3.4.4: Stricter rate limiter for expensive analytics routes (120 req / 5 min)
 const analyticsLimiter = rateLimit({
@@ -120,7 +177,7 @@ const leadsLimiter = rateLimit({
 
 // Step 3.4.1: Input Validation Middleware for Analytics Endpoints
 function validateAnalyticsFilters(req, res, next) {
-  const filters = req.body?.filters || req.body || {};
+  const filters = req.body?.filters !== undefined ? req.body.filters : req.body ?? {};
   const result = validateFilters(filters);
   if (!result.valid) {
     return res.status(400).json({ error: result.error });
@@ -129,7 +186,8 @@ function validateAnalyticsFilters(req, res, next) {
 }
 
 // Ingestion & Admin Auth Guard (Fail-closed independent of NODE_ENV - Step 1.3 & IAM-01)
-export const requireAdmin = (req, res, next) => {
+export const requireAdmin = async (req, res, next) => {
+  try {
   const adminKey = process.env.ADMIN_API_KEY;
   if (!adminKey || adminKey.length < 32 || isPlaceholderSecret(adminKey)) {
     return res.status(503).json({ error: 'Admin API disabled: ADMIN_API_KEY is not securely configured.' });
@@ -140,24 +198,31 @@ export const requireAdmin = (req, res, next) => {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const sessionToken = authHeader.slice(7).trim();
     if (verifyAdminSession(sessionToken, adminKey)) {
-      return next();
+      const revoked = await isTokenRevoked(sessionToken);
+      if (!revoked) {
+        req.adminOperator = JSON.parse(Buffer.from(sessionToken.split('.')[0],'base64url').toString()).operator;
+        req.adminSessionToken = sessionToken;
+        return next();
+      }
     }
   }
 
   // 2. Check X-Admin-Session header (IAM-01)
   const sessionHeader = req.get('x-admin-session');
-  if (sessionHeader && verifyAdminSession(sessionHeader.trim(), adminKey)) {
-    return next();
+  if (sessionHeader) {
+    const sessionToken = sessionHeader.trim();
+    if (verifyAdminSession(sessionToken, adminKey)) {
+      const revoked = await isTokenRevoked(sessionToken);
+      if (!revoked) {
+        req.adminOperator = JSON.parse(Buffer.from(sessionToken.split('.')[0],'base64url').toString()).operator;
+        req.adminSessionToken = sessionToken;
+        return next();
+      }
+    }
   }
 
-  // 3. Fallback to direct X-Admin-Key header (for automated cron scripts / backward compatibility)
-  const directKey = req.get('x-admin-key');
-  const check = checkAdminKey(adminKey, directKey);
-  if (check.ok) {
-    return next();
-  }
-
-  return res.status(401).json({ error: 'Unauthorized: Valid admin session token or X-Admin-Key required.' });
+  return res.status(401).json({error:'Unauthorized: Valid admin session token required.'});
+  } catch (error) { return res.status(503).json({error:'Admin authentication temporarily unavailable.'}); }
 };
 app.use('/api/ingest', requireAdmin);
 
@@ -171,7 +236,8 @@ const adminLoginLimiter = rateLimit({
 });
 
 // Admin Session Login Endpoint (IAM-01)
-app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
+app.post('/api/admin/login', adminLoginLimiter, async (req, res, next) => {
+  try {
   const { adminKey } = req.body || {};
   const configuredKey = process.env.ADMIN_API_KEY;
 
@@ -181,12 +247,24 @@ app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
   }
 
   const session = generateAdminSession(configuredKey);
+  await logAdminAction({ operator: process.env.ADMIN_OPERATOR || 'local-operator', action: 'login', ip: req.ip });
   console.log(`[Admin] Authenticated new admin session (expires at ${session.expiresAt}).`);
   res.json({
     status: 'success',
     token: session.token,
     expiresAt: session.expiresAt
   });
+  } catch(error) { next(error); }
+});
+
+app.post('/api/admin/logout', requireAdmin, async (req, res, next) => {
+  try {
+  if (req.adminSessionToken) {
+    await revokeAdminToken(req.adminSessionToken, 'operator_logout');
+  }
+  await logAdminAction({ operator: req.adminOperator, action: 'logout', ip: req.ip });
+  res.json({ status: 'success', message: 'Logged out successfully.' });
+  } catch(error) { next(error); }
 });
 
 // 1. Health check (Step 5.5: Return 503 if database check fails)
@@ -237,215 +315,87 @@ app.get('/sitemap.xml', async (req, res, next) => {
 // 1b. Lead Capture with Honeypot, Length Limits, Double Opt-In & Agent Delivery (Steps 4.4 & 4.5)
 app.post('/api/leads/submit', leadsLimiter, async (req, res, next) => {
   try {
-    const { name, email, phone, leadType, enquiryType, projectInterest, pdpaConsent, details, website } = req.body;
-
-    // Honeypot check: spambots populate invisible 'website' field
-    if (website) {
-      console.warn('[Leads] Bot submission dropped via honeypot field');
-      return res.json({ status: 'success', message: 'Enquiry received.' });
-    }
-
-    // Step 4.4.3: Reject unless pdpaConsent is explicitly true
-    if (pdpaConsent !== true) {
-      return res.status(400).json({ error: 'Explicit Singapore PDPA consent is required to proceed.' });
-    }
-
-    // Step 4.5.1: Maximum lengths and field validation
-    if (name && typeof name === 'string' && name.length > 100) {
-      return res.status(400).json({ error: 'Name must not exceed 100 characters.' });
-    }
-    if (!email || typeof email !== 'string' || email.length > 254) {
-      return res.status(400).json({ error: 'A valid email address is required (maximum 254 characters).' });
-    }
-    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const cleanEmail = email.trim().toLowerCase();
-    if (!EMAIL_REGEX.test(cleanEmail)) {
-      return res.status(400).json({ error: 'Invalid email address format.' });
-    }
-
-    const cleanLeadType = leadType === 'newsletter' ? 'newsletter' : 'agent_advisory';
-
-    // Agent advisory validations
-    let cleanPhone = null;
-    if (cleanLeadType === 'agent_advisory') {
-      if (!phone || typeof phone !== 'string') {
-        return res.status(400).json({ error: 'A valid Singapore contact number is required for agent advisory.' });
-      }
-      cleanPhone = phone.trim();
-      const SG_PHONE_REGEX = /^(?:\+65\s?)?[689]\d{7}$/;
-      if (!SG_PHONE_REGEX.test(cleanPhone.replace(/\s+/g, ''))) {
-        return res.status(400).json({ error: 'Please provide a valid 8-digit Singapore phone number starting with 6, 8, or 9.' });
-      }
-      if (details && typeof details === 'string' && details.length > 2000) {
-        return res.status(400).json({ error: 'Enquiry details must not exceed 2000 characters.' });
-      }
-    }
-
-    if (cleanLeadType === 'newsletter') {
-      // Step 4.5.2 & ABU-02: Double opt-in cooldown (5 minutes / 300s) to prevent email bombing
-      const existingLead = await dbGet(
-        `SELECT (strftime('%s', 'now') - strftime('%s', last_confirmation_sent_at)) AS elapsed_seconds
-         FROM leads
-         WHERE email = ? AND lead_type = 'newsletter' AND last_confirmation_sent_at IS NOT NULL`,
-        [cleanEmail]
-      );
-      if (existingLead && existingLead.elapsed_seconds != null && existingLead.elapsed_seconds < 300) {
-        return res.json({
-          status: 'success',
-          message: 'Confirmation link already dispatched recently. Please check your inbox or wait 5 minutes before requesting another.'
-        });
-      }
-
-      // Step 4.5.2 & 4.5.3: Double opt-in & prevent duplicate newsletter leads
-      const confirmToken = crypto.randomBytes(24).toString('hex');
-      const host = req.get('host');
-      const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
-      const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
-      const confirmUrl = `${baseUrl}/api/newsletter/confirm?email=${encodeURIComponent(cleanEmail)}&token=${confirmToken}`;
-
-      await dbRun(
-        `INSERT INTO leads (name, email, lead_type, pdpa_consent, consent_version, consent_at, confirmation_token, last_confirmation_sent_at)
-         VALUES (?, ?, 'newsletter', 1, 'v1.0', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
-         ON CONFLICT(email) WHERE lead_type = 'newsletter'
-         DO UPDATE SET
-           confirmation_token = excluded.confirmation_token,
-           last_confirmation_sent_at = CURRENT_TIMESTAMP,
-           pdpa_consent = 1,
-           consent_at = CURRENT_TIMESTAMP`,
-        [name ? name.trim().slice(0, 100) : null, cleanEmail, confirmToken]
-      );
-
-      // The shared adapter applies scope, isolation and explicit live-send controls.
-      if (process.env.RESEND_API_KEY) {
-        try {
-          const mailResult = await sendEmail({
-            from: process.env.SENDER_EMAIL || 'Singapore Home Intel <digest@homeintel.sg>',
-            to: cleanEmail,
-            subject: 'Confirm your subscription - Singapore Home Intel Market Watchlist',
-            html: `
-              <div style="font-family: -apple-system, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; color: #1E293B;">
-                <h2 style="color: #4F7942; margin-top: 0;">Confirm Your Subscription</h2>
-                <p>Thank you for subscribing to Singapore Home Intel's weekly property intelligence briefing.</p>
-                <p>Please click the button below to confirm your email address and activate your subscription under Singapore PDPA guidelines:</p>
-                <div style="text-align: center; margin: 28px 0;">
-                  <a href="${confirmUrl}" style="background-color: #4F7942; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Confirm Subscription</a>
-                </div>
-                <p style="font-size: 0.8rem; color: #64748B;">If you did not request this subscription, you can safely ignore this email.</p>
-              </div>
-            `
-          });
-          if (mailResult.error || !mailResult.data?.id) return res.status(503).json({ error: 'Confirmation email could not be accepted. Please try again later.' });
-        } catch (mailErr) {
-          console.error('[Newsletter] Error sending confirmation email via Resend:', mailErr);
-          return res.status(503).json({ error: 'Confirmation email could not be accepted.' });
-        }
-      } else {
-        return res.status(503).json({ error: 'Confirmation email is not configured.' });
-      }
-
-      return res.json({
-        status: 'success',
-        message: process.env.RESEND_API_KEY
-          ? 'Confirmation link sent to your email. Please check your inbox to confirm your subscription.'
-          : 'Subscribed successfully to weekly market briefs.'
-      });
-    }
-
-    // Agent Advisory Lead Submission
-    await dbRun(
-      `INSERT INTO leads (name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, consent_version, consent_at, details)
-       VALUES (?, ?, ?, 'agent_advisory', ?, ?, 1, 'v1.0', CURRENT_TIMESTAMP, ?)`,
-      [
-        name ? name.trim().slice(0, 100) : null,
-        cleanEmail,
-        cleanPhone,
-        enquiryType ? String(enquiryType).trim().slice(0, 50) : 'General Enquiry',
-        projectInterest ? String(projectInterest).trim().slice(0, 100) : null,
-        details ? String(details).trim().slice(0, 2000) : null
-      ]
-    );
-
-    // Step 4.5.4: Deliver lead to appointed agent
-    const agentEmail = process.env.AGENT_NOTIFICATION_EMAIL || process.env.AGENT_EMAIL;
-    if (process.env.RESEND_API_KEY && agentEmail) {
-      try {
-        const mailResult = await sendEmail({
-          from: process.env.SENDER_EMAIL || 'Singapore Home Intel Leads <leads@homeintel.sg>',
-          to: agentEmail,
-          subject: `[New Lead] ${enquiryType || 'Advisory'} Enquiry - ${projectInterest || 'General'}`,
-          html: `
-            <div style="font-family: -apple-system, sans-serif; padding: 20px; color: #334155;">
-              <h3 style="color: #4F7942;">New Real Estate Advisory Enquiry</h3>
-              <p><strong>Name:</strong> ${escapeHtml(name || 'Unspecified')}</p>
-              <p><strong>Email:</strong> ${escapeHtml(cleanEmail)}</p>
-              <p><strong>Phone:</strong> ${escapeHtml(cleanPhone)}</p>
-              <p><strong>Enquiry Type:</strong> ${escapeHtml(enquiryType || 'General')}</p>
-              <p><strong>Project Interest:</strong> ${escapeHtml(projectInterest || 'None')}</p>
-              <p><strong>Notes:</strong> ${escapeHtml(details || 'None')}</p>
-              <p style="font-size: 0.8rem; color: #64748B; margin-top: 20px;">Singapore PDPA consent confirmed at ${new Date().toISOString()}.</p>
-            </div>
-          `
-        });
-        if (mailResult.error || !mailResult.data?.id) return res.status(503).json({ error: 'Agent notification could not be accepted.' });
-      } catch (agentMailErr) {
-        console.error('[Leads] Error notifying agent via Resend:', agentMailErr);
-        return res.status(503).json({ error: 'Agent notification could not be accepted.' });
-      }
-    }
-
-    res.json({
-      status: 'success',
-      message: 'Enquiry received. An accredited CEA representative (ERA Realty Network / Lic: L3002382K) will be in touch shortly.'
-    });
-  } catch (err) {
-    next(err);
-  }
+    assertProductionCollection();
+    const validation = validateLeadSubmission(req.body);
+    if (!validation.valid) return res.status(400).json({error:validation.error});
+    if (validation.isBot) return res.json({status:'success',message:'Enquiry received.'});
+    const result = await submitLead(req.body);
+    return res.status(result.status).json(result.error ? {error:result.error} : {status:'success',message:result.message});
+  } catch (error) { next(error); }
 });
 
-// Step 4.5.3: Double Opt-In Email Confirmation Endpoint
+// Step 4.5.3: Double Opt-In Email Confirmation Endpoints (GL-10 Scanner-Safe Two-Step)
+// GET renders confirmation page without mutating database (prevents link crawlers from opting in)
 app.get('/api/newsletter/confirm', async (req, res, next) => {
   try {
     const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : '';
     const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
 
     if (!email || !token) {
-      return res.status(400).send('Invalid confirmation request.');
+      return res.status(400).send('Invalid confirmation request: email and token required.');
     }
 
     const lead = await dbGet(
-      `SELECT lead_id, confirmation_token FROM leads WHERE email = ? AND lead_type = 'newsletter'`,
+      `SELECT lead_id, email, confirmation_token, confirmation_token_expires_at,
+              datetime(confirmation_token_expires_at)>datetime('now') AS token_valid
+       FROM leads
+       WHERE email = ? AND lead_type = 'newsletter'`,
       [email]
     );
 
     if (!lead || !lead.confirmation_token || lead.confirmation_token !== token) {
-      return res.status(403).send('Invalid or expired confirmation token.');
+      return res.status(403).type('text/html').send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head><meta charset="UTF-8"><title>Invalid Link - Singapore Home Intel</title>
+        <style>body { font-family: -apple-system, sans-serif; background: #FAF6F0; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { background: #FFFFFF; border-radius: 16px; padding: 36px 32px; max-width: 480px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+        h2 { color: #CB6D51; margin-top: 0; }</style></head>
+        <body><div class="card"><h2>Invalid or Expired Link</h2>
+        <p>This confirmation link is invalid, expired, or has already been used. Please request a new subscription on the homepage.</p>
+        <a href="/" style="display: inline-block; background: #4F7942; color: #FFF; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 12px;">Return to Homepage</a></div></body></html>
+      `);
     }
 
-    await dbRun(
-      `UPDATE leads SET confirmed_at = CURRENT_TIMESTAMP, unsubscribed_at = NULL, confirmation_token = NULL WHERE lead_id = ?`,
-      [lead.lead_id]
-    );
+    if (!lead.token_valid) {
+      return res.status(403).type('text/html').send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head><meta charset="UTF-8"><title>Expired Link - Singapore Home Intel</title>
+        <style>body { font-family: -apple-system, sans-serif; background: #FAF6F0; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { background: #FFFFFF; border-radius: 16px; padding: 36px 32px; max-width: 480px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+        h2 { color: #CB6D51; margin-top: 0; }</style></head>
+        <body><div class="card"><h2>Confirmation Link Expired</h2>
+        <p>Confirmation links expire after 24 hours. Please return to the homepage to request a fresh subscription.</p>
+        <a href="/" style="display: inline-block; background: #4F7942; color: #FFF; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 12px;">Return to Homepage</a></div></body></html>
+      `);
+    }
 
+    // Render interactive confirmation page without modifying state
     res.type('text/html').send(`
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Subscription Confirmed - Singapore Home Intel</title>
+        <title>Confirm Your Subscription - Singapore Home Intel</title>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #FAF6F0; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
           .card { background: #FFFFFF; border-radius: 16px; padding: 36px 32px; max-width: 480px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.06); text-align: center; }
           h2 { color: #4F7942; margin-top: 0; font-size: 1.4rem; }
           p { color: #64748B; font-size: 0.92rem; line-height: 1.5; }
-          .btn { display: inline-block; background: #4F7942; color: #FFFFFF; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-top: 16px; }
+          .btn { display: inline-block; background: #4F7942; color: #FFFFFF; padding: 12px 26px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; margin-top: 16px; border: none; cursor: pointer; }
         </style>
       </head>
       <body>
         <div class="card">
-          <h2>Subscription Confirmed!</h2>
-          <p>Thank you for verifying your email address. You are now subscribed to the weekly Singapore Home Intel property briefing under Singapore PDPA guidelines.</p>
-          <a href="/" class="btn">Explore Property Caveats</a>
+          <h2>Confirm Your Subscription</h2>
+          <p>Please click below to activate your subscription to the Singapore Home Intel weekly property intelligence digest under Singapore PDPA guidelines.</p>
+          <form method="POST" action="/api/newsletter/confirm">
+            <input type="hidden" name="email" value="${escapeHtml(email)}" />
+            <input type="hidden" name="token" value="${escapeHtml(token)}" />
+            <button type="submit" class="btn">Confirm Subscription</button>
+          </form>
         </div>
       </body>
       </html>
@@ -455,11 +405,50 @@ app.get('/api/newsletter/confirm', async (req, res, next) => {
   }
 });
 
+// POST endpoint executes single-use confirmation and mutates state
+app.post('/api/newsletter/confirm', async (req, res, next) => {
+  try {
+    const rawEmail = req.body?.email || req.query.email;
+    const rawToken = req.body?.token || req.query.token;
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+    const token = typeof rawToken === 'string' ? rawToken.trim() : '';
+
+    if (!email || !token) {
+      return res.status(400).json({ error: 'Valid email and confirmation token required.' });
+    }
+
+    const confirmation = await confirmLead(email,token);
+    if (confirmation.status!==200) return res.status(confirmation.status).json({error:'Invalid, expired, already used or suppressed confirmation token.'});
+
+    if (req.accepts('html') && !req.xhr && !req.headers['content-type']?.includes('json')) {
+      return res.type('text/html').send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head><meta charset="UTF-8"><title>Subscription Confirmed - Singapore Home Intel</title>
+        <style>body { font-family: -apple-system, sans-serif; background: #FAF6F0; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { background: #FFFFFF; border-radius: 16px; padding: 36px 32px; max-width: 480px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+        h2 { color: #4F7942; margin-top: 0; }</style></head>
+        <body><div class="card"><h2>Subscription Confirmed!</h2>
+        <p>Thank you for verifying your email address. You are now subscribed to the weekly Singapore Home Intel property briefing under Singapore PDPA guidelines.</p>
+        <a href="/" style="display: inline-block; background: #4F7942; color: #FFF; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">Explore Property Caveats</a></div></body></html>
+      `);
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Subscription confirmed successfully.'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Step 4.5.4: Admin Leads View & CSV Export (Protected by requireAdmin)
 app.get('/api/admin/leads', requireAdmin, async (req, res, next) => {
   try {
+    await logAdminAction({ operator: req.adminOperator, action: 'view_leads', ip: req.ip });
     const leads = await dbAll(
-      `SELECT lead_id, name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, consent_version, consent_at, confirmed_at, unsubscribed_at, created_at, details
+      `SELECT lead_id, name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, consent_version, consent_at, confirmed_at, unsubscribed_at, is_quarantined, is_converted, created_at, details
        FROM leads
        ORDER BY created_at DESC
        LIMIT 500`
@@ -482,6 +471,7 @@ function sanitizeCsvCell(val) {
 
 app.get('/api/admin/leads/export.csv', requireAdmin, async (req, res, next) => {
   try {
+    await logAdminAction({ operator: req.adminOperator, action: 'export_csv', ip: req.ip });
     const leads = await dbAll(
       `SELECT lead_id, name, email, phone, lead_type, enquiry_type, project_interest, pdpa_consent, confirmed_at, created_at
        FROM leads
@@ -514,16 +504,37 @@ app.get('/api/admin/leads/export.csv', requireAdmin, async (req, res, next) => {
 });
 
 // Step 3.1 / PRIV-01: Admin Right-to-Erasure Endpoint (PDPA Section 25 & GDPR Article 17)
+app.post('/api/admin/leads/:id/conversion', requireAdmin, async (req,res,next) => {
+  const id=Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id<1 || typeof req.body?.converted!=='boolean') return res.status(400).json({error:'Valid lead ID and boolean converted required.'});
+  const db=createConnection();
+  try {
+    const result=await withTransaction(db,async () => {
+      await logAdminAction({operator:req.adminOperator,action:'set_conversion',targetId:String(id),ip:req.ip,details:{converted:req.body.converted}},db);
+      return db.run(`UPDATE leads SET is_converted=?,retention_reviewed_at=CURRENT_TIMESTAMP,converted_at=CASE WHEN ?=1 THEN COALESCE(converted_at,CURRENT_TIMESTAMP) ELSE NULL END WHERE lead_id=? AND lead_type='agent_advisory'`,[Number(req.body.converted),Number(req.body.converted),id]);
+    });
+    res.status(result.changes ? 200 : 404).json({status:result.changes ? 'updated' : 'not_found'});
+  } catch(error) { next(error); } finally { await db.close(); }
+});
 app.delete('/api/admin/leads/:id', requireAdmin, async (req, res, next) => {
   try {
-    const leadId = parseInt(req.params.id, 10);
+    const leadId = /^\d+$/.test(req.params.id) ? Number(req.params.id) : NaN;
     if (isNaN(leadId) || leadId <= 0) {
       return res.status(400).json({ error: 'Valid numeric lead ID required.' });
     }
-    const result = await dbRun('DELETE FROM leads WHERE lead_id = ?', [leadId]);
-    if (!result || result.changes === 0) {
-      return res.status(404).json({ error: 'Lead record not found.' });
-    }
+    const db=createConnection();
+    let erased;
+    try {
+      erased=await withTransaction(db,async () => {
+        const lead=await db.get('SELECT lead_id,email FROM leads WHERE lead_id=?',[leadId]);
+        if (!lead) return false;
+        await logAdminAction({operator:req.adminOperator,action:'erase_lead',targetId:String(leadId),ip:req.ip},db);
+        await suppressEmail({email:lead.email,reason:'erased',sourceVersion:'admin-erasure'},db);
+        await db.run('DELETE FROM leads WHERE LOWER(email)=LOWER(?)',[lead.email]);
+        return true;
+      });
+    } finally {await db.close();}
+    if (!erased) return res.status(404).json({error:'Lead record not found.'});
     console.log(`[Admin] Lead ${leadId} permanently erased under Right-to-Erasure request.`);
     res.json({ status: 'success', message: `Lead ${leadId} permanently erased.` });
   } catch (err) {
@@ -558,7 +569,13 @@ const handleUnsubscribe = async (req, res, isPost = false) => {
         : res.status(403).send('Invalid or expired unsubscribe link.');
     }
 
-    await dbRun(`UPDATE leads SET unsubscribed_at = CURRENT_TIMESTAMP WHERE LOWER(email) = ?`, [email]);
+    const db=createConnection();
+    try {
+      await withTransaction(db,async () => {
+        await suppressEmail({email,reason:'unsubscribed',sourceVersion:'user-unsubscribe'},db);
+        await db.run('UPDATE leads SET unsubscribed_at=CURRENT_TIMESTAMP,confirmation_token=NULL WHERE LOWER(email)=?',[email]);
+      });
+    } finally {await db.close();}
 
     if (isPost) {
       return res.status(200).json({ success: true, message: 'Unsubscribed successfully.' });
@@ -618,9 +635,9 @@ app.get('/api/search/suggestions', async (req, res, next) => {
 // 3. Price Trends & Analytics Query (with input validation)
 app.post('/api/analytics/price-trends', validateAnalyticsFilters, async (req, res, next) => {
   try {
-    const filters = req.body.filters || req.body || {};
+    const filters = req.body?.filters || req.body || {};
     const analytics = await getPriceAnalytics(filters);
-    res.json(analytics);
+    res.json(analyticsSummary(analytics));
   } catch (err) {
     next(err);
   }
@@ -629,12 +646,21 @@ app.post('/api/analytics/price-trends', validateAnalyticsFilters, async (req, re
 // 3b. Rental Prices & Gross Rental Yield Analytics (with input validation)
 app.post('/api/analytics/rental-yields', validateAnalyticsFilters, async (req, res, next) => {
   try {
-    const filters = req.body.filters || req.body || {};
+    const filters = req.body?.filters || req.body || {};
     const analytics = await getRentalYieldAnalytics(filters);
-    res.json(analytics);
+    res.json(analyticsSummary(analytics));
   } catch (err) {
     next(err);
   }
+});
+
+app.post('/api/analytics/map',validateAnalyticsFilters,async(req,res,next)=>{
+  if(!['sale','rental'].includes(req.body?.mode)) return res.status(400).json({error:'Map mode must be sale or rental.'});
+  try {
+    const filters=req.body.filters || {};
+    const analytics=await (req.body.mode==='sale' ? getPriceAnalytics(filters) : getRentalYieldAnalytics(filters));
+    res.json(encodeMapProjects(analytics.mapProjects));
+  } catch(error) {next(error);}
 });
 
 // 4. All Projects overview
@@ -645,7 +671,7 @@ app.get('/api/projects', async (req, res, next) => {
       try { lifestyleWeights = JSON.parse(req.query.weights); } catch (e) {}
     }
     const projects = await getAllProjects(lifestyleWeights);
-    res.json(projects);
+    res.json(encodeMapProjects(projects));
   } catch (err) {
     next(err);
   }
@@ -712,6 +738,7 @@ app.post('/api/ingest/import-data', express.json({ limit: '50mb' }), async (req,
     if (!jsonData) {
       return res.status(400).json({ error: 'jsonData is required in request body.' });
     }
+    await logAdminAction({operator:req.adminOperator,action:'import_data',ip:req.ip});
     const result = await importRealUraData(jsonData);
     await invalidateSaleValuationsCache();
     invalidateLivabilityCache();
@@ -729,6 +756,7 @@ app.post('/api/ingest/ura', async (req, res, next) => {
     if (!accessKey) {
       return res.status(400).json({ error: 'AccessKey is required in request body.' });
     }
+    await logAdminAction({operator:req.adminOperator,action:'manual_sync',ip:req.ip});
     const result = await fetchUraData(accessKey);
     await invalidateSaleValuationsCache();
     invalidateLivabilityCache();
@@ -837,10 +865,11 @@ app.get('*', async (req, res, next) => {
 // Step 3.4.6: Global Generic Error Handler with Request ID tracking
 app.use((err, req, res, next) => {
   const reqId = req.id || 'unknown';
-  console.error(`[Error] [Request ID: ${reqId}] ${req.method} ${req.originalUrl}:`, err);
+  console.error('[Error]',{requestId:reqId,method:req.method,path:req.path,code:err.code || 'REQUEST_FAILED'});
   if (res.headersSent) {
     return next(err);
   }
+  if(err.status===503) res.set('Retry-After','5');
   res.status(err.status || 500).json({
     error: 'An internal server error occurred.',
     requestId: reqId
@@ -849,6 +878,7 @@ app.use((err, req, res, next) => {
 
 // Startup logic
 async function startServer() {
+  assertProductionCollection();
   await assertStagingDatabase(getDbPath());
   await initDb();
 
@@ -868,6 +898,7 @@ async function startServer() {
   console.log('Pre-warming livability and valuation caches...');
   await initLivabilityCache();
   await initSaleValuationsCache();
+  await prepareDefaultAnalytics();
 
   // Phase 0 containment: Do not run destructive cleanup on simple web server start
   if (releaseFeatures().leadCleanup && process.env.ENABLE_STARTUP_LEAD_CLEANUP === 'true') {
@@ -876,6 +907,8 @@ async function startServer() {
     console.log('[Startup] Automatic lead retention cleanup on boot skipped (ENABLE_STARTUP_LEAD_CLEANUP !== "true").');
   }
 
+  const warming=setInterval(()=>prepareDefaultAnalytics().catch(error=>console.error('[Analytics] Preparation failed:',error.message)),30000);
+  warming.unref();
   const server = app.listen(PORT, () => {
     console.log(`Backend server running on http://localhost:${PORT}`);
   });
@@ -883,6 +916,7 @@ async function startServer() {
   // Step 5.5: Graceful shutdown on SIGTERM / SIGINT
   const shutdown = async (signal) => {
     console.log(`[Shutdown] Received ${signal}. Starting graceful shutdown...`);
+    clearInterval(warming);
     server.close(async () => {
       console.log('[Shutdown] HTTP listener closed.');
       try {
@@ -904,6 +938,7 @@ async function startServer() {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
+  server.once('close',()=>clearInterval(warming));
   return server;
 }
 

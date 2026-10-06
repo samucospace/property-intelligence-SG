@@ -1,0 +1,28 @@
+{
+  "candidateSha256": "a0a3593c817dae2041155f54a0f5b462715f2c1912301fb51dc1e461474ca451",
+  "checks": {
+    "sales": {
+      "outOfWindowOriginal": 59,
+      "outOfWindowCandidate": 59,
+      "outOfWindowIdentityAmountsDatesMatch": true,
+      "originalCoveredRecords": 133359,
+      "archivedRecords": 133359,
+      "archiveCountMatch": true
+    },
+    "rentals": {
+      "outOfWindowOriginal": 0,
+      "outOfWindowCandidate": 0,
+      "outOfWindowIdentityAmountsDatesMatch": true,
+      "originalCoveredRecords": 450722,
+      "archivedRecords": 450722,
+      "archiveCountMatch": true
+    }
+  },
+  "candidateCounts": {
+    "projects": 5905,
+    "property_transactions": 132305,
+    "rental_transactions": 451165,
+    "leads": 0
+  },
+  "passed": true
+}

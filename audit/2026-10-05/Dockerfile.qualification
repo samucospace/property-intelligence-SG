@@ -1,0 +1,9 @@
+FROM property-intelligence-sg:qualification-20261005
+USER root
+WORKDIR /app/server
+RUN apk add --no-cache git
+# Disposable qualification derivative only: release image remains production-only.
+RUN npm ci --include=dev
+USER node
+ENV NODE_ENV=test
+CMD ["node", "node_modules/vitest/vitest.mjs", "run"]

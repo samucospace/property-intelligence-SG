@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { createConnection } from '../db.js';
 
 /**
  * Constant-time string comparison that prevents timing attacks.
@@ -123,7 +124,7 @@ export function generateAdminSession(adminKey, durationMs = 2 * 60 * 60 * 1000) 
     throw new Error('Valid 32+ character ADMIN_API_KEY required to issue admin session tokens.');
   }
   const expiresAt = Date.now() + durationMs;
-  const payload = `${expiresAt}`;
+  const payload = Buffer.from(JSON.stringify({expiresAt,operator:process.env.ADMIN_OPERATOR || 'local-operator',nonce:crypto.randomUUID()})).toString('base64url');
   const sig = crypto.createHmac('sha256', adminKey).update(payload).digest('hex');
   return {
     token: `${payload}.${sig}`,
@@ -141,10 +142,67 @@ export function verifyAdminSession(token, adminKey) {
   const parts = token.split('.');
   if (parts.length !== 2) return false;
   const [expiresAtStr, sig] = parts;
-  const expiresAt = parseInt(expiresAtStr, 10);
-  if (isNaN(expiresAt) || Date.now() > expiresAt) {
+  let session;
+  try { session=JSON.parse(Buffer.from(expiresAtStr,'base64url').toString()); } catch { return false; }
+  const expiresAt = session.expiresAt;
+  if (!Number.isSafeInteger(expiresAt) || !session.operator || !session.nonce || expiresAt>Date.now()+2*60*60*1000) return false;
+  if (isNaN(expiresAt) || Date.now() >= expiresAt) {
     return false; // Expired or invalid timestamp
   }
   const expectedSig = crypto.createHmac('sha256', adminKey).update(expiresAtStr).digest('hex');
   return safeEqual(sig, expectedSig);
+}
+
+/**
+ * Checks whether an admin session token has been explicitly revoked.
+ */
+export async function isTokenRevoked(token, conn = null) {
+  if (!token || typeof token !== 'string') return true;
+  const hash = crypto.createHash('sha256').update(token.trim()).digest('hex');
+  const db = conn || createConnection();
+  const shouldClose = !conn;
+  try {
+    const row = await db.get('SELECT token_hash FROM admin_revoked_tokens WHERE token_hash = ?', [hash]);
+    return Boolean(row);
+  } finally {
+    if (shouldClose) await db.close();
+  }
+}
+
+/**
+ * Adds an admin session token to the revocation ledger.
+ */
+export async function revokeAdminToken(token, reason = 'logout', conn = null) {
+  if (!token || typeof token !== 'string') return false;
+  const hash = crypto.createHash('sha256').update(token.trim()).digest('hex');
+  const db = conn || createConnection();
+  const shouldClose = !conn;
+  try {
+    await db.run(
+      'INSERT OR REPLACE INTO admin_revoked_tokens (token_hash, revoked_at, reason) VALUES (?, CURRENT_TIMESTAMP, ?)',
+      [hash, reason]
+    );
+    return true;
+  } finally {
+    if (shouldClose) await db.close();
+  }
+}
+
+/**
+ * Writes an event to the administrative audit log (GL-13).
+ */
+export async function logAdminAction({ operator, action, targetId = null, ip = null, details = null }, conn = null) {
+  if (!operator || !action) throw new Error('Attributable operator and action required');
+  const db = conn || createConnection();
+  const shouldClose = !conn;
+  try {
+    const detailsJson = details ? (typeof details === 'string' ? details : JSON.stringify(details)) : null;
+    await db.run(
+      `INSERT INTO admin_audit_log (operator, action, target_id, ip_address, details_json, created_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [operator, action, targetId, ip, detailsJson]
+    );
+  } finally {
+    if (shouldClose) await db.close();
+  }
 }

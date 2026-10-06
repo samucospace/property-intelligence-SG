@@ -134,7 +134,7 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 className="card-title">
             <Navigation size={18} color={viewMode === 'rental' ? 'var(--color-primary-terracotta)' : 'var(--color-primary-green)'} />
-            GIS Development Map & {viewMode === 'rental' ? 'Gross Rental Yield Overlay' : 'Amenity Walkability Overlay'}
+            GIS Development Map & {viewMode === 'rental' ? 'Gross Rental Yield Overlay' : 'Amenity Proximity Overlay'}
           </h3>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -357,8 +357,9 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
               // In rental mode, color code icon by Gross Rental Yield Tier
               let baseColor = p.segment === 'CCR' ? '#4F7942' : p.segment === 'RCR' ? '#CB6D51' : '#00B080';
               if (viewMode === 'rental') {
-                const y = p.grossYield || 0;
-                if (y >= 4.25) baseColor = '#10B981'; // High Yield Green
+                const y = p.grossYield;
+                if (y == null) baseColor = '#94A3B8';
+                else if (y >= 4.25) baseColor = '#10B981'; // High Yield Green
                 else if (y >= 3.25) baseColor = '#D97706'; // Moderate Yield Amber
                 else baseColor = '#CB6D51'; // Low / Trophy Yield Terracotta
               }
@@ -415,7 +416,7 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#92400E', fontWeight: 600 }}>Gross Yield</div>
+                            <div style={{ fontSize: '0.7rem', color: '#92400E', fontWeight: 600 }}>Gross Yield (Median Inputs)</div>
                             <div style={{ fontWeight: 800, color: p.grossYield >= 4.25 ? '#10B981' : p.grossYield >= 3.25 ? '#D97706' : '#CB6D51', fontSize: '0.85rem' }}>
                               {p.grossYield ? `${p.grossYield}%` : 'N/A'}
                             </div>
@@ -514,7 +515,7 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
       </div>
 
       <div style={{ padding: '8px 16px', background: '#F8FAFC', borderTop: '1px solid #E2E8F0', fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-        * Click a project marker to highlight 400m (green) and 800m (blue) walking distance rings.
+        * Click a project marker to highlight 400m (green) and 800m (blue) straight-line distance rings.
       </div>
     </div>
   );

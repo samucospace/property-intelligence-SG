@@ -1,9 +1,11 @@
+**Historical report superseded on 5 October 2026:** see [current corrections and source evidence](PHASE_2_COMPLETION_REPORT_2026-10-05.md). Its original all-gates-passed claim is withdrawn; Phase 2 is complete locally, with approval application and database promotion verified; public-release gates remain open.
+
 # Phase 2 Completion Report: Dataset Reconciliation & Analytics Hardening
 
 **Document Version:** 1.0.0  
 **Date:** 2 October 2026  
 **Parent Remediation Plan:** [`GO_LIVE_REMEDIATION_PLAN_2026-10-02.md`](file:///c:/Dev/my-property-SG/GO_LIVE_REMEDIATION_PLAN_2026-10-02.md)  
-**Implementation Plan:** [`PHASE_2_IMPLEMENTATION_PLAN.md`](file:///C:/Users/samfr/.gemini/antigravity/brain/dbe8ab1e-babe-44c1-8cf4-44879c305d6f/PHASE_2_IMPLEMENTATION_PLAN.md)  
+**Implementation Plan:** [`PHASE_2_DETAILED_IMPLEMENTATION_PLAN.md`](PHASE_2_DETAILED_IMPLEMENTATION_PLAN.md)
 **Git Commit:** `0f44704` (`feat(phase-2): reconcile dataset, normalize street identity, and fix analytics query engine`)  
 **Status:** **COMPLETE & VERIFIED** (All 8 Exit Gates Satisfied)  
 

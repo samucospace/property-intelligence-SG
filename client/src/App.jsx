@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import AccessibleDialog from './components/AccessibleDialog';
+import { decodeMapProjects } from './utils/mapContract';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import axios from 'axios';
 import { Building2, Database, Key, Percent, Layers, Calendar, ExternalLink, ShieldCheck, Info, FileText, AlertCircle } from 'lucide-react';
 import SearchHeader from './components/SearchHeader';
-import PropertyMap from './components/PropertyMap';
-import AnalyticsCharts from './components/AnalyticsCharts';
-import UraIngestionModal from './components/UraIngestionModal';
+const PropertyMap = lazy(() => import('./components/PropertyMap'));
+const AnalyticsCharts = lazy(() => import('./components/AnalyticsCharts'));
+const UraIngestionModal = lazy(() => import('./components/UraIngestionModal'));
 import LivabilityBadge from './components/LivabilityBadge';
-import LivabilityDrawer from './components/LivabilityDrawer';
-import RentalYieldDrawer from './components/RentalYieldDrawer';
+const LivabilityDrawer = lazy(() => import('./components/LivabilityDrawer'));
+const RentalYieldDrawer = lazy(() => import('./components/RentalYieldDrawer'));
 import MonetizationBanner from './components/MonetizationBanner';
 import { getDefaultDateRange } from './utils/dateUtils';
 
@@ -192,15 +194,13 @@ export default function App() {
     setErrorFeedback(null);
     try {
       const endpoint = viewMode === 'rental' ? '/api/analytics/rental-yields' : '/api/analytics/price-trends';
-      const res = await axios.post(endpoint, {
-        filters: {
-          ...filters,
-          unitType: 'sqft'
-        }
-      }, {
-        signal: controller.signal
-      });
-      setAnalyticsData(res.data);
+      const requestFilters={...filters,unitType:'sqft'};
+      const options={signal:controller.signal};
+      const [res,map]=await Promise.all([
+        axios.post(endpoint,{filters:requestFilters},options),
+        axios.post('/api/analytics/map',{mode:viewMode,filters:requestFilters},options)
+      ]);
+      setAnalyticsData({...res.data,mapProjects:decodeMapProjects(map.data)});
     } catch (err) {
       if (!axios.isCancel(err) && err.name !== 'CanceledError') {
         console.error(`Error loading ${viewMode} property analytics:`, err);
@@ -224,17 +224,18 @@ export default function App() {
 
   // Calculate Average Livability Score across currently visible map projects
   const mapProjList = analyticsData.mapProjects || [];
-  const avgLivability = mapProjList.length > 0
-    ? Math.round(mapProjList.reduce((acc, p) => acc + (p.livability?.score || 0), 0) / mapProjList.length)
-    : 0;
+  const scoredProjects = mapProjList.filter(p => p.livability?.score != null);
+  const avgLivability = scoredProjects.length > 0
+    ? Math.round(scoredProjects.reduce((acc, p) => acc + p.livability.score, 0) / scoredProjects.length)
+    : null;
 
   // Average sub-scores for metric summary card hover
-  const avgSubScores = mapProjList.length > 0 ? {
-    mrt: Math.round(mapProjList.reduce((acc, p) => acc + (p.livability?.subScores?.mrt || 0), 0) / mapProjList.length),
-    school: Math.round(mapProjList.reduce((acc, p) => acc + (p.livability?.subScores?.school || 0), 0) / mapProjList.length),
-    hawker: Math.round(mapProjList.reduce((acc, p) => acc + (p.livability?.subScores?.hawker || 0), 0) / mapProjList.length),
-    supermarket: Math.round(mapProjList.reduce((acc, p) => acc + (p.livability?.subScores?.supermarket || 0), 0) / mapProjList.length),
-    park: Math.round(mapProjList.reduce((acc, p) => acc + (p.livability?.subScores?.park || 0), 0) / mapProjList.length)
+  const avgSubScores = scoredProjects.length > 0 ? {
+    mrt: Math.round(scoredProjects.reduce((acc, p) => acc + (p.livability?.subScores?.mrt || 0), 0) / scoredProjects.length),
+    school: Math.round(scoredProjects.reduce((acc, p) => acc + (p.livability?.subScores?.school || 0), 0) / scoredProjects.length),
+    hawker: Math.round(scoredProjects.reduce((acc, p) => acc + (p.livability?.subScores?.hawker || 0), 0) / scoredProjects.length),
+    supermarket: Math.round(scoredProjects.reduce((acc, p) => acc + (p.livability?.subScores?.supermarket || 0), 0) / scoredProjects.length),
+    park: Math.round(scoredProjects.reduce((acc, p) => acc + (p.livability?.subScores?.park || 0), 0) / scoredProjects.length)
   } : { mrt: 0, school: 0, hawker: 0, supermarket: 0, park: 0 };
 
   return (
@@ -267,7 +268,7 @@ export default function App() {
               fontWeight: 600
             }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
-              URA & OneMap Verified Data
+              URA transactions · Location estimates
             </div>
           )}
         </div>
@@ -284,9 +285,11 @@ export default function App() {
           setViewMode={setViewMode}
         />
 
+        {loading && <p role="status" aria-live="polite">Loading market data…</p>}
+        {!loading && !errorFeedback && analyticsData.totalCount===0 && <p role="status">No recorded transactions match these filters.</p>}
         {/* Analytics Load Error Banner */}
         {errorFeedback && (
-          <div style={{
+          <div role="alert" style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -326,25 +329,25 @@ export default function App() {
             <div className="metric-card terracotta">
               <span className="metric-title">Median Rent</span>
               <div className="metric-value" style={{ color: 'var(--color-primary-terracotta)' }}>
-                ${summary.medianRent ? summary.medianRent.toLocaleString() : '0'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/mo</span>
+                ${summary.medianRent ? summary.medianRent.toLocaleString() : 'N/A'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/mo</span>
               </div>
-              <span className="metric-sub">Past 24 months ({summary.totalLeases || 0} lease agreements)</span>
+              <span className="metric-sub">Selected period ({summary.totalLeases || 0} lease agreements)</span>
             </div>
 
             <div className="metric-card amber">
-              <span className="metric-title">Average Gross Rental Yield</span>
+              <span className="metric-title">Median Project Gross Yield</span>
               <div className="metric-value" style={{ color: summary.avgGrossYield >= 4.25 ? '#10B981' : summary.avgGrossYield >= 3.25 ? '#D97706' : '#CB6D51' }}>
-                {summary.avgGrossYield ? `${summary.avgGrossYield}%` : '0%'}
+                {summary.avgGrossYield ? `${summary.avgGrossYield}%` : 'N/A'}
               </div>
               <span className="metric-sub">
-                {summary.avgGrossYield >= 4.25 ? '🟢 High Yield' : summary.avgGrossYield >= 3.25 ? '🟡 Moderate Yield' : '🟠 Trophy Capital Growth'}
+                {summary.avgGrossYield == null ? 'Insufficient transactions (minimum 3 sales and 3 usable rentals)' : 'Median across eligible projects; each project counts once'}
               </span>
             </div>
 
             <div className="metric-card teal">
               <span className="metric-title">Median Rental Rate ($/SQFT)</span>
               <div className="metric-value" style={{ color: 'var(--color-accent-teal)' }}>
-                ${summary.medianRentPsft || 0} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/sqft/mo</span>
+                ${summary.medianRentPsft ?? 'N/A'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/sqft/mo</span>
               </div>
               <span className="metric-sub">Rate range: ${summary.rentMinMaxRange?.min || 0} – ${summary.rentMinMaxRange?.max || 0}/mo</span>
             </div>
@@ -355,7 +358,7 @@ export default function App() {
                 <LivabilityBadge
                   livability={{
                     score: avgLivability,
-                    label: avgLivability >= 80 ? "Walker's Paradise" : avgLivability >= 65 ? "Highly Walkable" : avgLivability >= 50 ? "Somewhat Walkable" : "Car Dependent",
+                    label: avgLivability == null ? 'Location unavailable' : avgLivability >= 80 ? "High amenity proximity" : avgLivability >= 65 ? "Good amenity proximity" : avgLivability >= 50 ? "Moderate amenity proximity" : "Limited catalog proximity",
                     color: "#CB6D51",
                     subScores: avgSubScores
                   }}
@@ -370,17 +373,17 @@ export default function App() {
             <div className="metric-card">
               <span className="metric-title">Median Transaction Price</span>
               <div className="metric-value" style={{ color: 'var(--color-primary-green)' }}>
-                ${summary.medianPrice ? Math.round(summary.medianPrice).toLocaleString() : '0'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>SGD</span>
+                ${summary.medianPrice ? Math.round(summary.medianPrice).toLocaleString() : 'N/A'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>SGD</span>
               </div>
-              <span className="metric-sub">Past 24 months ({summary.totalVolume || 0} transactions)</span>
+              <span className="metric-sub">Selected period ({summary.totalVolume || 0} transactions)</span>
             </div>
 
             <div className="metric-card teal">
               <span className="metric-title">Median Unit Rate ($/SQFT)</span>
               <div className="metric-value" style={{ color: 'var(--color-accent-teal)' }}>
-                ${summary.medianPsft ? Math.round(summary.medianPsft).toLocaleString() : '0'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/sqft</span>
+                ${summary.medianPsft ? Math.round(summary.medianPsft).toLocaleString() : 'N/A'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/sqft</span>
               </div>
-              <span className="metric-sub">Past 24 months median rate</span>
+              <span className="metric-sub">Selected-period median rate</span>
             </div>
 
             <div className="metric-card terracotta">
@@ -389,7 +392,7 @@ export default function App() {
                 <LivabilityBadge
                   livability={{
                     score: avgLivability,
-                    label: avgLivability >= 80 ? "Walker's Paradise" : avgLivability >= 65 ? "Highly Walkable" : avgLivability >= 50 ? "Somewhat Walkable" : "Car Dependent",
+                    label: avgLivability == null ? 'Location unavailable' : avgLivability >= 80 ? "High amenity proximity" : avgLivability >= 65 ? "Good amenity proximity" : avgLivability >= 50 ? "Moderate amenity proximity" : "Limited catalog proximity",
                     color: "#CB6D51",
                     subScores: avgSubScores
                   }}
@@ -402,15 +405,17 @@ export default function App() {
             <div className="metric-card amber">
               <span className="metric-title">Transaction Price Range</span>
               <div className="metric-value" style={{ color: '#D97706', fontSize: '1.4rem' }}>
-                ${summary.minPrice ? (summary.minPrice / 1e6).toFixed(2) : '0'}M – ${summary.maxPrice ? (summary.maxPrice / 1e6).toFixed(2) : '0'}M
+                ${summary.minPrice ? (summary.minPrice / 1e6).toFixed(2) : 'N/A'}M – ${summary.maxPrice ? (summary.maxPrice / 1e6).toFixed(2) : 'N/A'}M
               </div>
-              <span className="metric-sub">Avg Transaction Price: ${summary.averagePrice ? Math.round(summary.averagePrice).toLocaleString() : '0'}</span>
+              <span className="metric-sub">Avg Transaction Price: ${summary.averagePrice ? Math.round(summary.averagePrice).toLocaleString() : 'N/A'}</span>
             </div>
           </div>
         )}
 
-        {/* High-Intent Native Monetization: Accredited CEA Agent Advisory */}
+        {/* High-Intent Native Monetization: Real Estate Agent Advisory */}
         {features.leadCapture && <MonetizationBanner
+          advisoryPartnerName={features.advisoryPartnerName}
+          advisoryPartnerRegistration={features.advisoryPartnerRegistration}
           variant="agent"
           isEnquiryModalOpen={isEnquiryModalOpen}
           onToggleEnquiryModal={setIsEnquiryModalOpen}
@@ -418,6 +423,7 @@ export default function App() {
 
         {/* Main Grid: Charts & GIS Map */}
         <div className="dashboard-grid">
+          <Suspense fallback={<p role="status">Loading charts and map…</p>}>
           <AnalyticsCharts
             timeSeries={analyticsData.timeSeries}
             scatterPoints={analyticsData.scatterPoints}
@@ -434,6 +440,7 @@ export default function App() {
             viewMode={viewMode}
             onOpenLivabilityDrawer={handleOpenLivabilityDrawer}
           />
+          </Suspense>
         </div>
 
         {/* High-Intent Native Monetization: Weekly Deals Newsletter */}
@@ -477,7 +484,7 @@ export default function App() {
                           <td style={{ fontWeight: 600, color: 'var(--color-text-charcoal)' }}>{r.projectName}</td>
                           <td style={{ color: 'var(--color-text-muted)' }}>{r.leaseDate}</td>
                           <td style={{ fontWeight: 700, color: 'var(--color-primary-green)' }}>
-                            ${r.rentSgd ? r.rentSgd.toLocaleString() : '0'} /mo
+                            ${r.rentSgd ? r.rentSgd.toLocaleString() : 'N/A'} /mo
                           </td>
                           <td style={{ color: 'var(--color-accent-teal)', fontWeight: 600 }}>{rateVal}/mo</td>
                           <td>
@@ -488,13 +495,14 @@ export default function App() {
                           <td>{r.floorAreaRange}</td>
                           <td>
                             <span style={{ fontWeight: 800, color: yieldColor, fontSize: r.grossYield != null ? 'inherit' : '0.78rem' }}>
-                              {r.grossYield != null ? `${r.grossYield}%` : 'N/A — no recent sales'}
+                              {r.grossYield != null ? `${r.grossYield}%` : 'N/A — Insufficient transactions'}
                             </span>
                           </td>
                           <td>
                             <button
                               onClick={() => {
                                 const target = matchProj || {
+                                  yieldBasis: 'individual-rental',
                                   name: r.projectName,
                                   street: r.streetName,
                                   district: r.district,
@@ -502,6 +510,9 @@ export default function App() {
                                   medianRent: r.rentSgd,
                                   medianRentPsft: r.rentPsft,
                                   medianSaleValuation: r.estimatedSaleValuation,
+                                  medianSalePsft: r.saleBenchmark?.medianPsft,
+                                  saleBenchmark: r.saleBenchmark,
+                                  usableRentalCount: r.usableRentalCount,
                                   grossYield: r.grossYield
                                 };
                                 setSelectedRentalProject(target);
@@ -566,10 +577,10 @@ export default function App() {
                           </td>
                           <td style={{ color: 'var(--color-text-muted)' }}>{tx.date || '-'}</td>
                           <td style={{ fontWeight: 700, color: 'var(--color-primary-green)' }}>
-                            ${tx.priceSgd ? tx.priceSgd.toLocaleString() : '0'}
+                            ${tx.priceSgd ? tx.priceSgd.toLocaleString() : 'N/A'}
                           </td>
                           <td style={{ color: 'var(--color-accent-teal)', fontWeight: 600 }}>
-                            ${tx.psft ? tx.psft.toLocaleString() : '0'} /sqft
+                            ${tx.psft ? tx.psft.toLocaleString() : 'N/A'} /sqft
                           </td>
                           <td>{tx.areaSqft ? tx.areaSqft.toLocaleString() : 0} sqft</td>
                           <td>
@@ -646,44 +657,50 @@ export default function App() {
       </footer>
 
       {/* Slide-over Livability Details Drawer */}
+      {isDrawerOpen && <Suspense fallback={<p role="status">Loading details…</p>}>
       <LivabilityDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         projectData={selectedDrawerProject}
       />
+      </Suspense>}
 
       {/* Slide-over Rental Yield Details Drawer */}
+      {isRentalDrawerOpen && <Suspense fallback={<p role="status">Loading details…</p>}>
       <RentalYieldDrawer
         isOpen={isRentalDrawerOpen}
         onClose={() => setIsRentalDrawerOpen(false)}
         project={selectedRentalProject}
       />
+      </Suspense>}
 
       {/* Ingestion & Seed Modal */}
+      {isModalOpen && <Suspense fallback={<p role="status">Loading details…</p>}>
       <UraIngestionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onIngestionComplete={fetchAnalytics}
       />
+      </Suspense>}
 
       {/* About Modal */}
       {showAboutModal && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '580px' }}>
+          <AccessibleDialog label="About Singapore Home Intel" onClose={() => setShowAboutModal(false)} className="modal-card" style={{ maxWidth: '580px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: 'var(--color-text-charcoal)' }}>
                 <Info size={20} color="var(--color-primary-green)" />
                 About Singapore Home Intel
               </h3>
-              <ExternalLink size={18} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setShowAboutModal(false)} />
+              <button type="button" className="icon-button" aria-label="Close dialog" onClick={() => setShowAboutModal(false)}><ExternalLink size={18} /></button>
             </div>
 
             <div style={{ fontSize: '0.84rem', color: 'var(--color-text-charcoal)', lineHeight: '1.6', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <p>
-                <strong>Singapore Home Intel</strong> provides property buyers, homeowners, and investors with transparent, algorithmically verified transaction price analytics, gross rental yields, and walkable livability indices across Singapore private residential properties.
+                <strong>Singapore Home Intel</strong> provides property buyers, homeowners, and investors with transparent, historical transaction price analytics, gross rental yields, and amenity proximity estimates from an incomplete catalog across Singapore private residential properties.
               </p>
               <p>
-                <strong>Methodology:</strong> Every metric is derived directly from official government caveats released via the URA Data Service, matched against OneMap SVY21 geospatial coordinates and neighborhood amenities. Rolling 24-month medians protect against anomalous single-transaction spikes.
+                <strong>Methodology:</strong> Transaction summaries follow your selected period and filters. Gross yields compare each project’s median rental psf with its sale median over the 24-month window ending on your selected end date, using at least three usable records on each side. The headline is the median of eligible project yields, with each project counted once. Rental area bands use midpoint estimates. Amenity coverage is incomplete; distances are straight-line estimates. Unreviewed project merges are excluded.
               </p>
               <p>
                 For questions, partnership inquiries, or feedback, email us at <a href="mailto:contact@homeintel.sg" style={{ color: 'var(--color-primary-green)', fontWeight: 600 }}>contact@homeintel.sg</a>.
@@ -695,20 +712,20 @@ export default function App() {
                 Close
               </button>
             </div>
-          </div>
+          </AccessibleDialog>
         </div>
       )}
 
       {/* Terms of Service Modal */}
       {showTermsModal && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '620px', maxHeight: '85vh', overflowY: 'auto' }}>
+          <AccessibleDialog label="Terms of Service" onClose={() => setShowTermsModal(false)} className="modal-card" style={{ maxWidth: '620px', maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: 'var(--color-text-charcoal)' }}>
                 <FileText size={20} color="var(--color-primary-green)" />
                 Terms of Service
               </h3>
-              <ExternalLink size={18} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setShowTermsModal(false)} />
+              <button type="button" className="icon-button" aria-label="Close dialog" onClick={() => setShowTermsModal(false)}><ExternalLink size={18} /></button>
             </div>
 
             <div style={{ fontSize: '0.82rem', color: 'var(--color-text-charcoal)', lineHeight: '1.6', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -718,7 +735,7 @@ export default function App() {
               </p>
               <p>
                 <strong>2. Independent Verification</strong><br />
-                Users must independently verify property facts, caveats, loan requirements, and encumbrances with Singapore Land Authority (SLA) title searches and accredited Council for Estate Agencies (CEA) property representatives before executing financial transactions.
+                Users must independently verify property facts, caveats, loan requirements, and encumbrances with Singapore Land Authority (SLA) title searches and registered Council for Estate Agencies (CEA) property representatives before executing financial transactions.
               </p>
               <p>
                 <strong>3. Limitation of Liability</strong><br />
@@ -731,20 +748,20 @@ export default function App() {
                 Close
               </button>
             </div>
-          </div>
+          </AccessibleDialog>
         </div>
       )}
 
       {/* Singapore PDPA & Privacy Policy Modal */}
       {showPrivacyModal && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '640px', maxHeight: '85vh', overflowY: 'auto' }}>
+          <AccessibleDialog label="Privacy policy" onClose={() => setShowPrivacyModal(false)} className="modal-card" style={{ maxWidth: '640px', maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', color: 'var(--color-text-charcoal)' }}>
                 <ShieldCheck size={22} color="var(--color-primary-green)" />
                 Privacy Policy & Singapore PDPA Notice
               </h3>
-              <ExternalLink size={18} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setShowPrivacyModal(false)} />
+              <button type="button" className="icon-button" aria-label="Close dialog" onClick={() => setShowPrivacyModal(false)}><ExternalLink size={18} /></button>
             </div>
 
             <div style={{ fontSize: '0.82rem', color: 'var(--color-text-charcoal)', lineHeight: '1.6', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -765,12 +782,14 @@ export default function App() {
                 <strong>3. Purpose of Processing & CEA Agent Introductions</strong><br />
                 Your data is processed strictly for the purpose for which it was provided:
                 <br />• To deliver weekly property analytical briefings upon your opt-in consent.
-                <br />• To connect you with our appointed Council for Estate Agencies (CEA) licensed property representative (ERA Realty Network / Lic: L3002382K) for advisory and on-the-ground transaction price assistance.
+                <br />• To connect you with an independent Council for Estate Agencies (CEA) licensed real estate salesperson for transaction advisory assistance.
+                {features.advisoryPartnerName && <><br />Advisory recipient: {features.advisoryPartnerName} (CEA registration {features.advisoryPartnerRegistration}).</>}
+                <br />Email processor: Resend. Hosting processor: {features.hostingProcessorName || 'not appointed'}. Backup processor: {features.backupProcessorName || 'not appointed'}.
               </p>
 
               <p>
                 <strong>4. Protection Against Telemarketing & Third Parties</strong><br />
-                We do not sell, rent, trade, or distribute your personal data to mass telemarketers or external advertisers. Unconverted enquiry records are automatically purged after 12 months.
+                We do not sell, rent, trade, or distribute your personal data to mass telemarketers or external advertisers. Unconverted advisory enquiries are retained for up to 12 months. Converted advisory records are retained for up to five years from the recorded conversion date. Unconfirmed newsletter requests expire after 24 hours and are removed after 30 days; withdrawn subscriptions are anonymized after 90 days. Encrypted backups are retained for 30 days. Restores reapply subsequent withdrawals and deletions before communications resume.
               </p>
 
               <p>
@@ -784,7 +803,7 @@ export default function App() {
                 Close Notice
               </button>
             </div>
-          </div>
+          </AccessibleDialog>
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 # Phase 1 startup, scheduling and database safety runbook
 
-Updated 2 October 2026. Release owner and operational contact: **Sam Fraser**. The project is not live; every identified issue must be fixed and verified before public release. The [Phase 0 containment policy](PHASE_0_OPERATIONS_RUNBOOK.md) remains active.
+Updated 5 October 2026. Release owner and operational contact: **Sam Fraser**. The project is not live; every identified issue must be fixed and verified before public release. The [Phase 0 containment policy](PHASE_0_OPERATIONS_RUNBOOK.md) remains active. Local Linux Docker qualification now passes; see the [qualification report](DOCKER_QUALIFICATION_REPORT_2026-10-05.md).
 
 ## Runtime and service separation
 
@@ -47,7 +47,7 @@ Existing catalog IDs are retained for operational references, including lead con
 
 The engine rejects open source handles, acquires a maintenance marker, checks source hashes and checkpoints, and refuses promotion while source WAL/SHM handles remain. Database wrappers reject maintenance/pending-recovery operations and stale replacement generations. The swap journal and archived original support rollback; startup refuses pending recovery rather than creating a new empty database after an interrupted rename. Exception rollback and fresh-process recovery at prepared, source-moved and installed stages are tested on disposable files.
 
-Never manually remove a real maintenance marker or swap journal or rename/delete real WAL/SHM files. Production promotion/recovery enablement still needs the target-platform rehearsal, reviewed complete source dataset, stopped database users and an approved maintenance procedure. Existing live datasets are not rebuilt by this work.
+Never manually remove a real maintenance marker or swap journal or rename/delete real WAL/SHM files. Production promotion/recovery enablement still needs the target-platform rehearsal, reviewed complete source dataset, stopped database users and an approved maintenance procedure. The reviewed 5 October Phase 2 snapshot was promoted locally through its separate hash-bound procedure; the general rebuild engine remains quarantined. See the Phase 2 runbook.
 
 ## Verification
 
@@ -57,4 +57,4 @@ npm --prefix client run build
 node server/scripts/qualify-startup.js --output=audit/2026-10-02/phase1-node22-startup.json
 ```
 
-The startup qualification uses temporary databases and mock credentials; it starts/health-checks 20 fresh databases, five existing-database restarts and five concurrent processes. CI also runs it inside the built release image. See [the current Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md) for results and pending gates.
+The startup qualification uses temporary databases and mock credentials; it starts/health-checks 20 fresh databases, five existing-database restarts and five concurrent processes. CI also runs it inside the built release image. `server/scripts/qualify-release-image.js` separately verifies production startup, health/frontend responses, non-root execution and absence of local credentials/database. Run image checks with networking disabled, a read-only root and writable temporary storage; CI contains the exact commands. See [the current Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md) for results and pending gates.

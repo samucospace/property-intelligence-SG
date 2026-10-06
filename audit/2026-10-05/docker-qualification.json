@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-05",
+  "timezone": "Asia/Singapore",
+  "releaseImage": {
+    "id": "sha256:bd7490c172bbd89d1d401b1a8ecafb48dca26082c5fb70dca142afd5505e46ce",
+    "tag": "property-intelligence-sg:qualification-20261005",
+    "os": "linux",
+    "architecture": "amd64",
+    "user": "node"
+  },
+  "testDerivative": {
+    "id": "sha256:8214c68684836de4fa9ceca5c60f855a4d8feb96c23cfe622a1ee4e6c8fa1c0d",
+    "tag": "property-intelligence-sg:tests-20261005",
+    "developmentDependencies": "npm ci --include=dev",
+    "additionalTool": "Git for the isolated working-tree backup fixture"
+  },
+  "startup": {
+    "fresh": 20,
+    "existing": 5,
+    "concurrent": 5,
+    "passed": true
+  },
+  "productionSmoke": {
+    "passed": true,
+    "runtime": "v22.23.3",
+    "platform": "linux",
+    "uid": 1000,
+    "productionConfiguration": true,
+    "healthStatus": 200,
+    "frontendStatus": 200,
+    "bakedCredentials": false,
+    "bakedMarketDatabase": false,
+    "externalNetwork": false
+  },
+  "linuxTests": {
+    "passed": 178,
+    "files": 14,
+    "failed": 0,
+    "network": "none",
+    "scope": "Full isolated suite, including interrupted migration, scheduler and swap recovery"
+  },
+  "localRegressionTests": {
+    "passed": 178,
+    "files": 14
+  },
+  "originalDatabaseSha256": "e6067d6033aac82c3392db8108fd7221ecefa576e44c7efb247ead6b381fa252",
+  "originalDatabaseUnchanged": true,
+  "published": false,
+  "deployed": false,
+  "operationalRebuildEnabled": false,
+  "limitations": [
+    "Hosted proxy/storage/permissions/timing and off-host backups remain deployment-stage checks",
+    "Source-candidate promotion and individual identity review remain pending"
+  ]
+}

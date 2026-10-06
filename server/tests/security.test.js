@@ -334,7 +334,7 @@ describe('Security Utilities', () => {
       const session = generateAdminSession(validKey, 60000);
       expect(session).toHaveProperty('token');
       expect(session).toHaveProperty('expiresAt');
-      expect(session.token).toMatch(/^\d+\.[a-f0-9]{64}$/);
+      expect(session.token).toMatch(/^[A-Za-z0-9_-]+\.[a-f0-9]{64}$/);
       expect(new Date(session.expiresAt).getTime()).toBeGreaterThan(Date.now());
     });
 
@@ -386,6 +386,7 @@ describe('Security Utilities', () => {
 
   describe('requireAdmin Middleware (IAM-01)', async () => {
     const { requireAdmin } = await import('../index.js');
+    beforeEach(async () => { const {initDb}=await import('../db.js'); await initDb(); });
     const validKey = '0123456789abcdef0123456789abcdef';
 
     function createMockReqRes(headers = {}) {
@@ -425,36 +426,36 @@ describe('Security Utilities', () => {
       expect(res.body.error).toMatch(/ADMIN_API_KEY is not securely configured/);
     });
 
-    it('authorizes request via Authorization: Bearer <sessionToken>', () => {
+    it('authorizes request via Authorization: Bearer <sessionToken>', async () => {
       process.env.ADMIN_API_KEY = validKey;
       const session = generateAdminSession(validKey, 60000);
       const { req, res } = createMockReqRes({ authorization: `Bearer ${session.token}` });
       let nextCalled = false;
 
-      requireAdmin(req, res, () => { nextCalled = true; });
+      await requireAdmin(req, res, () => { nextCalled = true; });
       expect(nextCalled).toBe(true);
       expect(res.statusCode).toBe(200);
     });
 
-    it('authorizes request via X-Admin-Session header', () => {
+    it('authorizes request via X-Admin-Session header', async () => {
       process.env.ADMIN_API_KEY = validKey;
       const session = generateAdminSession(validKey, 60000);
       const { req, res } = createMockReqRes({ 'x-admin-session': session.token });
       let nextCalled = false;
 
-      requireAdmin(req, res, () => { nextCalled = true; });
+      await requireAdmin(req, res, () => { nextCalled = true; });
       expect(nextCalled).toBe(true);
       expect(res.statusCode).toBe(200);
     });
 
-    it('authorizes request via fallback X-Admin-Key header (for automated scripts)', () => {
+    it('rejects direct X-Admin-Key access to sensitive operations', () => {
       process.env.ADMIN_API_KEY = validKey;
       const { req, res } = createMockReqRes({ 'x-admin-key': validKey });
       let nextCalled = false;
 
       requireAdmin(req, res, () => { nextCalled = true; });
-      expect(nextCalled).toBe(true);
-      expect(res.statusCode).toBe(200);
+      expect(nextCalled).toBe(false);
+      expect(res.statusCode).toBe(401);
     });
 
     it('rejects expired Bearer session token with 401', () => {
@@ -476,7 +477,7 @@ describe('Security Utilities', () => {
       requireAdmin(req, res, () => { nextCalled = true; });
       expect(nextCalled).toBe(false);
       expect(res.statusCode).toBe(401);
-      expect(res.body.error).toMatch(/Valid admin session token or X-Admin-Key required/);
+      expect(res.body.error).toMatch(/Valid admin session token required/);
     });
   });
 

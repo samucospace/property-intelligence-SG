@@ -1,0 +1,10 @@
+{
+  "candidate": "sha256:dd1227de60814d222c0156a0e41fe93bdc03354c3466fee8ce7ab7fa0d6c4dcc",
+  "cpuLimit": 1,
+  "memoryLimitBytes": 1073741824,
+  "peakResidentKiB": 196968,
+  "residentAtCaptureKiB": 175256,
+  "threads": 24,
+  "scope": "After final 140-request mixed workload and rollback/upgrade rehearsal",
+  "raw": "VmHWM:\t  196968 kB\nVmRSS:\t  175256 kB\nThreads:\t24\n100000 100000\n1073741824\n"
+}

@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "kind": "Previous Phase 3 application image on migrated disposable market-only data",
+  "health": 200,
+  "analytics": 200,
+  "counts": {
+    "projects": 5905,
+    "sales": 132305,
+    "rentals": 451165
+  },
+  "liveDatabaseTouched": false,
+  "previousImage": "sha256:4db8f540825d93c0c2b891b5d54ae1ce0bc5bcc25ba43e78351a18a5442ca65a",
+  "restoredCandidate": "sha256:dd1227de60814d222c0156a0e41fe93bdc03354c3466fee8ce7ab7fa0d6c4dcc",
+  "scope": "Disposable public-market copy, no offsite restore, no production data or privacy rollback claimed"
+}

@@ -1,3 +1,4 @@
+import AccessibleDialog from './AccessibleDialog';
 import React from 'react';
 import { X, Compass, Train, GraduationCap, Utensils, ShoppingBag, Trees, MapPin, Footprints, ShieldCheck } from 'lucide-react';
 
@@ -7,7 +8,7 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
   const { project, livability } = projectData;
   if (!livability) return null;
 
-  const { score = 50, label = 'Somewhat Walkable', color = '#D97706', subScores = {}, nearest = {} } = livability;
+  const { score = null, label = 'Moderate amenity proximity', color = '#D97706', subScores = {}, nearest = {} } = livability;
 
   return (
     <div className="drawer-overlay" onClick={onClose} style={{
@@ -23,7 +24,7 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
       justifyContent: 'flex-end',
       animation: 'fadeIn 0.2s ease-out'
     }}>
-      <div
+      <AccessibleDialog label="Amenity proximity details" onClose={onClose}
         className="drawer-content"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -41,7 +42,7 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: '#F8FAFC' }}>
           <div>
             <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary-green)', fontWeight: 700 }}>
-              Livability & Walkability Breakdown
+              Amenity Proximity Breakdown
             </span>
             <h2 style={{ margin: '4px 0 2px 0', fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-charcoal)' }}>
               {project?.name || 'Property Development'}
@@ -53,6 +54,7 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
           </div>
 
           <button
+            aria-label="Close details"
             onClick={onClose}
             style={{
               background: '#F1F5F9',
@@ -86,7 +88,7 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
             boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
             margin: '0 auto 12px auto'
           }}>
-            <span style={{ fontSize: '2.2rem', fontWeight: 800, color: color, lineHeight: 1 }}>{score}</span>
+            <span style={{ fontSize: '2.2rem', fontWeight: 800, color: color, lineHeight: 1 }}>{score ?? 'N/A'}</span>
             <span style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>OUT OF 100</span>
           </div>
 
@@ -94,14 +96,15 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
             {label}
           </h3>
           <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
-            Calculated based on pedestrian walk times to Singapore amenities
+            Straight-line distances from an incomplete curated catalog. These are not walking routes or school admission eligibility measurements.
           </p>
         </div>
 
+        <p style={{padding: '0 24px'}}>Catalog: {livability.provenance?.catalogCount ?? 'unknown'} POIs, including {livability.provenance?.schoolCount ?? 'unknown'} schools. Coverage is incomplete.</p>
         {/* Category Breakdown Progress Bars */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
           <h4 style={{ margin: '0 0 14px 0', fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text-charcoal)' }}>
-            Category Walkability Ratings
+            Category Proximity Estimates
           </h4>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -117,7 +120,7 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
             {/* School */}
             <CategoryScoreBar
               icon={<GraduationCap size={16} color="var(--color-accent-teal)" />}
-              title="Primary Schools (MOE P1 Zone)"
+              title="Catalogued primary schools"
               score={subScores.school || 0}
               weight="25%"
               color="var(--color-accent-teal)"
@@ -168,7 +171,7 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
           {/* 🏫 Schools */}
           <AmenityGroupSection
             icon={<GraduationCap size={16} color="var(--color-accent-teal)" />}
-            title="Nearest Primary Schools (P1 Eligibility)"
+            title="Nearby catalogued primary schools"
             items={nearest.school}
             badgeTag={(item) => (
               <span style={{
@@ -180,7 +183,7 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
                 color: item.distMeters <= 1000 ? '#059669' : '#D97706',
                 border: `1px solid ${item.distMeters <= 1000 ? '#10B981' : '#F59E0B'}`
               }}>
-                {item.distMeters <= 1000 ? 'Within 1km Priority Zone' : '1km – 2km Secondary Zone'}
+                {item.distMeters <= 1000 ? 'Within 1km straight-line' : '1km–2km straight-line'}
               </span>
             )}
           />
@@ -206,7 +209,7 @@ export default function LivabilityDrawer({ projectData, isOpen, onClose }) {
             items={nearest.park}
           />
         </div>
-      </div>
+      </AccessibleDialog>
     </div>
   );
 }
@@ -268,7 +271,7 @@ function AmenityGroupSection({ icon, title, items = [], badgeTag }) {
                 <span>{item.distMeters}m</span>
               </div>
               <div style={{ color: '#64748B' }}>
-                ~{item.walkTimeMins} min walk
+                ~{item.walkTimeMins} min estimate (80m/min)
               </div>
             </div>
           </div>

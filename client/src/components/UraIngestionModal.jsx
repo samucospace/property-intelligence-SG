@@ -1,3 +1,4 @@
+import AccessibleDialog from './AccessibleDialog';
 import React, { useState } from 'react';
 import axios from 'axios';
 import { X, Database, Key, RefreshCw, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
@@ -26,17 +27,21 @@ export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete
 
     const cleanKey = accessKey.trim();
 
+    let sessionToken;
     try {
       setStatusMessage('Requesting URA daily token & fetching sale transaction batches & rental quarters...');
+      const login = await axios.post('/api/admin/login', {adminKey});
+      sessionToken=login.data.token; setAdminKey('');
       const backendRes = await axios.post('/api/ingest/ura', { accessKey: cleanKey }, {
-        headers: adminKey ? { 'X-Admin-Key': adminKey } : {}
+        headers: { 'X-Admin-Session': login.data.token }
       });
       setStatusMessage(`Live URA API sync complete! Stored ${backendRes.data.totalRentalsIngested || 0} rental contracts and ${backendRes.data.totalSalesIngested || 0} sales caveats into property.db.`);
       onIngestionComplete();
     } catch (backendErr) {
-      console.error('Backend URA ingestion error:', backendErr);
+      console.error('Backend URA ingestion request failed');
       setError(backendErr.response?.data?.error || backendErr.message || 'Failed to sync with URA API.');
     } finally {
+      if (sessionToken) await axios.post('/api/admin/logout',{}, {headers:{'X-Admin-Session':sessionToken}}).catch(()=>{});
       setLoading(false);
     }
   };
@@ -52,16 +57,20 @@ export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete
     setError(null);
     setStatusMessage('Parsing and ingesting real URA contract dataset into SQLite database...');
 
+    let sessionToken;
     try {
       const parsed = JSON.parse(jsonInput);
+      const login = await axios.post('/api/admin/login', {adminKey});
+      sessionToken=login.data.token; setAdminKey('');
       const res = await axios.post('/api/ingest/import-data', { jsonData: parsed }, {
-        headers: adminKey ? { 'X-Admin-Key': adminKey } : {}
+        headers: { 'X-Admin-Session': login.data.token }
       });
       setStatusMessage(`Real URA Data Import complete! Successfully stored ${res.data.totalSalesIngested} sales and ${res.data.totalRentalsIngested} rental contracts into database.`);
       onIngestionComplete();
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Invalid JSON format.');
     } finally {
+      if (sessionToken) await axios.post('/api/admin/logout',{}, {headers:{'X-Admin-Session':sessionToken}}).catch(()=>{});
       setLoading(false);
     }
   };
@@ -78,13 +87,13 @@ export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete
 
   return (
     <div className="modal-overlay">
-      <div className="modal-card" style={{ maxWidth: '540px' }}>
+      <AccessibleDialog label="URA data synchronization" onClose={onClose} className="modal-card" style={{ maxWidth: '540px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: 'var(--color-text-charcoal)', fontFamily: 'var(--font-heading)' }}>
             <Database size={20} color="var(--color-primary-green)" />
             Real URA Data Synchronization & Database Builder
           </h3>
-          <X size={18} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={onClose} />
+          <button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={18} /></button>
         </div>
 
         <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
@@ -145,7 +154,7 @@ export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete
               <input
                 type="password"
                 className="input-box"
-                placeholder="X-Admin-Key (optional in local dev)..."
+                placeholder="Private operator sign-in key"
                 value={adminKey}
                 onChange={e => setAdminKey(e.target.value)}
                 disabled={loading}
@@ -192,7 +201,7 @@ export default function UraIngestionModal({ isOpen, onClose, onIngestionComplete
         <div style={{ textAlign: 'right', marginTop: '12px' }}>
           <button className="btn" onClick={onClose} style={{ fontSize: '0.8rem' }}>Close</button>
         </div>
-      </div>
+      </AccessibleDialog>
     </div>
   );
 }

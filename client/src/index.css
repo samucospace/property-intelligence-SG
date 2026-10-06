@@ -514,3 +514,22 @@ h1, h2, h3, h4, h5, h6 {
 .spin {
   animation: spin 1s linear infinite;
 }
+
+:focus-visible { outline: 3px solid #087b64; outline-offset: 3px; }
+.icon-button { display:inline-flex; align-items:center; justify-content:center; min-width:32px; min-height:32px; background:transparent; border:0; cursor:pointer; color:inherit; }
+.modal-card { max-height:85dvh; overflow-y:auto; }
+button.dropdown-item { width:100%; text-align:left; border:0; background:white; color:inherit; font:inherit; cursor:pointer; }
+button.dropdown-item:focus { background:#ecfdf5; }
+@media(max-width:600px) {
+  .filter-panel > div:first-child > div:first-child { min-width:0; width:100%; }
+  .filter-panel > div:first-child > div:first-child > div { flex-wrap:wrap; width:100%; }
+  .filter-panel > div:first-child button { white-space:normal; }
+  .filter-grid { grid-template-columns:minmax(0,1fr); }
+  .filter-grid .filter-group { grid-column:auto !important; min-width:0; }
+  .modal-card { padding:20px; }
+}
+
+.drawer-overlay { position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:2000; display:flex; justify-content:flex-end; }
+.drawer-container { width:100%; height:100%; background:white; overflow-y:auto; }
+.drawer-header { display:flex; justify-content:space-between; gap:12px; padding:20px; }
+.close-btn { border:0; background:transparent; cursor:pointer; min-width:32px; min-height:32px; }

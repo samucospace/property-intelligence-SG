@@ -58,6 +58,12 @@ export default function LivabilityBadge({ livability, onClick, size = 'medium' }
   return (
     <span
       ref={textRef}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `View amenity proximity details, score ${score}` : undefined}
+      onKeyDown={event => { if(onClick && ["Enter"," "].includes(event.key)) {event.preventDefault();onClick();} }}
+      onFocus={handleMouseEnter}
+      onBlur={handleMouseLeave}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={(e) => {

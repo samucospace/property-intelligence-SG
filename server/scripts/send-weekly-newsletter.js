@@ -1,11 +1,14 @@
+import { newsletterYieldRanking } from '../utils/yieldMetrics.js';
 import '../config.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { sendEmail } from '../utils/emailAdapter.js';
+import { enqueueEmail, generateIdempotencyKey } from '../utils/emailQueue.js';
+import { createConnection, withTransaction } from '../db.js';
 import { releaseFeatures } from '../utils/releasePolicy.js';
 import { initDb, dbAll, dbGet, dbRun, closeDb } from '../db.js';
 import { generateUnsubscribeToken, escapeHtml } from '../utils/security.js';
+import { assertProductionCollection } from '../utils/productionControls.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,17 +66,17 @@ export function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientE
         <!-- Benchmark Indicator -->
         <div style="text-align: center;">
           <div class="sora-badge">
-            📊 MAS Benchmark: 3M SORA at ${escapeHtml(sora?.sora_3m || '2.40')}% p.a.${sora?.reference_month ? ` (as of ${escapeHtml(sora.reference_month)})` : ''}
+            📊 SORA comparison unavailable — historical seed rates are unverified.
           </div>
         </div>
 
         <p style="font-size: 13px; line-height: 1.5; color: #6A7B82; margin-top: 0;">
-          Here is your weekly analytical briefing of verified Singapore condominium caveats lodged with the Urban Redevelopment Authority (URA), spotlighting high gross rental yield spreads and noteworthy transaction benchmarks.
+          Here is your weekly analytical briefing of recorded Singapore condominium transactions lodged with the Urban Redevelopment Authority (URA), spotlighting high gross rental yield spreads and noteworthy transaction benchmarks.
         </p>
 
-        <!-- Top 5 Gross Rental Yields -->
+        <p>Project gross yield (%) = median rent psf × 12 ÷ median sale psf × 100. At least 3 usable rentals and 3 sales per project; sales and rentals use the trailing 24-month comparison window. Gross estimates exclude costs and vacancy; area bands use midpoint estimates.</p>
         <div class="section-title">
-          🗝️ Top 5 Gross Rental Yield Condominiums
+          🗝️ Estimated Project Yields (Median Inputs)
         </div>
 
         ${topYields.map((item, idx) => `
@@ -83,7 +86,7 @@ export function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientE
               <span class="yield-pill">${escapeHtml(item.gross_yield)}% Gross Yield</span>
             </div>
             <div class="card-sub">
-              ${escapeHtml(item.market_segment)} • District ${escapeHtml(item.postal_district)} | Est. Rent: S$${escapeHtml(Number(item.avg_rent).toLocaleString())}/mo (S$${escapeHtml(item.avg_psft)}/sqft) | Valuation: ~S$${escapeHtml((item.avg_sale_price / 1e6).toFixed(2))}M
+              ${escapeHtml(item.market_segment)} • District ${escapeHtml(item.postal_district)} | Median Rent: S$${escapeHtml(Number(item.avg_rent).toLocaleString())}/mo (S$${escapeHtml(item.avg_psft)}/sqft) | Median Sale Price: ~S$${escapeHtml((item.avg_sale_price / 1e6).toFixed(2))}M
             </div>
           </div>
         `).join('')}
@@ -108,13 +111,13 @@ export function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientE
         <!-- Direct CEA Specialist Monetization CTA -->
         <div class="agent-box">
           <div style="font-size: 11px; font-weight: 800; color: #065F46; text-transform: uppercase; letter-spacing: 0.5px;">
-            Verified CEA District Advisory
+            Real Estate District Advisory
           </div>
           <div style="font-weight: 700; font-size: 15px; color: #36454F; margin-top: 4px;">
             Planning to Buy, Sell, or Lease a Unit?
           </div>
           <p style="font-size: 12px; color: #6A7B82; margin: 6px 0 0; line-height: 1.4;">
-            Get an on-the-ground unit-level valuation breakdown, transacted caveats comparative analysis, and private transaction advisory from our accredited CEA real estate specialist.
+            Get an on-the-ground unit-level valuation breakdown, transacted caveats comparative analysis, and private transaction advisory from our appointed real estate real estate specialist.
           </p>
           <a href="${escapeHtml(baseUrl)}/?enquire=1" class="btn">
             Consult District Specialist (Free) →
@@ -131,7 +134,7 @@ export function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientE
       <!-- PDPA Compliance & Unsubscribe Footer -->
       <div class="footer">
         <p style="margin: 0 0 8px;">
-          <strong>Data Attribution:</strong> Official property transaction caveats and rental contracts sourced from the Urban Redevelopment Authority (URA) under the Singapore Open Data Licence. Benchmark rates reflect MAS SORA.
+          <strong>Data Attribution:</strong> Official property transaction caveats and rental contracts sourced from the Urban Redevelopment Authority (URA) under the Singapore Open Data Licence. SORA comparisons are disabled pending verified observations.
         </p>
         <p style="margin: 0 0 8px;">
           <strong>Singapore PDPA Compliance:</strong> You are receiving this weekly digest because you subscribed via Singapore Home Intel (homeintel.sg). We respect your privacy and never sell personal data.
@@ -149,6 +152,7 @@ export function buildNewsletterHtml({ topYields, sora, recentCaveats, recipientE
 
 async function main(conn = null) {
   if (!releaseFeatures().leadCapture) return { skipped: true, successCount: 0, failCount: 0, reason: 'Newsletter disabled for read-only release.' };
+  assertProductionCollection();
   const all = conn ? conn.all.bind(conn) : dbAll;
   const get = conn ? conn.get.bind(conn) : dbGet;
   const run = conn ? conn.run.bind(conn) : dbRun;
@@ -164,43 +168,7 @@ async function main(conn = null) {
   const sora = await get(`SELECT reference_month, sora_3m, sora_1m FROM sora_rates ORDER BY reference_month DESC LIMIT 1`);
 
   // 2. Fetch Top 5 Gross Rental Yield Condominiums (Step 3.2: CTE query without cartesian explosion)
-  const topYields = await all(`
-    WITH rent_stats AS (
-      SELECT project_id,
-             COUNT(*)       AS rental_count,
-             AVG(rent_sgd)  AS avg_rent,
-             AVG(rent_psft) AS avg_rent_psft
-      FROM rental_transactions
-      WHERE lease_date >= strftime('%Y-%m', 'now', '-12 months')
-        AND rent_psft IS NOT NULL
-      GROUP BY project_id
-      HAVING COUNT(*) >= 5
-    ),
-    sale_stats AS (
-      SELECT project_id,
-             COUNT(*)       AS sale_count,
-             AVG(price_sgd) AS avg_sale_price,
-             AVG(psft_sgd)  AS avg_sale_psft
-      FROM property_transactions
-      WHERE contract_date >= date('now', '-24 months')
-        AND (property_type IN ('Apartment', 'Condominium') OR property_type IS NULL)
-        AND (no_of_units = 1 OR no_of_units IS NULL)
-      GROUP BY project_id
-      HAVING COUNT(*) >= 3
-    )
-    SELECT p.project_name, p.postal_district, p.market_segment,
-           r.rental_count,
-           ROUND(r.avg_rent, 0)       AS avg_rent,
-           ROUND(r.avg_rent_psft, 2)  AS avg_psft,
-           ROUND(s.avg_sale_price, 0) AS avg_sale_price,
-           ROUND(r.avg_rent_psft * 12.0 / s.avg_sale_psft * 100, 2) AS gross_yield
-    FROM projects p
-    JOIN rent_stats r ON r.project_id = p.project_id
-    JOIN sale_stats s ON s.project_id = p.project_id
-    WHERE p.is_landed_aggregate = 0
-    ORDER BY gross_yield DESC
-    LIMIT 5;
-  `);
+  const topYields = await newsletterYieldRanking(conn);
 
   // 3. Fetch 3 Recent Notable Transactions
   const recentCaveats = await all(`
@@ -211,17 +179,28 @@ async function main(conn = null) {
     LIMIT 3
   `);
 
-  console.log(`Data extracted: ${topYields.length} top yield projects, 3M SORA: ${sora?.sora_3m || 'N/A'}%`);
+  console.log(`Data extracted: ${topYields.length} top yield projects, SORA comparison disabled`);
 
   // 4. Fetch Active Subscribers who have not yet received this week's dispatch (OPS-01)
-  const subscribers = await all(`
+  const candidateSubscribers = await all(`
     SELECT lead_id, email, name
     FROM leads
     WHERE lead_type = 'newsletter'
       AND unsubscribed_at IS NULL
       AND confirmed_at IS NOT NULL
+      AND (is_quarantined IS NULL OR is_quarantined = 0)
       AND (last_newsletter_sent_at IS NULL OR last_newsletter_sent_at < date('now', '-6 days'))
   `);
+
+  // Filter against suppression ledger
+  const { isEmailSuppressed } = await import('../utils/suppression.js');
+  const subscribers = [];
+  for (const candidate of candidateSubscribers) {
+    if (await isEmailSuppressed(candidate.email, conn ? { get: get, run: run, all: all } : null)) {
+      continue;
+    }
+    subscribers.push(candidate);
+  }
 
   console.log(`Active newsletter subscribers pending dispatch: ${subscribers.length}`);
 
@@ -234,6 +213,7 @@ async function main(conn = null) {
   fs.writeFileSync(previewPath, sampleHtml, 'utf8');
   console.log(`✓ Generated local HTML preview at: ${previewPath}`);
 
+  if (!isPreview && process.env.NODE_ENV==='production' && !resendApiKey) throw new Error('RESEND_API_KEY required for enabled newsletter');
   if (isPreview || !resendApiKey) {
     console.log(`\n--- PREVIEW MODE ACTIVE ---`);
     if (!resendApiKey) {
@@ -249,52 +229,26 @@ async function main(conn = null) {
     throw new Error('UNSUBSCRIBE_SECRET is required for newsletter dispatch.');
   }
 
-  // 5. Send Live Emails via Resend
-  console.log(`Dispatching to ${subscribers.length} subscribers via Resend...`);
-
-  let successCount = 0;
-  let failCount = 0;
-  let mockedCount = 0;
-
-  for (const sub of subscribers) {
-    const personalizedHtml = buildNewsletterHtml({ topYields, sora, recentCaveats, recipientEmail: sub.email, baseUrl });
-    let unsubUrl = `${baseUrl}/api/leads/unsubscribe?email=${encodeURIComponent(sub.email)}`;
-    try {
-      const unsubToken = generateUnsubscribeToken(sub.email);
-      unsubUrl += `&token=${unsubToken}`;
-    } catch (e) {}
-
-    try {
-      const result = await sendEmail({
-        from: fromEmail,
-        to: sub.email,
-        subject: `Weekly SG Property Yield Watchlist: Top Condos & SORA Rate Update`,
-        html: personalizedHtml,
-        headers: {
-          'List-Unsubscribe': `<${unsubUrl}>, <mailto:unsubscribe@homeintel.sg>`,
-          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
-        }
-      });
-      if (result.error || !result.data?.id) throw new Error(result.error?.message || 'Provider did not accept email');
-      if (result.mocked) {
-        mockedCount++;
-        continue;
-      }
-
-      // Step 2.5 / OPS-01: Track send state in database for mid-run recovery and duplicate prevention
-      await run(`UPDATE leads SET last_newsletter_sent_at = CURRENT_TIMESTAMP WHERE lead_id = ?`, [sub.lead_id]);
-      successCount++;
-
-      // Step 2.5 / OPS-01: 150ms delay between dispatches to respect Resend API quotas
-      await new Promise(r => setTimeout(r, 150));
-    } catch (sendErr) {
-      console.error(`Failed to send to ${sub.email}:`, sendErr.message);
-      failCount++;
+  const queueDb = conn || createConnection();
+  let queuedCount = 0;
+  try {
+    const week = new Date(Date.now()+8*60*60*1000);
+    week.setUTCHours(0,0,0,0);
+    week.setUTCDate(week.getUTCDate()-((week.getUTCDay()+6)%7));
+    const campaign = week.toISOString().slice(0,10);
+    for (const sub of subscribers) {
+      const unsubUrl = `${baseUrl}/api/leads/unsubscribe?email=${encodeURIComponent(sub.email)}&token=${generateUnsubscribeToken(sub.email)}`;
+      const result = await withTransaction(queueDb, () => enqueueEmail({
+        recipient:sub.email, subject:'Weekly SG Property Yield Watchlist', emailType:'newsletter_digest', leadId:sub.lead_id,
+        idempotencyKey:generateIdempotencyKey(sub.email,'newsletter_digest',campaign),
+        payload:{from:fromEmail,html:buildNewsletterHtml({topYields,sora,recentCaveats,recipientEmail:sub.email,baseUrl}),
+          headers:{'List-Unsubscribe':`<${unsubUrl}>`,'List-Unsubscribe-Post':'List-Unsubscribe=One-Click'}}
+      },queueDb));
+      if (result.enqueued) queuedCount++;
     }
-  }
+    return {queuedCount,successCount:0,failCount:0};
+  } finally { if (!conn) await queueDb.close(); }
 
-  console.log(`Newsletter dispatch completed: ${successCount} sent successfully, ${failCount} failed.`);
-  return { successCount, failCount, mockedCount };
 }
 
 export const sendWeeklyNewsletter = main;

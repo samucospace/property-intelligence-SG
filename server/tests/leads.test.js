@@ -257,8 +257,8 @@ describe('Leads & PDPA Integrity', () => {
 
         // 5. Unconverted agent advisory lead older than 12 months (should be deleted)
         await conn.run(`
-          INSERT INTO leads (name, email, phone, lead_type, pdpa_consent, created_at)
-          VALUES ('Old Advisory', 'advisory_old@example.com', '90000001', 'agent_advisory', 1, datetime('now', '-13 months'))
+          INSERT INTO leads (name, email, phone, lead_type, pdpa_consent, created_at,retention_reviewed_at)
+          VALUES ('Old Advisory', 'advisory_old@example.com', '90000001', 'agent_advisory', 1, datetime('now', '-13 months'),CURRENT_TIMESTAMP)
         `);
 
         const summary = await cleanupLeads(conn);

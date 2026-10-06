@@ -39,10 +39,10 @@ export default function LifestyleProfileSelector({ activeProfile, setActiveProfi
           <span style={{ fontSize: '1.1rem' }}>🧭</span>
           <div>
             <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text-charcoal)' }}>
-              Singapore Lifestyle & Walkability Profile
+              Singapore Lifestyle & Amenity Profile
             </h4>
             <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-              Personalize amenity walkability weights to recalculate property scores
+              Personalize amenity proximity weights to recalculate property scores
             </p>
           </div>
         </div>

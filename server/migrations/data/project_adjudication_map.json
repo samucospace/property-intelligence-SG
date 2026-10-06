@@ -1,0 +1,2779 @@
+{
+  "version": 1,
+  "status": "All 35 identity approvals applied locally by migration 014; promotion evidence: audit/2026-10-05/phase2-final-promotion.json",
+  "owner": "Sam Fraser",
+  "entries": [
+    {
+      "sourceId": 329,
+      "targetId": 3515,
+      "projectName": "ST MICHAEL REGENCY",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current identity comparison and retained 5 October URA response hashes support the same project name, Saint Michael's Road, district 12 and original locations differing by approximately 0.06m. Sam Fraser explicitly approved this pair in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ST MICHAEL REGENCY",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null,
+        "latitude": 1.32791955421654,
+        "longitude": 103.86384632382,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST MICHAEL REGENCY",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST MICHAEL REGENCY",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12",
+        "latitude": 1.32792,
+        "longitude": 103.863846,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST MICHAEL REGENCY",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 12,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 329,
+        "targetId": 3515,
+        "projectName": "ST MICHAEL REGENCY",
+        "responseGroups": 17,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0.061260833618800484,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json"
+        ],
+        "coordinatePairs": [
+          "31397.4266|34460.13527",
+          "31391.887|34453.37287"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 387,
+      "targetId": 3551,
+      "projectName": "AIRSTREAM",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the AIRSTREAM project name and equivalent Saint Michael's Road spelling. The surviving location matches retained 5 October URA evidence and district 12. The removed record has no saved coordinates. After this limitation was explained, Sam Fraser explicitly instructed in chat on 5 October 2026 to accept the merge as the same project.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge despite missing original-source coordinates. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "AIRSTREAM",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null,
+        "latitude": null,
+        "longitude": null,
+        "geo_source": null
+      },
+      "expectedSource": {
+        "project_name": "AIRSTREAM",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "AIRSTREAM",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12",
+        "latitude": 1.327327,
+        "longitude": 103.864036,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "AIRSTREAM",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 25,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 387,
+        "targetId": 3551,
+        "projectName": "AIRSTREAM",
+        "responseGroups": 21,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": null,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": false,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "31418.48652|34394.57128",
+          "31409.87862|34386.18688"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 394,
+      "targetId": 3555,
+      "projectName": "ESPADA",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ESPADA project name and equivalent Saint Thomas Walk spelling. Retained 5 October URA evidence supports the name, street and district 9. Original positions differ by approximately 68.6m; the cause of that difference has not been independently established. After this limitation was explained, Sam Fraser explicitly accepted the merge in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge despite the disclosed original-coordinate difference. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ESPADA",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": 1.29674185934241,
+        "longitude": 103.836883724004,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ESPADA",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ESPADA",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.297342,
+        "longitude": 103.836742,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ESPADA",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 45,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 394,
+        "targetId": 3555,
+        "projectName": "ESPADA",
+        "responseGroups": 22,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 68.56717836219649,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28380.95563|31079.00263",
+          "28374.49343|31088.46593"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 426,
+      "targetId": 3563,
+      "projectName": "ST MICHAEL'S CONDOMINIUM",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST MICHAEL'S CONDOMINIUM project name and equivalent Saint Michael's Road spelling. The surviving location matches retained 5 October URA evidence and district 12. The removed record has no saved coordinates. After this limitation was explained, Sam Fraser explicitly accepted the merge in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge despite missing original-source coordinates. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ST MICHAEL'S CONDOMINIUM",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null,
+        "latitude": null,
+        "longitude": null,
+        "geo_source": null
+      },
+      "expectedSource": {
+        "project_name": "ST MICHAEL'S CONDOMINIUM",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST MICHAEL'S CONDOMINIUM",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12",
+        "latitude": 1.326145,
+        "longitude": 103.86234,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST MICHAEL'S CONDOMINIUM",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 7,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 426,
+        "targetId": 3563,
+        "projectName": "ST MICHAEL'S CONDOMINIUM",
+        "responseGroups": 20,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": null,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": false,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "31229.82666|34263.86819",
+          "31289.94594|34305.6216",
+          "31236.03806|34272.12839"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 475,
+      "targetId": 3586,
+      "projectName": "ONE ST MICHAEL'S",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ONE ST MICHAEL'S project name and equivalent Saint Michael's Road spelling. The surviving location matches retained 5 October URA evidence and district 12. The removed record has no saved coordinates. After this limitation was explained, Sam Fraser explicitly accepted the merge in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge despite missing original-source coordinates. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ONE ST MICHAEL'S",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null,
+        "latitude": null,
+        "longitude": null,
+        "geo_source": null
+      },
+      "expectedSource": {
+        "project_name": "ONE ST MICHAEL'S",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ONE ST MICHAEL'S",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12",
+        "latitude": 1.324704,
+        "longitude": 103.864609,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ONE ST MICHAEL'S",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 22,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 475,
+        "targetId": 3586,
+        "projectName": "ONE ST MICHAEL'S",
+        "responseGroups": 22,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": null,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": false,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "31482.30729|34104.5634",
+          "31474.41509|34097.28673"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 503,
+      "targetId": 3612,
+      "projectName": "GRANGE HEIGHTS",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the GRANGE HEIGHTS project name and equivalent Saint Thomas Walk spelling. The surviving location matches retained 5 October URA evidence and district 9. The removed record has no saved coordinates. After this limitation was explained, Sam Fraser explicitly accepted the merge in chat on 5 October 2026 and identified the recurring Saint/Street normalization pattern.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge despite missing original-source coordinates. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "GRANGE HEIGHTS",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": null,
+        "longitude": null,
+        "geo_source": null
+      },
+      "expectedSource": {
+        "project_name": "GRANGE HEIGHTS",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "GRANGE HEIGHTS",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.29778,
+        "longitude": 103.835226,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "GRANGE HEIGHTS",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 15,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 503,
+        "targetId": 3612,
+        "projectName": "GRANGE HEIGHTS",
+        "responseGroups": 16,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": null,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": false,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28212.24449|31127.44911",
+          "28204.80159|31132.84021",
+          "28198.93159|31132.07098"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 560,
+      "targetId": 3645,
+      "projectName": "ST THOMAS SUITES",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST THOMAS SUITES project name and equivalent Saint Thomas Walk spelling. The surviving location matches retained 5 October URA evidence and district 9. The removed record has no saved coordinates. After this limitation was explained, Sam Fraser explicitly accepted the merge in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge despite missing original-source coordinates. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ST THOMAS SUITES",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": null,
+        "longitude": null,
+        "geo_source": null
+      },
+      "expectedSource": {
+        "project_name": "ST THOMAS SUITES",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST THOMAS SUITES",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.29841,
+        "longitude": 103.835898,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST THOMAS SUITES",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 32,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 560,
+        "targetId": 3645,
+        "projectName": "ST THOMAS SUITES",
+        "responseGroups": 22,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": null,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": false,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28287.10031|31197.14084",
+          "28355.40019|31138.65903"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 656,
+      "targetId": 3699,
+      "projectName": "SKYLINE 360 @ SAINT THOMAS WALK",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the SKYLINE 360 @ SAINT THOMAS WALK project name and equivalent Saint Thomas Walk spelling. The surviving location matches retained 5 October URA evidence and district 9. The removed record has no saved coordinates. After this limitation was explained, Sam Fraser explicitly accepted the merge in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge despite missing original-source coordinates. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "SKYLINE 360 @ SAINT THOMAS WALK",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": null,
+        "longitude": null,
+        "geo_source": null
+      },
+      "expectedSource": {
+        "project_name": "SKYLINE 360 @ SAINT THOMAS WALK",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "SKYLINE 360 @ SAINT THOMAS WALK",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.296742,
+        "longitude": 103.836884,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "SKYLINE 360 @ SAINT THOMAS WALK",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 4,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 656,
+        "targetId": 3699,
+        "projectName": "SKYLINE 360 @ SAINT THOMAS WALK",
+        "responseGroups": 22,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": null,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": false,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28396.76914|31012.6454",
+          "28387.02234|31020.7281"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 700,
+      "targetId": 3721,
+      "projectName": "8 SAINT THOMAS",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the 8 SAINT THOMAS project name and equivalent Saint Thomas Walk spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; district 9 is supported. After this evidence was explained, Sam Fraser explicitly approved the pair in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "8 SAINT THOMAS",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": 1.296143,
+        "longitude": 103.836292,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "8 SAINT THOMAS",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "8 SAINT THOMAS",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.296143,
+        "longitude": 103.836292,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "8 SAINT THOMAS",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 22,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 700,
+        "targetId": 3721,
+        "projectName": "8 SAINT THOMAS",
+        "responseGroups": 22,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28330.96609|30946.47959",
+          "28312.57606|31021.36021"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 710,
+      "targetId": 3734,
+      "projectName": "ST FRANCIS COURT",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST FRANCIS COURT project name and equivalent Saint Francis Road spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; district 12 is supported. After this evidence was explained, Sam Fraser explicitly approved the pair in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ST FRANCIS COURT",
+        "street_name": "ST. FRANCIS ROAD",
+        "postal_district": null,
+        "latitude": 1.32438,
+        "longitude": 103.863834,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST FRANCIS COURT",
+        "street_name": "ST. FRANCIS ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST FRANCIS COURT",
+        "street_name": "STREET. FRANCIS ROAD",
+        "postal_district": "12",
+        "latitude": 1.32438,
+        "longitude": 103.863834,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST FRANCIS COURT",
+        "street_name": "STREET. FRANCIS ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 21,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 710,
+        "targetId": 3734,
+        "projectName": "ST FRANCIS COURT",
+        "responseGroups": 20,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "31396.04462|34068.71216",
+          "31403.39782|34059.82126"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 714,
+      "targetId": 3738,
+      "projectName": "THE RICHMOND",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the THE RICHMOND project name and equivalent Saint Michael's Road spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; district 12 is supported. After this evidence was explained, Sam Fraser explicitly approved the pair in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "THE RICHMOND",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null,
+        "latitude": 1.324924,
+        "longitude": 103.864407,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "THE RICHMOND",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "THE RICHMOND",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12",
+        "latitude": 1.324924,
+        "longitude": 103.864407,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "THE RICHMOND",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 7,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 714,
+        "targetId": 3738,
+        "projectName": "THE RICHMOND",
+        "responseGroups": 12,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json"
+        ],
+        "coordinatePairs": [
+          "31459.78751|34128.9344",
+          "31453.84401|34123.9254"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 747,
+      "targetId": 3756,
+      "projectName": "SAM KIANG MANSIONS",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the SAM KIANG MANSIONS project name and equivalent Saint Thomas Walk spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; district 9 is supported. After this evidence was explained, Sam Fraser explicitly accepted the merge in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "SAM KIANG MANSIONS",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": 1.298402,
+        "longitude": 103.835357,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "SAM KIANG MANSIONS",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "SAM KIANG MANSIONS",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.298402,
+        "longitude": 103.835357,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "SAM KIANG MANSIONS",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 4,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 747,
+        "targetId": 3756,
+        "projectName": "SAM KIANG MANSIONS",
+        "responseGroups": 21,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28226.89017|31196.17568",
+          "28233.00537|31203.38588"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 864,
+      "targetId": 3813,
+      "projectName": "THE MORNINGTON",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the THE MORNINGTON project name and equivalent Saint Michael's Road spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; district 12 is supported. After this evidence was explained, Sam Fraser explicitly accepted the merge in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "THE MORNINGTON",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null,
+        "latitude": 1.326186,
+        "longitude": 103.863994,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "THE MORNINGTON",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "THE MORNINGTON",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12",
+        "latitude": 1.326186,
+        "longitude": 103.863994,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "THE MORNINGTON",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 4,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 864,
+        "targetId": 3813,
+        "projectName": "THE MORNINGTON",
+        "responseGroups": 19,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json"
+        ],
+        "coordinatePairs": [
+          "31413.81895|34268.45439",
+          "31405.40085|34273.99579"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 978,
+      "targetId": 3539,
+      "projectName": "ST MARTIN RESIDENCE",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST MARTIN RESIDENCE project name and equivalent Saint Martin's Drive spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; district 10 is supported. After this evidence was explained, Sam Fraser explicitly accepted the merge in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ST MARTIN RESIDENCE",
+        "street_name": "ST. MARTIN'S DRIVE",
+        "postal_district": null,
+        "latitude": 1.306378,
+        "longitude": 103.82402,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST MARTIN RESIDENCE",
+        "street_name": "ST. MARTIN'S DRIVE",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST MARTIN RESIDENCE",
+        "street_name": "STREET. MARTIN'S DRIVE",
+        "postal_district": "10",
+        "latitude": 1.306378,
+        "longitude": 103.82402,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST MARTIN RESIDENCE",
+        "street_name": "STREET. MARTIN'S DRIVE",
+        "postal_district": "10"
+      },
+      "baselineSalesMoved": 13,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 978,
+        "targetId": 3539,
+        "projectName": "ST MARTIN RESIDENCE",
+        "responseGroups": 22,
+        "districts": [
+          "10"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "10",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "26965.17663|32078.14583",
+          "27025.68291|32056.32578"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 1075,
+      "targetId": 3600,
+      "projectName": "ST THOMAS COURT",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST THOMAS COURT project name and equivalent Saint Thomas Walk spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; district 9 is supported. After this evidence was explained, Sam Fraser explicitly approved the pair in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ST THOMAS COURT",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": 1.297509,
+        "longitude": 103.836269,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST THOMAS COURT",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST THOMAS COURT",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.297509,
+        "longitude": 103.836269,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST THOMAS COURT",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 2,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 1075,
+        "targetId": 3600,
+        "projectName": "ST THOMAS COURT",
+        "responseGroups": 15,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28328.33895|31097.45018",
+          "28323.25205|31091.84998"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 1081,
+      "targetId": 3602,
+      "projectName": "ST FRANCIS LODGE",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST FRANCIS LODGE project name and equivalent Saint Francis Road spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; district 12 is supported. After this evidence was explained, Sam Fraser explicitly approved the pair in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ST FRANCIS LODGE",
+        "street_name": "ST. FRANCIS ROAD",
+        "postal_district": null,
+        "latitude": 1.324804,
+        "longitude": 103.864179,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST FRANCIS LODGE",
+        "street_name": "ST. FRANCIS ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST FRANCIS LODGE",
+        "street_name": "STREET. FRANCIS ROAD",
+        "postal_district": "12",
+        "latitude": 1.324804,
+        "longitude": 103.864179,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST FRANCIS LODGE",
+        "street_name": "STREET. FRANCIS ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 6,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 1081,
+        "targetId": 3602,
+        "projectName": "ST FRANCIS LODGE",
+        "responseGroups": 18,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "31434.46474|34115.64908",
+          "31427.86274|34105.66518"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 1099,
+      "targetId": 3616,
+      "projectName": "ST MARTIN'S",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST MARTIN'S project name and equivalent Saint Martin's Drive spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; district 10 is supported. After this evidence was explained, including that ST MARTIN RESIDENCE remains a separate project, Sam Fraser explicitly approved the pair in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "baselineSource": {
+        "project_name": "ST MARTIN'S",
+        "street_name": "ST. MARTIN'S DRIVE",
+        "postal_district": null,
+        "latitude": 1.30571,
+        "longitude": 103.824464,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST MARTIN'S",
+        "street_name": "ST. MARTIN'S DRIVE",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST MARTIN'S",
+        "street_name": "STREET. MARTIN'S DRIVE",
+        "postal_district": "10",
+        "latitude": 1.30571,
+        "longitude": 103.824464,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST MARTIN'S",
+        "street_name": "STREET. MARTIN'S DRIVE",
+        "postal_district": "10"
+      },
+      "baselineSalesMoved": 5,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 1099,
+        "targetId": 3616,
+        "projectName": "ST MARTIN'S",
+        "responseGroups": 17,
+        "districts": [
+          "10"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "10",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "27014.5471|32004.26435",
+          "27023.9466|32013.19655"
+        ]
+      },
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 1160,
+      "targetId": 3663,
+      "projectName": "CITY REGENCY",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the CITY REGENCY project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "CITY REGENCY",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null,
+        "latitude": 1.326381,
+        "longitude": 103.863841,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "CITY REGENCY",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "CITY REGENCY",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12",
+        "latitude": 1.326381,
+        "longitude": 103.863841,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "CITY REGENCY",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 15,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 1160,
+        "targetId": 3663,
+        "projectName": "CITY REGENCY",
+        "responseGroups": 22,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "31396.79781|34290.00036",
+          "31404.87321|34283.53496"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Explicit individual approval",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 1193,
+      "targetId": 3676,
+      "projectName": "RIVERSIDE MELODIES",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the RIVERSIDE MELODIES project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "RIVERSIDE MELODIES",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null,
+        "latitude": 1.327308,
+        "longitude": 103.864477,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "RIVERSIDE MELODIES",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "RIVERSIDE MELODIES",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12",
+        "latitude": 1.327308,
+        "longitude": 103.864477,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "RIVERSIDE MELODIES",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 11,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 1193,
+        "targetId": 3676,
+        "projectName": "RIVERSIDE MELODIES",
+        "responseGroups": 13,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "31467.59148|34392.54992",
+          "31474.68208|34398.78892"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 1245,
+      "targetId": 3705,
+      "projectName": "SUNVILLE",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the SUNVILLE project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "SUNVILLE",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null,
+        "latitude": 1.326885,
+        "longitude": 103.864133,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "SUNVILLE",
+        "street_name": "ST. MICHAEL'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "SUNVILLE",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12",
+        "latitude": 1.326885,
+        "longitude": 103.864133,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "SUNVILLE",
+        "street_name": "STREET. MICHAEL'S ROAD",
+        "postal_district": "12"
+      },
+      "baselineSalesMoved": 14,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 1245,
+        "targetId": 3705,
+        "projectName": "SUNVILLE",
+        "responseGroups": 22,
+        "districts": [
+          "12"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "12",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "31429.35648|34345.79478",
+          "31370.59164|34315.2339",
+          "31424.05648|34340.69448"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 1278,
+      "targetId": 3725,
+      "projectName": "TANGLIN RESIDENCES",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the TANGLIN RESIDENCES project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "TANGLIN RESIDENCES",
+        "street_name": "ST. MARTIN'S DRIVE",
+        "postal_district": null,
+        "latitude": 1.305984,
+        "longitude": 103.824106,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "TANGLIN RESIDENCES",
+        "street_name": "ST. MARTIN'S DRIVE",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "TANGLIN RESIDENCES",
+        "street_name": "STREET. MARTIN'S DRIVE",
+        "postal_district": "10",
+        "latitude": 1.305984,
+        "longitude": 103.824106,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "TANGLIN RESIDENCES",
+        "street_name": "STREET. MARTIN'S DRIVE",
+        "postal_district": "10"
+      },
+      "baselineSalesMoved": 8,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 1278,
+        "targetId": 3725,
+        "projectName": "TANGLIN RESIDENCES",
+        "responseGroups": 20,
+        "districts": [
+          "10"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "10",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "26974.71104|32034.54553",
+          "26892.00908|32078.61665"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 1672,
+      "targetId": 3899,
+      "projectName": "ST PATRICK'S COURT",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST PATRICK'S COURT project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "ST PATRICK'S COURT",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null,
+        "latitude": 1.30816,
+        "longitude": 103.912217,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST PATRICK'S COURT",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST PATRICK'S COURT",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15",
+        "latitude": 1.30816,
+        "longitude": 103.912217,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST PATRICK'S COURT",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15"
+      },
+      "baselineSalesMoved": 1,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 1672,
+        "targetId": 3899,
+        "projectName": "ST PATRICK'S COURT",
+        "responseGroups": 17,
+        "districts": [
+          "15"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "15",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json"
+        ],
+        "coordinatePairs": [
+          "36780.69689|32275.35189",
+          "36772.0036909446|32269.9879874906",
+          "36771.81449|32268.80749",
+          "36771.82799|32280.65909",
+          "36771.27829|32268.07419"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 1688,
+      "targetId": 3907,
+      "projectName": "ST PATRICK'S GREEN",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST PATRICK'S GREEN project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "ST PATRICK'S GREEN",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null,
+        "latitude": 1.308524,
+        "longitude": 103.91388,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST PATRICK'S GREEN",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST PATRICK'S GREEN",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15",
+        "latitude": 1.308524,
+        "longitude": 103.91388,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST PATRICK'S GREEN",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15"
+      },
+      "baselineSalesMoved": 4,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 1688,
+        "targetId": 3907,
+        "projectName": "ST PATRICK'S GREEN",
+        "responseGroups": 20,
+        "districts": [
+          "15"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "15",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "36965.78955|32315.55346",
+          "36956.06135|32306.27286"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 2039,
+      "targetId": 4015,
+      "projectName": "ST PATRICK'S LOFT",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST PATRICK'S LOFT project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "ST PATRICK'S LOFT",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null,
+        "latitude": 1.308424,
+        "longitude": 103.913565,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST PATRICK'S LOFT",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST PATRICK'S LOFT",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15",
+        "latitude": 1.308424,
+        "longitude": 103.913565,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST PATRICK'S LOFT",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15"
+      },
+      "baselineSalesMoved": 5,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 2039,
+        "targetId": 4015,
+        "projectName": "ST PATRICK'S LOFT",
+        "responseGroups": 20,
+        "districts": [
+          "15"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "15",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "36930.72863|32304.50014",
+          "36915.75568|32320.83186",
+          "36905.6527|32327.07565",
+          "36923.06083|32296.70234"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 2199,
+      "targetId": 4071,
+      "projectName": "ST ANNE'S WOOD",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST ANNE'S WOOD project name and equivalent Saint street spelling, with compatible retained district evidence. Original positions differ by approximately 51.8m. The cause of that difference has not been independently established. After this limitation was explained, Sam Fraser explicitly accepted both remaining exception pairs in chat on 5 October 2026.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "ST ANNE'S WOOD",
+        "street_name": "ST. ANNE'S WOOD",
+        "postal_district": null,
+        "latitude": 1.391329,
+        "longitude": 103.903013,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST ANNE'S WOOD",
+        "street_name": "ST. ANNE'S WOOD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST ANNE'S WOOD",
+        "street_name": "STREET. ANNE'S WOOD",
+        "postal_district": "19",
+        "latitude": 1.391659,
+        "longitude": 103.903342,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST ANNE'S WOOD",
+        "street_name": "STREET. ANNE'S WOOD",
+        "postal_district": "19"
+      },
+      "baselineSalesMoved": 4,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 2199,
+        "targetId": 4071,
+        "projectName": "ST ANNE'S WOOD",
+        "responseGroups": 10,
+        "districts": [
+          "19"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "19",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 10.060181410240835,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-3.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "35792.67372|41508.17907",
+          "35799.99839|41554.55583",
+          "35773.67212|41471.62854",
+          "35839.45607|41467.30081",
+          "35759.47445|41481.08317"
+        ]
+      },
+      "approvalMethod": "Explicit approval of the two remaining exceptions in chat",
+      "approvalScope": "Accept the existing historical identity merge despite the disclosed original-coordinate difference. Database application and promotion remain separate controlled steps.",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 2299,
+      "targetId": 4101,
+      "projectName": "GRAND DUCHESS AT ST PATRICK'S",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the GRAND DUCHESS AT ST PATRICK'S project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "GRAND DUCHESS AT ST PATRICK'S",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null,
+        "latitude": 1.307394,
+        "longitude": 103.91606,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "GRAND DUCHESS AT ST PATRICK'S",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "GRAND DUCHESS AT ST PATRICK'S",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15",
+        "latitude": 1.307394,
+        "longitude": 103.91606,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "GRAND DUCHESS AT ST PATRICK'S",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15"
+      },
+      "baselineSalesMoved": 18,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 2299,
+        "targetId": 4101,
+        "projectName": "GRAND DUCHESS AT ST PATRICK'S",
+        "responseGroups": 21,
+        "districts": [
+          "15"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "15",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "37208.35093|32190.63053",
+          "37156.91682|32286.69809",
+          "37171.63283|32264.47641",
+          "37204.03837|32307.86408"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 2444,
+      "targetId": 4162,
+      "projectName": "TIERRA VUE",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the TIERRA VUE project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "TIERRA VUE",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null,
+        "latitude": 1.306886,
+        "longitude": 103.913717,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "TIERRA VUE",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "TIERRA VUE",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15",
+        "latitude": 1.306886,
+        "longitude": 103.913717,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "TIERRA VUE",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15"
+      },
+      "baselineSalesMoved": 15,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 2444,
+        "targetId": 4162,
+        "projectName": "TIERRA VUE",
+        "responseGroups": 21,
+        "districts": [
+          "15"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "15",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "36947.62034|32134.49159",
+          "36985.46138|32275.08109",
+          "36963.2958|32234.29766"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 2490,
+      "targetId": 4184,
+      "projectName": "SEVENTY SAINT PATRICK'S",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the SEVENTY SAINT PATRICK'S project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "SEVENTY SAINT PATRICK'S",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null,
+        "latitude": 1.307307,
+        "longitude": 103.915698,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "SEVENTY SAINT PATRICK'S",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "SEVENTY SAINT PATRICK'S",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15",
+        "latitude": 1.307307,
+        "longitude": 103.915698,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "SEVENTY SAINT PATRICK'S",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15"
+      },
+      "baselineSalesMoved": 47,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 2490,
+        "targetId": 4184,
+        "projectName": "SEVENTY SAINT PATRICK'S",
+        "responseGroups": 22,
+        "districts": [
+          "15"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "15",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-3.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "37168.09851|32181.00277",
+          "37101.30354|32263.52814",
+          "37129.44053|32306.20638",
+          "37115.11016|32239.72765"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 2568,
+      "targetId": 4234,
+      "projectName": "ST PATRICK'S RESIDENCES",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST PATRICK'S RESIDENCES project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "ST PATRICK'S RESIDENCES",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null,
+        "latitude": 1.30785,
+        "longitude": 103.914789,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST PATRICK'S RESIDENCES",
+        "street_name": "ST. PATRICK'S ROAD",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST PATRICK'S RESIDENCES",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15",
+        "latitude": 1.30785,
+        "longitude": 103.914789,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST PATRICK'S RESIDENCES",
+        "street_name": "STREET. PATRICK'S ROAD",
+        "postal_district": "15"
+      },
+      "baselineSalesMoved": 26,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 2568,
+        "targetId": 4234,
+        "projectName": "ST PATRICK'S RESIDENCES",
+        "responseGroups": 21,
+        "districts": [
+          "15"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "15",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-3.json",
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "37066.85104|32241.07848",
+          "37076.77977|32210.53076",
+          "37045.8378|32268.50721",
+          "37104.39708|32162.10291",
+          "37072.66814|32232.26798",
+          "37070.39878|32154.17079"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 3020,
+      "targetId": 4404,
+      "projectName": "THE BAYRON",
+      "status": "approved",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "sourceEvidence": "Original baseline/current records share the THE BAYRON project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "baselineSource": {
+        "project_name": "THE BAYRON",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": 1.297818,
+        "longitude": 103.837107,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "THE BAYRON",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "THE BAYRON",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.297818,
+        "longitude": 103.837107,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "THE BAYRON",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 0,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 3020,
+        "targetId": 4404,
+        "projectName": "THE BAYRON",
+        "responseGroups": 20,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28421.62093|31131.58809"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 3062,
+      "targetId": 4663,
+      "projectName": "WILMER HOUSE",
+      "status": "approved",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "sourceEvidence": "Original baseline/current records share the WILMER HOUSE project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "baselineSource": {
+        "project_name": "WILMER HOUSE",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": 1.29643,
+        "longitude": 103.835461,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "WILMER HOUSE",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "WILMER HOUSE",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.29643,
+        "longitude": 103.835461,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "WILMER HOUSE",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 0,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 3062,
+        "targetId": 4663,
+        "projectName": "WILMER HOUSE",
+        "responseGroups": 18,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28238.39088|30978.10839"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 3113,
+      "targetId": 3527,
+      "projectName": "ST THOMAS VILLE",
+      "status": "approved",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "sourceEvidence": "Original baseline/current records share the ST THOMAS VILLE project name and equivalent Saint street spelling, with compatible retained district evidence. Original positions differ by approximately 11.9m. The cause of that difference has not been independently established. After this limitation was explained, Sam Fraser explicitly accepted both remaining exception pairs in chat on 5 October 2026. Both original positions occur in the retained URA evidence; no historical transactions were moved from the removed record.",
+      "baselineSource": {
+        "project_name": "ST THOMAS VILLE",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": 1.29745,
+        "longitude": 103.836076,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST THOMAS VILLE",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST THOMAS VILLE",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.297536,
+        "longitude": 103.836013,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST THOMAS VILLE",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 0,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 3113,
+        "targetId": 3527,
+        "projectName": "ST THOMAS VILLE",
+        "responseGroups": 20,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-2.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-24q4.json",
+          "PMI_Resi_Rental-refPeriod-25q1.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q1.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28299.825|31100.45548",
+          "28306.8494|31090.94868"
+        ]
+      },
+      "approvalMethod": "Explicit approval of the two remaining exceptions in chat",
+      "approvalScope": "Accept the existing historical identity merge despite the disclosed original-coordinate difference. Database application and promotion remain separate controlled steps.",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 3166,
+      "targetId": 4447,
+      "projectName": "SKYPARK",
+      "status": "approved",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "sourceEvidence": "Original baseline/current records share the SKYPARK project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "baselineSource": {
+        "project_name": "SKYPARK",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": 1.297226,
+        "longitude": 103.836117,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "SKYPARK",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "SKYPARK",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.297226,
+        "longitude": 103.836117,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "SKYPARK",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 0,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 3166,
+        "targetId": 4447,
+        "projectName": "SKYPARK",
+        "responseGroups": 18,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Rental-refPeriod-21q3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json",
+          "PMI_Resi_Rental-refPeriod-22q1.json",
+          "PMI_Resi_Rental-refPeriod-22q2.json",
+          "PMI_Resi_Rental-refPeriod-22q3.json",
+          "PMI_Resi_Rental-refPeriod-22q4.json",
+          "PMI_Resi_Rental-refPeriod-23q1.json",
+          "PMI_Resi_Rental-refPeriod-23q2.json",
+          "PMI_Resi_Rental-refPeriod-23q3.json",
+          "PMI_Resi_Rental-refPeriod-23q4.json",
+          "PMI_Resi_Rental-refPeriod-24q1.json",
+          "PMI_Resi_Rental-refPeriod-24q2.json",
+          "PMI_Resi_Rental-refPeriod-24q3.json",
+          "PMI_Resi_Rental-refPeriod-25q2.json",
+          "PMI_Resi_Rental-refPeriod-25q3.json",
+          "PMI_Resi_Rental-refPeriod-25q4.json",
+          "PMI_Resi_Rental-refPeriod-26q2.json",
+          "PMI_Resi_Rental-refPeriod-26q3.json"
+        ],
+        "coordinatePairs": [
+          "28311.44282|31066.1282"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 3193,
+      "targetId": 4493,
+      "projectName": "ST THOMAS LODGE",
+      "status": "approved",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "sourceEvidence": "Original baseline/current records share the ST THOMAS LODGE project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "baselineSource": {
+        "project_name": "ST THOMAS LODGE",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null,
+        "latitude": 1.297707,
+        "longitude": 103.835777,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST THOMAS LODGE",
+        "street_name": "ST. THOMAS WALK",
+        "postal_district": null
+      },
+      "baselineTarget": {
+        "project_name": "ST THOMAS LODGE",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09",
+        "latitude": 1.297707,
+        "longitude": 103.835777,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST THOMAS LODGE",
+        "street_name": "STREET. THOMAS WALK",
+        "postal_district": "09"
+      },
+      "baselineSalesMoved": 0,
+      "baselineRentalsMoved": 0,
+      "currentSourceEvidence": {
+        "sourceId": 3193,
+        "targetId": 4493,
+        "projectName": "ST THOMAS LODGE",
+        "responseGroups": 1,
+        "districts": [
+          "09"
+        ],
+        "sourceDistrict": null,
+        "targetDistrict": "09",
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Rental-refPeriod-21q4.json"
+        ],
+        "coordinatePairs": [
+          "28273.62295|31119.36468"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    },
+    {
+      "sourceId": 3838,
+      "targetId": 1494,
+      "projectName": "ST NICHOLAS VIEW",
+      "status": "approved",
+      "sourceEvidence": "Original baseline/current records share the ST NICHOLAS VIEW project name and equivalent Saint street spelling. Both original positions are identical and match retained 5 October URA coordinate evidence; the retained known district is compatible with the provider evidence. Sam Fraser approved City Regency individually and authorized batch approval of matching decisions 18-35 in chat on 5 October 2026. This pair satisfies those criteria.",
+      "approvedBy": "Sam Fraser",
+      "approvedAt": "2026-10-05",
+      "baselineSource": {
+        "project_name": "ST NICHOLAS VIEW",
+        "street_name": "STREET. NICHOLAS VIEW",
+        "postal_district": "20",
+        "latitude": 1.37478,
+        "longitude": 103.83269,
+        "geo_source": "svy21"
+      },
+      "expectedSource": {
+        "project_name": "ST NICHOLAS VIEW",
+        "street_name": "STREET. NICHOLAS VIEW",
+        "postal_district": "20"
+      },
+      "baselineTarget": {
+        "project_name": "ST NICHOLAS VIEW",
+        "street_name": "ST. NICHOLAS VIEW",
+        "postal_district": null,
+        "latitude": 1.37478,
+        "longitude": 103.83269,
+        "geo_source": "svy21"
+      },
+      "expectedTarget": {
+        "project_name": "ST NICHOLAS VIEW",
+        "street_name": "ST. NICHOLAS VIEW",
+        "postal_district": null
+      },
+      "baselineSalesMoved": 13,
+      "baselineRentalsMoved": 1,
+      "currentSourceEvidence": {
+        "sourceId": 3838,
+        "targetId": 1494,
+        "projectName": "ST NICHOLAS VIEW",
+        "responseGroups": 2,
+        "districts": [
+          "20"
+        ],
+        "sourceDistrict": "20",
+        "targetDistrict": null,
+        "consistentNameStreetDistrict": true,
+        "sourceNearestProviderCoordinateMetres": 0,
+        "targetNearestProviderCoordinateMetres": 0,
+        "coordinateSupportWithin100m": true,
+        "sources": [
+          "PMI_Resi_Transaction-batch-3.json",
+          "PMI_Resi_Rental-refPeriod-21q4.json"
+        ],
+        "coordinatePairs": [
+          "27929.9981567358|39641.7578789068",
+          "27949.7661731279|39382.5362219675"
+        ]
+      },
+      "approvalScope": "Accept the existing historical identity merge. Database application and promotion remain separate controlled steps.",
+      "approvalMethod": "Sam Fraser authorized batch approval for decisions 18-35 meeting the Saint/Street and identical-original-coordinate criteria",
+      "reviewType": "legacy-merge-acceptance"
+    }
+  ],
+  "reviewCompletedBy": "Sam Fraser",
+  "reviewCompletedAt": "2026-10-05"
+}

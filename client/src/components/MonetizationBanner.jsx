@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import AccessibleDialog from './AccessibleDialog';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { UserCheck, ShieldCheck, CheckCircle, ArrowRight, Mail, Sparkles, X, Building, Phone, Send, AlertCircle } from 'lucide-react';
 
 export default function MonetizationBanner({
   variant = 'agent',
   currentProject = null,
+  advisoryPartnerName = null,
+  advisoryPartnerRegistration = null,
   className = '',
   isEnquiryModalOpen,
   onToggleEnquiryModal
@@ -24,6 +27,7 @@ export default function MonetizationBanner({
   const [agentSubmitted, setAgentSubmitted] = useState(false);
   const [agentError, setAgentError] = useState(null);
   const [agentLoading, setAgentLoading] = useState(false);
+  const advisoryRequestId = useRef(null);
 
   // Agent enquiry form state - PDPA consent unchecked by default (Step 4.4.1)
   const [enquiryForm, setEnquiryForm] = useState({
@@ -98,12 +102,14 @@ export default function MonetizationBanner({
     }
 
     setAgentLoading(true);
+    advisoryRequestId.current ||= crypto.randomUUID();
     try {
       await axios.post('/api/leads/submit', {
         name: enquiryForm.name,
         email: enquiryForm.email,
         phone: enquiryForm.phone,
         leadType: 'agent_advisory',
+        requestId: advisoryRequestId.current,
         enquiryType: enquiryForm.enquiryType,
         projectInterest: enquiryForm.projectInterest || currentProject?.name || 'General Inquiry',
         details: enquiryForm.notes,
@@ -111,6 +117,7 @@ export default function MonetizationBanner({
         website: enquiryForm.website
       });
       setAgentSubmitted(true);
+      advisoryRequestId.current = null;
     } catch (err) {
       console.error('Agent enquiry submit error:', err);
       const errMsg = err.response?.data?.error || 'Unable to submit enquiry. Please check your details and try again.';
@@ -243,7 +250,7 @@ export default function MonetizationBanner({
     );
   }
 
-  // 2. Verified CEA District Specialist Advisory Card (Default / Agent Variant)
+  // 2. Real Estate District Specialist Advisory Card (Default / Agent Variant)
   return (
     <>
       <div style={{
@@ -279,7 +286,7 @@ export default function MonetizationBanner({
               </span>
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              Connect with an accredited CEA specialist for no-obligation on-the-ground transaction caveats and advisory.
+              Connect with an appointed real estate specialist for no-obligation on-the-ground transaction caveats and advisory.
             </div>
           </div>
         </div>
@@ -302,20 +309,20 @@ export default function MonetizationBanner({
         </div>
       </div>
 
-      {/* Verified CEA Specialist Lead Modal */}
+      {/* Real Estate Specialist Lead Modal */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '520px' }}>
+          <AccessibleDialog label="Connect with an adviser" onClose={() => setShowModal(false)} className="modal-card" style={{ maxWidth: '520px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: 'var(--color-text-charcoal)' }}>
                 <UserCheck size={20} color="var(--color-primary-green)" />
-                Connect with an Accredited CEA Agent
+                Connect with an Real Estate Agent
               </h3>
-              <X size={18} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setShowModal(false)} />
+              <button type="button" className="icon-button" aria-label="Close dialog" onClick={() => setShowModal(false)}><X size={18} /></button>
             </div>
 
             <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-              Our appointed real estate partner holds an official licence registered with the <strong>Council for Estate Agencies (CEA)</strong> under the Estate Agents Act of Singapore (ERA Realty Network Pte Ltd / Lic: L3002382K).
+              {advisoryPartnerName ? <>Your contact details will be shared with <strong>{advisoryPartnerName}</strong> for your advisory enquiry. CEA registration: {advisoryPartnerRegistration || 'pending verification'}.</> : 'An advisory recipient has not yet been appointed. Live introductions require an approved recipient.'}
             </p>
 
             {agentSubmitted ? (
@@ -323,7 +330,7 @@ export default function MonetizationBanner({
                 <CheckCircle size={28} color="#10B981" style={{ margin: '0 auto 8px' }} />
                 <div style={{ fontWeight: 700, fontSize: '1rem' }}>Enquiry Received!</div>
                 <p style={{ margin: '6px 0 0', fontSize: '0.82rem', color: '#047857', lineHeight: '1.5' }}>
-                  Our CEA-registered district specialist will review your request and connect with you via WhatsApp or Email with customized transaction price and market insights.
+                  Your enquiry is recorded and queued for advisory review. Delivery is pending.
                 </p>
                 <button
                   className="btn btn-primary"
@@ -446,7 +453,7 @@ export default function MonetizationBanner({
                       style={{ marginTop: '2px', accentColor: 'var(--color-primary-green)' }}
                     />
                     <span>
-                      <strong>PDPA Consent (Singapore Personal Data Protection Act 2012):</strong> I consent to the collection, use, and disclosure of my contact details by Singapore Home Intel to connect me with its appointed Council for Estate Agencies (CEA) licensed property representative (ERA Realty Network / Lic: L3002382K) for real estate advisory and transaction price assistance.
+                      <strong>PDPA Consent (Singapore Personal Data Protection Act 2012):</strong> I consent to the collection, use, and disclosure of my contact details by Singapore Home Intel to connect me with a licensed Council for Estate Agencies (CEA) real estate salesperson for transaction advisory assistance.
                     </span>
                   </label>
                 </div>
@@ -467,7 +474,7 @@ export default function MonetizationBanner({
                 Close
               </button>
             </div>
-          </div>
+          </AccessibleDialog>
         </div>
       )}
     </>

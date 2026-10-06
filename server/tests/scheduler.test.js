@@ -20,7 +20,7 @@ describe('Scheduler & Distributed Job Coordination (GL-03)', () => {
     // A regular Friday at 14:00 SGT
     const testTime = { dayOfWeek: 5, hour: 14, minute: 0, day: 2 };
     for (const job of SCHEDULED_JOBS) {
-      expect(job.isDue(testTime)).toBe(false);
+      expect(job.isDue(testTime)).toBe(['cron-email-outbox','cron-operations-monitor'].includes(job.name));
     }
   });
 

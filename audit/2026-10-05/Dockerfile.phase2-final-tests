@@ -1,0 +1,8 @@
+FROM property-intelligence-sg:phase2-final-20261005
+USER root
+WORKDIR /app/server
+RUN apk add --no-cache git
+RUN npm ci --include=dev && chown -R node:node node_modules
+USER node
+ENV NODE_ENV=test
+CMD ["node", "node_modules/vitest/vitest.mjs", "run"]

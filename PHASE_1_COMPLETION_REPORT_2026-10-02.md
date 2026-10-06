@@ -1,6 +1,6 @@
 # Phase 1 correction and verification report — 2 October 2026
 
-**Status: Local implementation and failure regressions verified; release-image qualification and operational rebuild enablement remain pending. Phase 1 is not signed off.**
+**5 October update: Linux release-image qualification passed; see the [Docker qualification report](DOCKER_QUALIFICATION_REPORT_2026-10-05.md). Operational rebuild enablement and hosted checks remain gated. Phase 1 is not signed off for operational enablement.**
 
 This report replaces the previous unsupported “all exit gates passed” statement. Governing scope is [Phase 1 of the remediation plan](GO_LIVE_REMEDIATION_PLAN_2026-10-02.md); current procedures are in the [Phase 1 runbook](PHASE_1_OPERATIONS_RUNBOOK.md). Sam Fraser is release owner and operational contact. The project is not live and will not go live until every identified issue is fixed and verified. No deployment or owner approval is claimed.
 
@@ -27,25 +27,25 @@ This report replaces the previous unsupported “all exit gates passed” statem
 | Cross-process source handles | Another worker holding the source open prevents promotion; the original database hash remains unchanged |
 | Compose configuration | `docker compose --env-file server/.env.staging.example config --quiet` passed with synthetic configuration values; no services deployed |
 | Server production dependency audit | Zero reported vulnerabilities after clean installation; `audit/2026-10-02/phase1-dependency-audit.json`. This is a dated dependency result, not completion of the full Phase 4 security review |
-| Release-image build/startup | **Pending.** Docker Desktop fails during Windows inference-manager startup; its Linux engine is unavailable. CI now builds/loads the image and runs `server/scripts/qualify-startup.js`, but no successful CI/image run is claimed |
+| Release-image build/startup | **Passed 5 October:** final Linux/amd64 release image built; 20 fresh, five existing and five concurrent starts passed. Production health/frontend and packaging checks passed. Full 189-test Linux suite passed in its disposable test derivative. See [image identities and evidence](audit/2026-10-05/docker-qualification.json). No hosted or CI success is claimed. |
 
-All mutations and crash tests used disposable databases. The real market database was not imported, migrated or rebuilt; no live provider requests or emails were sent. Local tests do not establish Linux/Alpine or hosted behavior.
+All mutations and crash tests used disposable databases. The real market database was not imported, migrated or rebuilt; no live provider requests or emails were sent by Phase 1 qualification. The 5 October checks establish isolated Linux/Alpine behavior; hosted configuration remains unverified.
 
 ## Original governing exit gates — retained without narrowing
 
 | Original Phase 1 criterion | Disposition |
 |---|---|
-| At least 20 consecutive fresh-disk starts and repeated existing-database starts pass in the target image; interrupted/concurrent migration tests are deterministic. | Local Node 22 startup and interruption/concurrency checks pass. **Target-image run still required.** |
-| An isolated rebuild leaves the source logically unchanged until the intended swap; empty, partial, provider-failure and interrupted-swap cases preserve or restore the original data. | Verified on disposable Windows fixtures, including abrupt termination and another process holding handles. **Target-platform qualification and complete reconciled source proof remain required before operational enablement.** |
+| At least 20 consecutive fresh-disk starts and repeated existing-database starts pass in the target image; interrupted/concurrent migration tests are deterministic. | **Passed:** final Linux release image passes 20 fresh, five existing and five concurrent starts. Interrupted/concurrent migration tests also pass in the Linux test derivative. |
+| An isolated rebuild leaves the source logically unchanged until the intended swap; empty, partial, provider-failure and interrupted-swap cases preserve or restore the original data. | Verified on Windows/Linux fixtures, including abrupt termination and another process holding handles. The reviewed Phase 2 snapshot is promoted locally through its separate hash-bound procedure. General rebuild enablement remains quarantined pending authoritative future source coverage and hosted maintenance verification. |
 | Same-name/different-street fixtures preserve both projects' transactions; replay is idempotent without removing legitimate multiplicity. | Locally verified; new semantic identity includes project ownership/full transaction fields rather than depending solely on raw hashes. |
 | Partial imports preserve out-of-scope history; malformed/empty provider results cannot erase good data; failure status and committed counts agree. | Locally verified, including partial same-period data, sales and rentals, complete live-scope fetch-before-write and failed-write rollback. Authoritative deletion/replacement is not enabled. |
 | Staging proves a scheduled job runs when due, runs once, survives scheduler restart and does not run merely because the application was deployed. | Verified in isolated local staging using the real daemon/timer and fake job; persistent shared-DB concurrency/restart cases pass. Hosted staging remains a deployment-stage check. |
-| Clean install, tests and image build pass on the selected supported runtime. | Node 22 locked installs, suite and frontend build pass. **Container image build/run pending Docker recovery or a recorded successful CI run.** |
+| Clean install, tests and image build pass on the selected supported runtime. | **Passed locally:** Node 22 locked installs, Windows/Linux suites, frontend build and release-image build/startup. No successful remote CI run is claimed. |
 
 ## Remaining closure work
 
-1. Obtain a successful Linux release-image build and qualification run, and record image identity/output. The local Docker failure matches an [open report in Docker's tracker](https://github.com/docker/desktop-feedback/issues/625); it is an environment blocker, not a green application gate. No Docker data reset, container/volume deletion or host filesystem repair was performed.
+1. Linux release-image qualification is **completed** and its image identity/output are recorded in the [5 October report](DOCKER_QUALIFICATION_REPORT_2026-10-05.md). Hosted behavior is a separate deployment-stage check.
 2. Retain rebuild quarantine until a complete, reconciled source dataset and the target-platform maintenance/promotion/recovery rehearsal are reviewed. The live fetch reports `sourceCompleteness: unverified`; it cannot authorize destructive replacement. Counts alone cannot approve an authoritative rebuild.
 3. During private deployment, verify the intended proxy/storage/permissions, service separation, real scheduled timing and backup configuration. Keep sync, cleanup and mail disabled until their governing gates pass. Hosted/off-host backup setup remains deferred to deployment, as Sam directed.
 
-Phase 2 analytics, source identity adjudication/provenance and external reconciliation remain open. Phase 3 retains its original email/consent/access/recovery scope. These Phase 1 corrections do not authorize public release.
+Phase 2 analytics, source identity adjudication and captured-source reconciliation are complete locally, including reviewed snapshot promotion. General rebuild enablement and hosted verification remain gated. Phase 3 retains its original email/consent/access/recovery scope. These Phase 1 corrections do not authorize public release.

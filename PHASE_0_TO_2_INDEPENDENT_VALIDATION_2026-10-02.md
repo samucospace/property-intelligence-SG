@@ -1,3 +1,7 @@
+**5 October closure update:** Phase 2 is now complete locally, with all 35 approvals applied, captured-source reconciliation, backed-up promotion and final Linux qualification. See [current evidence](PHASE_2_COMPLETION_REPORT_2026-10-05.md). The findings and verdict below describe the original audited implementation; public launch remains NO-GO.
+
+**5 October Phase 2 update:** Subsequent corrections and fresh URA comparisons are in the [current Phase 2 report](PHASE_2_COMPLETION_REPORT_2026-10-05.md). This document remains the historical independent finding record.
+
 # Independent review of remediation Phases 0–2 — 2 October 2026
 
 **Subsequent Phase 1 corrections:** this is the historical pre-correction audit. Atomic migration rollback, non-destructive imports, durable job slots/leases and fixture rebuild recovery have since been repaired and verified on Node 22.23.3; the suite now passes 161/161. See [the corrected Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md) for current evidence and remaining image/source/operational gates. The reproduced Phase 1 failures below describe the audited implementation, not the corrected code. Phase 2 findings remain open.

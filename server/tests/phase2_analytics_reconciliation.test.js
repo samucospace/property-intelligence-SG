@@ -94,7 +94,7 @@ describe('Phase 2: Dataset Reconciliation & Analytics Hardening', () => {
 
       // Run migration 010 explicitly
       const migration010 = await import('../migrations/010_reconcile_duplicate_projects.js');
-      await migration010.up(conn);
+      await migration010.up(conn, {adjudications:[{sourceId:102,targetId:101,status:'approved',approvedBy:'fixture-owner',approvedAt:'2026-10-05',sourceEvidence:'synthetic fixture',expectedSource:{project_name:'PATRICK RESIDENCES',street_name:"SAINT PATRICK'S ROAD",postal_district:'15'},expectedTarget:{project_name:'PATRICK RESIDENCES',street_name:"ST. PATRICK'S ROAD",postal_district:'15'}}]});
 
       // Verify FK integrity
       const fkErrors = await conn.all('PRAGMA foreign_key_check');
@@ -370,7 +370,7 @@ describe('Phase 2: Dataset Reconciliation & Analytics Hardening', () => {
 
       // Verify second call hits cache
       const pCached = await getAllProjects();
-      expect(pCached).toBe(p1);
+      expect(pCached).toStrictEqual(p1);
 
       // Open a second connection to the file database and commit a mutation
       const secondConn = createConnection(testDbPath);

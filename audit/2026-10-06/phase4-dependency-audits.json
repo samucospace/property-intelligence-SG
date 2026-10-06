@@ -1,0 +1,57 @@
+{
+  "recordedAt": "2026-10-06T06:32:27.746Z",
+  "audits": [
+    {
+      "name": "server production image",
+      "report": {
+        "auditReportVersion": 2,
+        "vulnerabilities": {},
+        "metadata": {
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          },
+          "dependencies": {
+            "prod": 147,
+            "dev": 56,
+            "optional": 37,
+            "peer": 36,
+            "peerOptional": 0,
+            "total": 212
+          }
+        }
+      },
+      "exitCode": 0
+    },
+    {
+      "name": "client current lockfile",
+      "report": {
+        "auditReportVersion": 2,
+        "vulnerabilities": {},
+        "metadata": {
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          },
+          "dependencies": {
+            "prod": 78,
+            "dev": 114,
+            "optional": 53,
+            "peer": 0,
+            "peerOptional": 0,
+            "total": 191
+          }
+        }
+      },
+      "exitCode": 0
+    }
+  ]
+}

@@ -11,6 +11,9 @@ import { fetchUraData } from './ingestion.js';
 import { cleanupLeads } from './scripts/cleanup-leads.js';
 import { backupDatabase } from './scripts/backup-db.js';
 import { sendWeeklyNewsletter } from './scripts/send-weekly-newsletter.js';
+import { processOutboxBatch } from './utils/emailQueue.js';
+import { assertProductionCollection } from './utils/productionControls.js';
+import {runOperationsMonitor} from './utils/operationalAlerts.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +40,23 @@ export function getSingaporeTime(date = new Date()) {
  * None of these execute on container or process boot.
  */
 export const SCHEDULED_JOBS = [
+  {
+    name:'cron-operations-monitor',
+    enabled:()=>process.env.ENABLE_OPERATIONS_MONITORING==='true',
+    description:'Check freshness/disk/failure signals and deliver transition alerts',
+    isDue:()=>true,
+    execute:async({conn})=>runOperationsMonitor({conn})
+  },
+  {
+    name: 'cron-email-outbox',
+    enabled: () => releaseFeatures().outboundEmail,
+    description: 'Dispatch due email outbox work every minute',
+    isDue: () => true,
+    execute: async ({conn}) => {
+      const result = await processOutboxBatch({conn});
+      return {...result,status:result.failed || result.permanentFailed ? 'partial_success' : result.mocked ? 'skipped' : 'success'};
+    }
+  },
   {
     name: 'cron-ura-sync',
     enabled: () => releaseFeatures().dataSync,
@@ -65,7 +85,7 @@ export const SCHEDULED_JOBS = [
       const result = await sendWeeklyNewsletter(conn);
       if (result.skipped) return result;
       return { status: result.failCount ? 'partial_success' : result.mockedCount ? 'skipped' : 'success',
-        count: result.successCount || 0, reason: result.mockedCount ? 'Mock transport; no live dispatch' : undefined };
+        count: result.queuedCount || 0, reason: result.mockedCount ? 'Mock transport; no live dispatch' : undefined };
     }
   },
   {
@@ -100,6 +120,7 @@ class SchedulerDaemon {
   }
 
   async start() {
+    assertProductionCollection();
     await assertStagingDatabase(getDbPath());
     console.log('====================================================');
     console.log(' Singapore Home Intel - Maintenance Scheduler Daemon');

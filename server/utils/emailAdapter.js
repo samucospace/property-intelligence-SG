@@ -6,7 +6,7 @@ const capturedEmails = [];
 const failure = message => ({ data: null, error: { name: 'EmailDisabled', message, statusCode: 503 } });
 
 // Every sender uses this boundary; isolated environments cannot reach the provider.
-export async function sendEmail({ from, to, subject, html, headers = {} }) {
+export async function sendEmail({ from, to, subject, html, headers = {}, idempotencyKey }) {
   const features = releaseFeatures();
   if (!features.leadCapture) return failure('Outbound email is disabled for the read-only release.');
   const isMock = ['test', 'staging'].includes(process.env.NODE_ENV) ||
@@ -26,7 +26,8 @@ export async function sendEmail({ from, to, subject, html, headers = {} }) {
     return { data: { id }, error: null, mocked: true };
   }
   try {
-    return await new Resend(process.env.RESEND_API_KEY).emails.send({ from, to, subject, html, headers });
+    return await new Resend(process.env.RESEND_API_KEY).emails.send({ from, to, subject, html, headers },
+      { idempotencyKey, signal: AbortSignal.timeout(15000) });
   } catch (err) {
     return { data: null, error: { name: err.name || 'SendError', message: err.message, statusCode: err.statusCode || 500 } };
   }

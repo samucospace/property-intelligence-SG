@@ -22,5 +22,11 @@ delete process.env.BACKUP_ENCRYPTION_KEY;
 afterAll(async () => {
   const { closeDb } = await import('../db.js');
   await closeDb();
-  fs.rmSync(fixtureDir, { recursive: true, force: true });
+  await new Promise(r => setTimeout(r, 100));
+  try {
+    fs.rmSync(fixtureDir, { recursive: true, force: true });
+  } catch (err) {
+    await new Promise(r => setTimeout(r, 200));
+    try { fs.rmSync(fixtureDir, { recursive: true, force: true }); } catch (e) {}
+  }
 });

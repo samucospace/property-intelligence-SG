@@ -101,7 +101,8 @@ describe('Phase 1 independent failure regressions', () => {
       await expect(runMigrations(injected)).rejects.toThrow('fixture ledger failure');
       expect(await conn.get("SELECT name FROM sqlite_master WHERE name='projects'")).toBeUndefined();
       await runMigrations(conn);
-      expect((await conn.all('SELECT name FROM schema_migrations')).length).toBe(11);
+      const expectedMigrationCount = fs.readdirSync(path.resolve('migrations')).filter(f => f.endsWith('.js') && f !== 'index.js').length;
+      expect((await conn.all('SELECT name FROM schema_migrations')).length).toBe(expectedMigrationCount);
       expect((await conn.get('PRAGMA foreign_keys')).foreign_keys).toBe(1);
     } finally { await conn.close(); }
   });
@@ -112,10 +113,10 @@ describe('Phase 1 independent failure regressions', () => {
       if (/DELETE FROM projects/i.test(sql)) throw Error('fixture interruption');
       return conn.run(sql,params);
     }};
-    await expect(reconcile(injected)).rejects.toThrow('fixture interruption');
+    await expect(reconcile(injected, {adjudications:[{sourceId:2,targetId:1,status:'approved',approvedBy:'fixture-owner',approvedAt:'2026-10-05',sourceEvidence:'synthetic fixture',expectedSource:{project_name:'DUPLICATE',street_name:'SAINT TEST ROAD',postal_district:null},expectedTarget:{project_name:'DUPLICATE',street_name:'ST. TEST ROAD',postal_district:null}}]})).rejects.toThrow('fixture interruption');
     expect((await conn.get('SELECT project_id FROM rental_transactions')).project_id).toBe(2);
     expect((await conn.get('SELECT COUNT(*) c FROM projects')).c).toBe(2);
-    await reconcile(conn);
+    await reconcile(conn, {adjudications:[{sourceId:2,targetId:1,status:'approved',approvedBy:'fixture-owner',approvedAt:'2026-10-05',sourceEvidence:'synthetic fixture',expectedSource:{project_name:'DUPLICATE',street_name:'SAINT TEST ROAD',postal_district:null},expectedTarget:{project_name:'DUPLICATE',street_name:'ST. TEST ROAD',postal_district:null}}]});
     expect((await conn.get('SELECT COUNT(*) c FROM projects')).c).toBe(1);
   }));
   it('terminated migration process releases SQLite ownership and rolls back schema', async () => disk(async file => {
@@ -126,7 +127,8 @@ describe('Phase 1 independent failure regressions', () => {
     try {
       expect(await conn.get("SELECT name FROM sqlite_master WHERE name='projects'")).toBeUndefined();
       await runMigrations(conn);
-      expect((await conn.all('SELECT name FROM schema_migrations')).length).toBe(11);
+      const expectedMigrationCount = fs.readdirSync(path.resolve('migrations')).filter(f => f.endsWith('.js') && f !== 'index.js').length;
+      expect((await conn.all('SELECT name FROM schema_migrations')).length).toBe(expectedMigrationCount);
     } finally { await conn.close(); }
   }));
   it('fresh schedulers sharing a due slot execute it once and off-slot ticks do nothing', async () => disk(async file => {

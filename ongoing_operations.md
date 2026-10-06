@@ -69,7 +69,7 @@ These represent external infrastructure, third-party licensing, and governance t
 | **DPO Compliance Mailbox Monitoring** | **Ongoing** | Ensure incoming emails to `dpo@homeintel.sg` are monitored or forwarded to maintain compliance with Singapore PDPA regulations. |
 | **Domain DNS & Email Deliverability** | **Initial Setup / As Needed** | Configure apex domain A records, and verify SPF (`include:resend.com`), DKIM, and DMARC on nameservers so newsletters land in user inboxes. |
 | **Disaster Recovery Drill** | **Quarterly** | Test-decrypting a backup file on a local computer to verify that data can be restored in an emergency (SOP 5). |
-| **Commercial CEA Partner Agreement** | **Ongoing** | Ensure commercial agreement with designated licensed partner (ERA Realty Network Pte Ltd / Lic: L3002382K) remains active. |
+| **Commercial CEA Partner Agreement** | **Ongoing** | Maintain active contact or referral arrangement with designated licensed real estate salespersons registered with the Council for Estate Agencies (CEA). |
 
 ---
 
@@ -350,7 +350,7 @@ If `BACKUP_ENCRYPTION_KEY` is set:
    Ensure all user-facing footers and exported reports maintain accurate attribution:
    *Contains information from the Urban Redevelopment Authority (URA) Data Service and Singapore Land Authority (SLA) OneMap accessed under the terms of the Singapore Open Data Licence.*
 2. **CEA Estate Agents Act Disclosures:**
-   The application must never represent itself as a licensed estate agency. The advisory banner must state that advisory consultations are fulfilled by licensed salespersons (ERA Realty Network Pte Ltd / Lic: L3002382K).
+   The application must never represent itself as a licensed estate agency. The advisory banner must state that advisory consultations and transaction assistance are provided by independent licensed salespersons registered with the Council for Estate Agencies (CEA).
 3. **Singapore PDPA Affirmative Consent:**
    Lead submission checkboxes must remain **unticked by default**. Automated retention scripts (`cleanup-leads.js`) must run monthly to prevent illegal indefinite PII retention.
 4. **Data Protection Officer (DPO):**

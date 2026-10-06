@@ -1,0 +1,10 @@
+{
+  "scope": "Observed after final mixed workload on preceding candidate; subsequent readiness-only guard does not establish new capacity evidence",
+  "candidate": "sha256:63abafa858ebd899feb7a30c75adf823c57ad1708fb946f62e2c84399f2822ae",
+  "cpuLimit": 1,
+  "memoryLimitBytes": 1073741824,
+  "peakResidentKiB": 192156,
+  "residentAtCaptureKiB": 125092,
+  "threads": 24,
+  "raw": "VmHWM:\t  192156 kB\nVmRSS:\t  125092 kB\nThreads:\t24\n100000 100000\n1073741824\n"
+}

@@ -1,0 +1,306 @@
+{
+  "sourceBefore": "e6067d6033aac82c3392db8108fd7221ecefa576e44c7efb247ead6b381fa252",
+  "counts": {
+    "projects": 5903,
+    "property_transactions": 133418,
+    "rental_transactions": 450722,
+    "leads": 0
+  },
+  "integrity": {
+    "integrity_check": "ok"
+  },
+  "foreignKeys": [],
+  "quarantinedIdentities": 35,
+  "sparsePublishedBenchmarks": 0,
+  "snapshot": {
+    "status": "success",
+    "mode": "additive",
+    "sourceCompleteness": "unverified",
+    "totalSalesIngested": 132246,
+    "totalRentalsIngested": 451165,
+    "totalIngested": 583411,
+    "skippedSalesNoDate": 0,
+    "skippedRentalsNoDate": 0,
+    "sourceSnapshot": "0c5e8944199a6da376c37bdc65da030e6845051af9c7635dd52c339f29e245ce",
+    "operationallyEnabled": false
+  },
+  "reconciliation": {
+    "ledgerSha256": "0c5e8944199a6da376c37bdc65da030e6845051af9c7635dd52c339f29e245ce",
+    "sourceEvidence": "Retained URA API responses and their hashes in capture-manifest.json",
+    "sourceCompleteness": "unverified until independently reviewed",
+    "scopes": [
+      {
+        "service": "PMI_Resi_Transaction",
+        "scope": "batch=1",
+        "filename": "PMI_Resi_Transaction-batch-1.json",
+        "sha256": "33f8c68117c93d635c685fba275ae4cd3de2544d051c35158ade2a9457916e86",
+        "projectCount": 292,
+        "transactionCount": 19889,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Transaction",
+        "scope": "batch=2",
+        "filename": "PMI_Resi_Transaction-batch-2.json",
+        "sha256": "140aaa4445dad67f84bd4f1efc18f9860f5c61ea719eb1c0943b008cd8bec7fb",
+        "projectCount": 1524,
+        "transactionCount": 29178,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Transaction",
+        "scope": "batch=3",
+        "filename": "PMI_Resi_Transaction-batch-3.json",
+        "sha256": "9f60f31286d23c08b756b8f4184054677a5d0b3c26c21c41235847fb6c952bfc",
+        "projectCount": 1642,
+        "transactionCount": 53974,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Transaction",
+        "scope": "batch=4",
+        "filename": "PMI_Resi_Transaction-batch-4.json",
+        "sha256": "96782cdf2e4f03a1a1a048439cd33ca88118c9dede526ef099c77a481cc5a388",
+        "projectCount": 387,
+        "transactionCount": 29205,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=21q1",
+        "filename": "PMI_Resi_Rental-refPeriod-21q1.json",
+        "sha256": "031cf9ed07ae575c17c1e7598dddc827d2acf08ab94ab1affa886d1b3847df3c",
+        "projectCount": 0,
+        "transactionCount": 0,
+        "status": "empty"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=21q2",
+        "filename": "PMI_Resi_Rental-refPeriod-21q2.json",
+        "sha256": "031cf9ed07ae575c17c1e7598dddc827d2acf08ab94ab1affa886d1b3847df3c",
+        "projectCount": 0,
+        "transactionCount": 0,
+        "status": "empty"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=21q3",
+        "filename": "PMI_Resi_Rental-refPeriod-21q3.json",
+        "sha256": "50cc0e049adc7d27b354e668a8a26889911835ee4f6bc4d4999cb56cd7f0e614",
+        "projectCount": 1400,
+        "transactionCount": 3942,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=21q4",
+        "filename": "PMI_Resi_Rental-refPeriod-21q4.json",
+        "sha256": "ed5562eeb119b1ed78f55d2518ccf660cb63a1c80ca2b4772666de89cff63137",
+        "projectCount": 2955,
+        "transactionCount": 24386,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=22q1",
+        "filename": "PMI_Resi_Rental-refPeriod-22q1.json",
+        "sha256": "dd2f8de2acc4dac52c34c1c0f487a1f1e1179796498fc7405b897e26357c1cf1",
+        "projectCount": 2974,
+        "transactionCount": 23184,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=22q2",
+        "filename": "PMI_Resi_Rental-refPeriod-22q2.json",
+        "sha256": "20f4ac70057ef70df5182e4ab44aa0fb8caecd283f3f4c12328acb67e132e0ab",
+        "projectCount": 2871,
+        "transactionCount": 21454,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=22q3",
+        "filename": "PMI_Resi_Rental-refPeriod-22q3.json",
+        "sha256": "c7a87eeb7ea2f138822eea4f5d1450a5b0b478919136775c4e83fc8fdc620e88",
+        "projectCount": 3184,
+        "transactionCount": 26111,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=22q4",
+        "filename": "PMI_Resi_Rental-refPeriod-22q4.json",
+        "sha256": "cac918084a78565e76b5612df7596f90033e6272b2382259d686637d421d6aed",
+        "projectCount": 2928,
+        "transactionCount": 21320,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=23q1",
+        "filename": "PMI_Resi_Rental-refPeriod-23q1.json",
+        "sha256": "aee5747e0974d92bd3377a0bc143a4e3df7c5e16a0759e4db97e8066d83be119",
+        "projectCount": 2926,
+        "transactionCount": 20546,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=23q2",
+        "filename": "PMI_Resi_Rental-refPeriod-23q2.json",
+        "sha256": "ffabada01ec6e16c0f3ea3777d87ff0511120313c9610a33cfb28c6a2b43c327",
+        "projectCount": 2869,
+        "transactionCount": 20187,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=23q3",
+        "filename": "PMI_Resi_Rental-refPeriod-23q3.json",
+        "sha256": "947b088027ee00b1625537af0b371b04172d7bbf44b0c1abb7dcfc43d556115d",
+        "projectCount": 3057,
+        "transactionCount": 23918,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=23q4",
+        "filename": "PMI_Resi_Rental-refPeriod-23q4.json",
+        "sha256": "76b9ab4a9050961857b388809aad84af0b5a86cecd5b72cb70379126ec21373b",
+        "projectCount": 2803,
+        "transactionCount": 19460,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=24q1",
+        "filename": "PMI_Resi_Rental-refPeriod-24q1.json",
+        "sha256": "f63d0bafede08c9042f5354c3ef6c9848322f8c818a1155c122c94086ea6e8c2",
+        "projectCount": 2844,
+        "transactionCount": 20473,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=24q2",
+        "filename": "PMI_Resi_Rental-refPeriod-24q2.json",
+        "sha256": "c6ae68cc2501d5f99179808eb8a5091ca06333f71bf89a1131fa79e4f3058134",
+        "projectCount": 2854,
+        "transactionCount": 21188,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=24q3",
+        "filename": "PMI_Resi_Rental-refPeriod-24q3.json",
+        "sha256": "40f58b309f14977436aacda9b6a01dd09b7880511f154c6feab21b7bec161538",
+        "projectCount": 3175,
+        "transactionCount": 26587,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=24q4",
+        "filename": "PMI_Resi_Rental-refPeriod-24q4.json",
+        "sha256": "7efde137b2661dcd4ce83c4806a69e7d1efcf64cf5b5c41cfd340707391b4797",
+        "projectCount": 2887,
+        "transactionCount": 20314,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=25q1",
+        "filename": "PMI_Resi_Rental-refPeriod-25q1.json",
+        "sha256": "e592a205f21f010491f0c990df1f64e1de55007b3a1c0d911a0bc4947c3573b9",
+        "projectCount": 2861,
+        "transactionCount": 21266,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=25q2",
+        "filename": "PMI_Resi_Rental-refPeriod-25q2.json",
+        "sha256": "cc13103e9c7d16d04b93ceb8004c92f4c06acbb20da3fe2cdaece0021f6fb3d6",
+        "projectCount": 2908,
+        "transactionCount": 22234,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=25q3",
+        "filename": "PMI_Resi_Rental-refPeriod-25q3.json",
+        "sha256": "42add8c1b5aa1fef35258ba17425a4e34de05d1ce0acc35d5e89d0f83b4dcd7f",
+        "projectCount": 3088,
+        "transactionCount": 27881,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=25q4",
+        "filename": "PMI_Resi_Rental-refPeriod-25q4.json",
+        "sha256": "d7614fe9d861e063d8d2acaa4b9968fa118bda35c1c918a2634212b783442de1",
+        "projectCount": 2838,
+        "transactionCount": 20630,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=26q1",
+        "filename": "PMI_Resi_Rental-refPeriod-26q1.json",
+        "sha256": "5978fc1b05405006bb43400159025efb877903904ec4401ea349d3377c645954",
+        "projectCount": 2888,
+        "transactionCount": 21793,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=26q2",
+        "filename": "PMI_Resi_Rental-refPeriod-26q2.json",
+        "sha256": "340f5e92d85a52e2ae26ab688b626849dc653d3f2bb2da74302712fc2c25299a",
+        "projectCount": 2959,
+        "transactionCount": 23273,
+        "status": "captured"
+      },
+      {
+        "service": "PMI_Resi_Rental",
+        "scope": "refPeriod=26q3",
+        "filename": "PMI_Resi_Rental-refPeriod-26q3.json",
+        "sha256": "681b6af20de364303e7f51a751f1e94ddf1bc3c6baf7273457d53c16374d9fb3",
+        "projectCount": 2845,
+        "transactionCount": 21018,
+        "status": "captured"
+      }
+    ],
+    "sales": {
+      "sourceCount": 132246,
+      "databaseCount": 132246,
+      "missing": 0,
+      "extra": 0,
+      "sourceValueTotal": 311819606347,
+      "databaseValueTotal": 311819606347,
+      "examples": [],
+      "match": true
+    },
+    "rentals": {
+      "sourceCount": 451165,
+      "databaseCount": 451165,
+      "missing": 0,
+      "extra": 0,
+      "sourceValueTotal": 2333171665,
+      "databaseValueTotal": 2333171665,
+      "examples": [],
+      "match": true
+    },
+    "integrity": [
+      {
+        "integrity_check": "ok"
+      }
+    ],
+    "foreignKeys": [],
+    "match": true
+  },
+  "sourceAfter": "e6067d6033aac82c3392db8108fd7221ecefa576e44c7efb247ead6b381fa252",
+  "sourceUnchanged": true
+}

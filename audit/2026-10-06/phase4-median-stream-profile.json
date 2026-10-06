@@ -1,0 +1,67 @@
+{
+  "runtime": "v24.19.0",
+  "platform": "win32",
+  "sanitized": true,
+  "samples": [
+    {
+      "name": "sales",
+      "coldMs": 1338.1010999999999,
+      "warmMs": 3.226599999999962,
+      "fullBytes": 1063701,
+      "transportBytes": 27926,
+      "summaryBytes": 47803,
+      "mapBytes": 1015883,
+      "rows": 100963,
+      "projects": 2350,
+      "rss": 187559936,
+      "cache": {
+        "bytes": 1063701,
+        "maxBytes": 33554432,
+        "entries": 1,
+        "hits": 1,
+        "misses": 2,
+        "inFlight": 0
+      }
+    },
+    {
+      "name": "rentals",
+      "coldMs": 2178.3799,
+      "warmMs": 5.311899999999696,
+      "fullBytes": 2005270,
+      "transportBytes": 119011,
+      "summaryBytes": 118913,
+      "mapBytes": 1886342,
+      "rows": 412085,
+      "projects": 2870,
+      "rss": 301076480,
+      "cache": {
+        "bytes": 2005270,
+        "maxBytes": 33554432,
+        "entries": 1,
+        "hits": 2,
+        "misses": 4,
+        "inFlight": 0
+      }
+    },
+    {
+      "name": "projects",
+      "coldMs": 63.60639999999967,
+      "warmMs": 6.317399999999907,
+      "fullBytes": 2094359,
+      "transportBytes": 1019558,
+      "summaryBytes": 2126114,
+      "mapBytes": 2,
+      "rows": 4695,
+      "projects": 4695,
+      "rss": 298831872,
+      "cache": {
+        "bytes": 2094359,
+        "maxBytes": 33554432,
+        "entries": 1,
+        "hits": 3,
+        "misses": 6,
+        "inFlight": 0
+      }
+    }
+  ]
+}

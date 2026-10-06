@@ -1,5 +1,7 @@
 # Phased go-live remediation plan — 2 October 2026
 
+**6 October Phase 4 update:** Compact complete-map contracts, bounded/coalesced queries, prepared default analytics, browser/accessibility and operational monitoring are implemented and locally qualified. The original default-response/payload/concurrent-delay targets pass; broad cold custom filters and full hosted qualification remain open. See [Phase 4 qualification](PHASE_4_QUALIFICATION_REPORT_2026-10-06.md) and [operations runbook](PHASE_4_OPERATIONS_RUNBOOK.md). Public launch remains NO-GO.
+
 This plan implements the findings in `GO_LIVE_READINESS_REPORT_2026-10-02.md`. The current release decision is **NO-GO**. It is a plan, not a record of completed fixes.
 
 **Phase 0 update:** local containment, isolated staging and durable local restoration are verified in the [corrected completion report](PHASE_0_COMPLETION_REPORT_2026-10-02.md). Sam Fraser is release owner and operational contact. The project is not live, and Sam requires every identified issue to be fixed and verified before public release. Hosted backup work is deferred to private deployment: daily DigitalOcean Droplet backups plus automated encrypted database copies to a separate provider/account, with separate key custody and verified restores before launch. See the [backup strategy](PHASE_0_OPERATIONS_RUNBOOK.md#deployment-stage-backup-strategy-deferred-not-live). The original recovery exit requirement remains open; this is a timing deferral, not a passed gate. Phase 1/2 completion is disputed by the [independent review](PHASE_0_TO_2_INDEPENDENT_VALIDATION_2026-10-02.md).
@@ -20,7 +22,7 @@ Estimates below are rough focused engineering effort, not promised elapsed dates
 
 ## Phase 1 — Fix startup, scheduling and data-write safety
 
-**Current status:** local corrections and 161 regressions pass on Node 22.23.3; see the [corrected Phase 1 report](PHASE_1_COMPLETION_REPORT_2026-10-02.md). Container qualification is pending the Docker startup issue or a recorded successful CI run. Rebuild remains operationally quarantined pending complete source reconciliation and target-platform rehearsal. These original gates are retained; Phase 1 is not signed off.
+**Current status (5 October):** 189 regressions pass on Windows and Linux using Node 22.23.3. The final release image passes repeated startup, production health/frontend, packaging and real-data API arithmetic; see the [Docker qualification report](DOCKER_QUALIFICATION_REPORT_2026-10-05.md). The reviewed Phase 2 snapshot is promoted locally with verified backup/recovery. General rebuild and scheduled sync remain quarantined; hosted checks remain deferred to private deployment. The original gates are retained and public launch remains NO-GO.
 
 **Owner:** backend/platform. **Effort:** 4–6 days. **Findings:** GL-01–04, GL-12, GL-16.
 
@@ -41,6 +43,8 @@ Estimates below are rough focused engineering effort, not promised elapsed dates
 
 ## Phase 2 — Reconcile the dataset and make analytics correct
 
+**5 October update: Phase 2 complete locally.** Sam approved the [metric contract](PHASE_2_METRIC_CONTRACT.md) and all 35 historical identities, retaining evidence limitations. All approvals are applied; the reconciled database contains 5,905 projects, 132,305 sales and 451,165 rentals. Captured-source parity has zero missing/extra occurrences, original covered records are archived, older sales and operational records are preserved, and encrypted restore/rollback are verified. All 189 tests pass on Windows/Linux; the final image passes repeated startup, production packaging and independent real-data API arithmetic. The [current report](PHASE_2_COMPLETION_REPORT_2026-10-05.md) retains the original exit gates. Hosted verification and later phases remain open; nothing is deployed.
+
 **Owner:** backend/data engineer with product owner. **Effort:** 5–8 days. **Findings:** GL-04–08.
 
 1. Resolve Saint/Street normalization and adjudicate the 35 duplicate candidate groups against source identity. Repair the incorrect landed flag and invalid planning areas. Record before/after project IDs, counts and transaction ownership; avoid indiscriminate name/coordinate merges.
@@ -60,6 +64,8 @@ Estimates below are rough focused engineering effort, not promised elapsed dates
 - Product owner signs off the definitions and any scope reductions. Unsupported precision/provenance claims are absent from the release UI and documentation.
 
 ## Phase 3 — Finish email, consent, access and recovery controls
+
+**6 October update:** The independently identified Phase 3 code gaps have been repaired, with expanded HTTP, native-process and recovery tests. See the [corrected report](PHASE_3_COMPLETION_REPORT_2026-10-06.md) and [operations runbook](PHASE_3_OPERATIONS_RUNBOOK.md). Hosted recovery/communications evidence and owner approval remain open; the original exit gates below are retained and public launch remains NO-GO.
 
 **Owner:** backend/operations; business owner approves privacy and communications. **Effort:** 4–7 days. **Findings:** GL-09–13.
 

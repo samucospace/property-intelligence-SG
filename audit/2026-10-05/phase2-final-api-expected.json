@@ -1,0 +1,18 @@
+{
+  "projectId": 3515,
+  "filters": {
+    "projects": [
+      3515
+    ],
+    "propertyType": "all",
+    "dateFrom": "2025-10-01",
+    "dateTo": "2026-09-30"
+  },
+  "saleCount": 4,
+  "rentalCount": 4,
+  "totalLeases": 4,
+  "medianSalePsft": 1667.9492687521633,
+  "medianRentPsft": 4.2,
+  "grossYield": 3.02,
+  "method": "Python statistics.median over raw database values; no application metric helpers"
+}

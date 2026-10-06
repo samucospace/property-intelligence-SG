@@ -1,0 +1,10 @@
+{
+  "releaseImage": {
+    "tag": "property-intelligence-sg:phase2-final-20261005",
+    "id": "sha256:3e8c4f1755c5bab0c1f995fcef341528bf624c90ce4cb4129fb55b4762108c79"
+  },
+  "testImage": {
+    "tag": "property-intelligence-sg:phase2-final-tests-20261005",
+    "id": "sha256:e49227c015d472882d58507b91fe0f68519de6a3d826e10c5bae77ec906e8d99"
+  }
+}
