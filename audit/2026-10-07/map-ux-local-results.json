@@ -1,0 +1,45 @@
+{
+  "checkedAt": "2026-10-07T08:58:03.786Z",
+  "base": "http://127.0.0.1:3417",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "amenitiesHiddenByDefault": true,
+      "amenityToggle": true,
+      "propertyHover": true,
+      "inspectionNoSearch": true,
+      "inspectionNoViewportReset": true,
+      "ringsOptInAndClose": true,
+      "clearInspection": true,
+      "radiusInPlaceAndClear": true,
+      "clusters": true,
+      "approximateRingsWithheld": true,
+      "explicitFilter": true,
+      "overflow": {
+        "width": 1440,
+        "viewport": 1440
+      }
+    },
+    {
+      "viewport": "mobile",
+      "amenitiesHiddenByDefault": true,
+      "amenityToggle": true,
+      "propertyHover": false,
+      "inspectionNoSearch": true,
+      "inspectionNoViewportReset": true,
+      "ringsOptInAndClose": true,
+      "clearInspection": true,
+      "radiusInPlaceAndClear": true,
+      "clusters": true,
+      "approximateRingsWithheld": true,
+      "explicitFilter": true,
+      "overflow": {
+        "width": 390,
+        "viewport": 390
+      }
+    }
+  ],
+  "errors": [],
+  "externalTiles": "replaced with blank test tiles; real Leaflet events/analytics",
+  "passed": true
+}

@@ -1,5 +1,6 @@
 import AccessibleDialog from './components/AccessibleDialog';
 import { decodeMapProjects } from './utils/mapContract';
+import {mapSearchKey} from './utils/mapPresentation';
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import axios from 'axios';
 import { Building2, Database, Key, Percent, Layers, Calendar, ExternalLink, ShieldCheck, Info, FileText, AlertCircle } from 'lucide-react';
@@ -151,7 +152,7 @@ export default function App() {
       ]);
       const lastPage=Math.max(1,res.data.totalPages || 1);
       if((filters.page || 1)>lastPage) {setFilters(prev=>({...prev,page:lastPage}));return;}
-      setAnalyticsData({...res.data,mapProjects:decodeMapProjects(map.data)});
+      setAnalyticsData({...res.data,mapProjects:decodeMapProjects(map.data),mapSearchKey:mapSearchKey(filters)});
     } catch (err) {
       if (!axios.isCancel(err) && err.name !== 'CanceledError') {
         console.error(`Error loading ${viewMode} property analytics:`, err);
@@ -386,6 +387,7 @@ export default function App() {
 
           <PropertyMap
             mapProjects={analyticsData.mapProjects}
+            loadedSearchKey={analyticsData.mapSearchKey}
             filters={filters}
             setFilters={setFilters}
             unitType={unitType}
