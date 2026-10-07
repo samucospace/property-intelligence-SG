@@ -1,6 +1,6 @@
 services:
   app:
-    image: property-intelligence-sg:project-coverage-20261007
+    image: property-intelligence-sg:filter-repairs-20261007
     init: true
     restart: unless-stopped
     env_file: /opt/homeintel/config/runtime.env
@@ -20,7 +20,7 @@ services:
       retries: 3
       start_period: 45s
   scheduler:
-    image: property-intelligence-sg:project-coverage-20261007
+    image: property-intelligence-sg:filter-repairs-20261007
     init: true
     profiles: [maintenance]
     restart: unless-stopped

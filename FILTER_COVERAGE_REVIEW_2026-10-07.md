@@ -2,6 +2,8 @@
 
 Scope: targeted read-only review of the committed/deployed project-coverage fix and adjacent search, filter, URL and table paths. This is not an exhaustive application audit. No production records or application code were changed during this review.
 
+**Follow-up: all five findings below are now repaired and verified on protected staging.** The findings remain as the historical review record; see `FILTER_FIXES_2026-10-07.md` for the source revision and deployment evidence.
+
 ## Confirmed findings
 
 ### P1 — Default floor-area cap hides leases with unknown area
@@ -38,4 +40,4 @@ Fix direction: add accessible pagination or load-more for tables, preserving com
 
 The previously documented cold-query latency remains open. This review does not establish that all supported source property-type spellings, maps, neighbourhood metadata or external services have been exhaustively qualified. The final documentation CI for `77f83ac` passed; that does not substitute for tests of these newly identified gaps.
 
-Data reproduction evidence: `audit/2026-10-07/filter-gap-data-results.jsonl`. Browser reproduction helper: `audit/2026-10-07/review-filter-browser.cjs`. These findings are not yet fixed or deployed.
+Original reproduction evidence: `audit/2026-10-07/filter-gap-data-results.jsonl` and `filter-gap-browser-results.json`. Browser reproduction helper: `audit/2026-10-07/review-filter-browser.cjs`. The five findings were open at initial review and have since been fixed and deployed as documented above.

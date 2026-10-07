@@ -1,0 +1,40 @@
+{
+  "checkedAt": "2026-10-07T07:12:14.791Z",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "unknownAreaIncluded": 430,
+      "explicitAreaLimit": 195,
+      "disjointPages": true,
+      "pageReload": true,
+      "criteriaResetPage": true,
+      "fullFilterReload": true,
+      "modePriceResetBothDirections": true,
+      "locationReplacement": true,
+      "clearFilters": true,
+      "overflow": {
+        "width": 1440,
+        "viewport": 1440
+      }
+    },
+    {
+      "viewport": "mobile",
+      "unknownAreaIncluded": 430,
+      "explicitAreaLimit": 195,
+      "disjointPages": true,
+      "pageReload": true,
+      "criteriaResetPage": true,
+      "fullFilterReload": true,
+      "modePriceResetBothDirections": true,
+      "locationReplacement": true,
+      "clearFilters": true,
+      "overflow": {
+        "width": 390,
+        "viewport": 390
+      }
+    }
+  ],
+  "errors": [],
+  "externalAssets": "blocked",
+  "passed": true
+}
