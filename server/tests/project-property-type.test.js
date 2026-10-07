@@ -45,4 +45,28 @@ describe('Named project coverage across property types',()=>{
    expect((await query({...dates,propertyType:'all'})).totalCount).toBe(9);
   }
  });
+ it('includes unknown-area leases in rent counts and medians but withholds their rates and yield',async()=>{
+  await db.run("INSERT INTO rental_transactions(project_id,lease_date,rent_sgd,property_type) VALUES(1,'2026-06',10000,'Terrace House')");
+  const filters={...dates,projects:['STRATA FIXTURE'],unitSizeMax:null};
+  const data=await getRentalYieldAnalytics(filters);
+  expect(data.totalCount).toBe(4);expect(data.summary.unknownAreaLeases).toBe(1);expect(data.summary.medianRent).toBe(8000);
+  const unknown=data.rentalCaveats.find(r=>r.areaSqft==null);expect(unknown.rentPsft).toBeNull();expect(unknown.grossYield).toBeNull();
+  expect(data.mapProjects[0].usableRentalCount).toBe(3);expect(data.summary.grossYieldPct).toBe(4.8);
+  expect((await getRentalYieldAnalytics({...filters,unitSizeMax:10000})).totalCount).toBe(3);
+  expect((await getRentalYieldAnalytics({...filters,unitSizeMin:100})).totalCount).toBe(3);
+ });
+ it('respects a zero size cap instead of converting it to a hidden default',async()=>{
+  expect((await getRentalYieldAnalytics({...dates,unitSizeMax:0})).totalCount).toBe(0);
+  expect((await getPriceAnalytics({...dates,unitSizeMax:0})).totalCount).toBe(0);
+  expect((await getPriceAnalytics({...dates,projects:['STRATA FIXTURE'],unitSizeMax:null})).totalCount).toBe(3);
+ });
+ it('returns disjoint pages with complete summaries and maps for sales and rentals',async()=>{
+  for(const [query,rows,id] of [[getPriceAnalytics,'scatterPoints','id'],[getRentalYieldAnalytics,'rentalCaveats','rentalId']]) {
+   const first=await query({...dates,projects:['STRATA FIXTURE'],limit:2,page:1});
+   const second=await query({...dates,projects:['STRATA FIXTURE'],limit:2,page:2});
+   expect(first.totalCount).toBe(3);expect(second.totalPages).toBe(2);expect(first[rows]).toHaveLength(2);expect(second[rows]).toHaveLength(1);
+   expect(new Set([...first[rows],...second[rows]].map(r=>r[id])).size).toBe(3);
+   expect(first.summary).toEqual(second.summary);expect(first.mapProjects).toEqual(second.mapProjects);
+  }
+ });
 });

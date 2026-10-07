@@ -11,7 +11,7 @@ import LivabilityBadge from './components/LivabilityBadge';
 const LivabilityDrawer = lazy(() => import('./components/LivabilityDrawer'));
 const RentalYieldDrawer = lazy(() => import('./components/RentalYieldDrawer'));
 import MonetizationBanner from './components/MonetizationBanner';
-import { getDefaultDateRange } from './utils/dateUtils';
+import { readSearchFilters, writeSearchFilters, selectLocation, updateSearchFilters } from './utils/searchState';
 
 export default function App() {
   const [features, setFeatures] = useState({ leadCapture: false, dataSync: false });
@@ -31,34 +31,13 @@ export default function App() {
   const unitType = 'sqft'; // Use per square feet only
 
   // Step 4.3.1: Read URL parameters on load (?project=, ?district=, ?street=, ?area=)
-  const [filters, setFilters] = useState(() => {
-    const { dateFrom, dateTo } = getDefaultDateRange(5);
-    const params = new URLSearchParams(window.location.search);
-    const urlProject = params.get('project');
-    const urlDistrict = params.get('district');
-    const urlStreet = params.get('street');
-    const urlArea = params.get('area') || params.get('planningArea');
-
-    return {
-      projects: urlProject ? [urlProject] : [],
-      propertyType: ['all', 'condo', 'landed', 'ec'].includes(params.get('propertyType'))
-        ? params.get('propertyType') : (urlProject ? 'all' : 'condo'),
-      street: urlStreet || null,
-      district: urlDistrict || null,
-      planningArea: urlArea || null,
-      bedroomCount: 'all',
-      radiusKm: null,
-      centerCoords: null,
-      dateFrom,
-      dateTo,
-      unitSizeMin: 0,
-      unitSizeMax: 10000,
-      priceMin: null,
-      priceMax: null,
-      tenure: 'all'
-    };
-  });
-
+  const [filters, setFilterState] = useState(() => readSearchFilters(window.location.search));
+  const setFilters = useCallback(update => setFilterState(prev => updateSearchFilters(prev, update)), []);
+  const changeViewMode = mode => {
+    if(mode === viewMode) return;
+    setFilters(prev => ({...prev, priceMin:null, priceMax:null, page:1}));
+    setViewMode(mode);
+  };
   const [analyticsData, setAnalyticsData] = useState({
     summary: { totalVolume: 0, medianPrice: 0, medianPsft: 0, minPrice: 0, maxPrice: 0 },
     timeSeries: [],
@@ -95,18 +74,17 @@ export default function App() {
             const match = data.projects[0];
             const lat = match.lat != null ? parseFloat(match.lat) : null;
             const lng = match.lng != null ? parseFloat(match.lng) : null;
-            setFilters(prev => ({
-              ...prev,
+            setFilters(prev => selectLocation(prev, {
               projects: [match.name],
               propertyType: 'all',
               centerCoords: !isNaN(lat) && !isNaN(lng) && lat && lng ? { lat, lng } : null
             }));
           } else if (data.streets && data.streets.length > 0) {
-            setFilters(prev => ({ ...prev, street: data.streets[0] }));
+            setFilters(prev => selectLocation(prev, {street: data.streets[0]}));
           } else if (data.districts && data.districts.length > 0) {
-            setFilters(prev => ({ ...prev, district: data.districts[0] }));
+            setFilters(prev => selectLocation(prev, {district: data.districts[0]}));
           } else if (data.planningAreas && data.planningAreas.length > 0) {
-            setFilters(prev => ({ ...prev, planningArea: data.planningAreas[0] }));
+            setFilters(prev => selectLocation(prev, {planningArea: data.planningAreas[0]}));
           }
         })
         .catch(err => console.error('Error resolving search query param q:', err));
@@ -120,43 +98,10 @@ export default function App() {
       isFirstRender.current = false;
       return;
     }
-    const params = new URLSearchParams(window.location.search);
-    params.set('propertyType', filters.propertyType || 'condo');
-    if (filters.projects && filters.projects.length === 1) {
-      params.set('project', filters.projects[0]);
-    } else {
-      params.delete('project');
-    }
-    if (filters.district) {
-      params.set('district', filters.district);
-    } else {
-      params.delete('district');
-    }
-    if (filters.street) {
-      params.set('street', filters.street);
-    } else {
-      params.delete('street');
-    }
-    if (filters.planningArea) {
-      params.set('area', filters.planningArea);
-    } else {
-      params.delete('area');
-      params.delete('planningArea');
-    }
-    if (viewMode === 'rental') {
-      params.set('mode', 'rental');
-    } else {
-      params.delete('mode');
-    }
-    // Clean up one-shot query parameters
-    params.delete('q');
-    params.delete('enquire');
-
-    const newSearch = params.toString();
+    const newSearch = writeSearchFilters(filters, viewMode, window.location.search);
     const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
     window.history.replaceState({}, '', newUrl);
-  }, [filters.projects, filters.propertyType, filters.district, filters.street, filters.planningArea, viewMode]);
-
+  }, [filters, viewMode]);
   const handleOpenLivabilityDrawer = async (projData) => {
     const proj = projData?.project || projData;
     const projectId = projData?.projectId || proj?.id || proj?.project_id;
@@ -204,6 +149,8 @@ export default function App() {
         axios.post(endpoint,{filters:requestFilters},options),
         axios.post('/api/analytics/map',{mode:viewMode,filters:requestFilters},options)
       ]);
+      const lastPage=Math.max(1,res.data.totalPages || 1);
+      if((filters.page || 1)>lastPage) {setFilters(prev=>({...prev,page:lastPage}));return;}
       setAnalyticsData({...res.data,mapProjects:decodeMapProjects(map.data)});
     } catch (err) {
       if (!axios.isCancel(err) && err.name !== 'CanceledError') {
@@ -286,7 +233,7 @@ export default function App() {
           setFilters={setFilters}
           unitType={unitType}
           viewMode={viewMode}
-          setViewMode={setViewMode}
+          setViewMode={changeViewMode}
         />
 
         {loading && <p role="status" aria-live="polite">Loading market data…</p>}
@@ -336,6 +283,7 @@ export default function App() {
                 ${summary.medianRent ? summary.medianRent.toLocaleString() : 'N/A'} <span style={{ fontSize: '1rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>/mo</span>
               </div>
               <span className="metric-sub">Selected period ({summary.totalLeases || 0} lease agreements)</span>
+              {summary.unknownAreaLeases > 0 && <span className="metric-sub">Includes {summary.unknownAreaLeases} leases with unknown floor area; these have no per-square-foot rate or yield.</span>}
             </div>
 
             <div className="metric-card amber">
@@ -461,6 +409,14 @@ export default function App() {
             </h3>
           </div>
 
+          <nav aria-label="Transaction pages" style={{display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap',marginBottom:'12px'}}>
+            <button className="btn" disabled={loading || (filters.page || 1) <= 1}
+              onClick={() => setFilters(prev => ({...prev,page:Math.max(1,(prev.page || 1)-1)}))}>Previous page</button>
+            <span>Page {filters.page || 1} of {Math.max(1,analyticsData.totalPages || 1)}</span>
+            <button className="btn" disabled={loading || (filters.page || 1) >= (analyticsData.totalPages || 1)}
+              onClick={() => setFilters(prev => ({...prev,page:(prev.page || 1)+1}))}>Next page</button>
+            <span style={{color:'var(--color-text-muted)',fontSize:'0.8rem'}}>Summary and map cover all matching records.</span>
+          </nav>
           <div className="data-table-wrapper">
             {viewMode === 'rental' ? (
               <table className="data-table">
@@ -480,7 +436,8 @@ export default function App() {
                   {analyticsData.rentalCaveats && analyticsData.rentalCaveats.length > 0 ? (
                     analyticsData.rentalCaveats.map((r, idx) => {
                       const matchProj = mapProjList.find(p => p && (p.id === r.projectId || p.name === r.projectName));
-                      const rateVal = unitType === 'sqm' ? `$${r.rentPsqm} /sqm` : `$${r.rentPsft} /sqft`;
+                      const rate = unitType === 'sqm' ? r.rentPsqm : r.rentPsft;
+                      const rateVal = rate == null ? 'N/A — Floor area unavailable' : `$${rate} /${unitType}`;
                       const yieldColor = r.grossYield == null ? 'var(--color-text-muted)' : r.grossYield >= 4.25 ? '#10B981' : r.grossYield >= 3.25 ? '#D97706' : '#CB6D51';
 
                       return (
@@ -490,7 +447,7 @@ export default function App() {
                           <td style={{ fontWeight: 700, color: 'var(--color-primary-green)' }}>
                             ${r.rentSgd ? r.rentSgd.toLocaleString() : 'N/A'} /mo
                           </td>
-                          <td style={{ color: 'var(--color-accent-teal)', fontWeight: 600 }}>{rateVal}/mo</td>
+                          <td style={{ color: 'var(--color-accent-teal)', fontWeight: 600 }}>{rateVal}{rate == null ? '' : '/mo'}</td>
                           <td>
                             <span style={{ background: '#F1F5F9', padding: '3px 8px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}>
                               {r.bedroomCount}
@@ -563,7 +520,7 @@ export default function App() {
                 </thead>
                 <tbody>
                   {analyticsData.scatterPoints && analyticsData.scatterPoints.length > 0 ? (
-                    analyticsData.scatterPoints.slice().reverse().map((tx, idx) => {
+                    analyticsData.scatterPoints.map((tx, idx) => {
                       const matchProj = mapProjList.find(p => p && (p.id === tx.projectId || p.name === tx.projectName));
                       return (
                         <tr key={tx.id || idx}>

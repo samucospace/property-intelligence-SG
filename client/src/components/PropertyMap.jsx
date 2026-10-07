@@ -5,6 +5,7 @@ import L from 'leaflet';
 import axios from 'axios';
 import { MapPin, Navigation, Compass, Layers, Train, GraduationCap, Utensils, ShoppingBag, Trees, AlertTriangle } from 'lucide-react';
 import LivabilityBadge from './LivabilityBadge';
+import {selectLocation} from '../utils/searchState';
 
 // Custom Map Marker Icons using SVG Data URIs
 function createCustomIcon(color, isApproximate = false) {
@@ -110,16 +111,14 @@ export default function PropertyMap({ mapProjects, filters, setFilters, unitType
   }, []);
 
   const handleMapClick = (latlng) => {
-    setFilters(prev => ({
-      ...prev,
+    setFilters(prev => selectLocation(prev, {
       radiusKm: selectedRadius,
       centerCoords: { lat: latlng.lat, lng: latlng.lng }
     }));
   };
 
   const handleSelectProjectOnMap = (projName) => {
-    setFilters(prev => ({
-      ...prev,
+    setFilters(prev => selectLocation(prev, {
       projects: [projName]
     }));
   };

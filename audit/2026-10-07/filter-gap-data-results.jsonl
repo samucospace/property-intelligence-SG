@@ -1,0 +1,8 @@
+{"counts":{"rentals":451165,"unknownArea":7362,"overDefaultMax":0},"types":[{"property_type":"Detached House","count":5017},{"property_type":"Executive Condominium","count":10374},{"property_type":"Non-landed Properties","count":415748},{"property_type":"Semi-Detached House","count":7546},{"property_type":"Terrace House","count":12480}]}
+{"name":"baseline rentals","status":200,"totalCount":88}
+{"name":"sale minimum retained in rental mode","status":200,"totalCount":0}
+{"name":"new street retained with old project","status":200,"totalCount":0}
+{"name":"explicit non-landed rental type","status":200,"totalCount":0}
+{"unknownAreaExample":{"project_name":"REGENCY PARK","rentals":434,"unknownArea":237}}
+{"name":"unknown-area coverage","project":"REGENCY PARK","unitSizeMax":null,"status":200,"totalCount":430}
+{"name":"unknown-area coverage","project":"REGENCY PARK","unitSizeMax":10000,"status":200,"totalCount":195}

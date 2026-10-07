@@ -1,0 +1,6 @@
+FROM property-intelligence-sg:project-coverage-tests-20261007
+COPY --chown=node:node server/ /app/server/
+COPY --chown=node:node client/src/utils/ /app/client/src/utils/
+WORKDIR /app/server
+ENV NODE_ENV=test
+CMD ["node", "node_modules/vitest/vitest.mjs", "run", "--silent"]

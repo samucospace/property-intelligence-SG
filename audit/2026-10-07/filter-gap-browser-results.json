@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-10-07T06:45:30.014Z",
+  "findings": [
+    {
+      "issue": "Sale price becomes rental minimum",
+      "retainedMinimum": 1000000,
+      "emptyResults": true
+    },
+    {
+      "issue": "Reload resets tenure",
+      "before": "leasehold",
+      "after": "all"
+    },
+    {
+      "issue": "New street retains incompatible old project",
+      "project": "BINJAI CREST",
+      "street": "KEPPEL BAY VIEW",
+      "emptyResults": true
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Search, X, SlidersHorizontal, MapPin, Building, Map, RefreshCw } from 'lucide-react';
-import { getDefaultDateRange } from '../utils/dateUtils';
+import { defaultFilters, selectLocation } from '../utils/searchState';
 
 export default function SearchHeader({ filters, setFilters, unitType, setUnitType, viewMode = 'sale', setViewMode, onOpenIngestionModal }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,8 +60,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
     const match = suggestions?.projects?.find(p => p.name === projName);
     const lat = match?.lat != null ? parseFloat(match.lat) : null;
     const lng = match?.lng != null ? parseFloat(match.lng) : null;
-    setFilters(prev => ({
-      ...prev,
+    setFilters(prev => selectLocation(prev, {
       projects: [projName],
       propertyType: 'all',
       centerCoords: !isNaN(lat) && !isNaN(lng) && lat && lng ? { lat, lng } : null
@@ -71,8 +70,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
   };
 
   const handleSelectStreet = (streetName) => {
-    setFilters(prev => ({
-      ...prev,
+    setFilters(prev => selectLocation(prev, {
       street: streetName,
       centerCoords: null
     }));
@@ -81,8 +79,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
   };
 
   const handleSelectDistrict = (district) => {
-    setFilters(prev => ({
-      ...prev,
+    setFilters(prev => selectLocation(prev, {
       district: district,
       centerCoords: null
     }));
@@ -91,8 +88,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
   };
 
   const handleSelectPlanningArea = (planningArea) => {
-    setFilters(prev => ({
-      ...prev,
+    setFilters(prev => selectLocation(prev, {
       planningArea: planningArea,
       centerCoords: null
     }));
@@ -108,24 +104,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
   };
 
   const clearAllFilters = () => {
-    const { dateFrom, dateTo } = getDefaultDateRange(5);
-    setFilters({
-      projects: [],
-      propertyType: 'condo',
-      street: null,
-      district: null,
-      planningArea: null,
-      bedroomCount: 'all',
-      radiusKm: null,
-      centerCoords: null,
-      dateFrom,
-      dateTo,
-      unitSizeMin: 0,
-      unitSizeMax: 10000,
-      priceMin: null,
-      priceMax: null,
-      tenure: 'all'
-    });
+    setFilters(defaultFilters());
     setSearchTerm('');
   };
 
@@ -370,9 +349,9 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
           <input aria-label={'Floor Area Max (Sqft)'}
             type="number"
             className="input-box"
-            placeholder="e.g. 2500"
-            value={filters.unitSizeMax || ''}
-            onChange={e => setFilters(prev => ({ ...prev, unitSizeMax: parseFloat(e.target.value) || 10000 }))}
+            placeholder="No limit"
+            value={filters.unitSizeMax ?? ''}
+            onChange={e => setFilters(prev => ({ ...prev, unitSizeMax: e.target.value === '' ? null : Number(e.target.value) }))}
           />
         </div>
       </div>

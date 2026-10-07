@@ -409,8 +409,10 @@ async function calculatePriceAnalytics(filters = {},generation=analyticsGenerati
   const sizeMinSqm = unitType === 'sqft' ? unitSizeMin / 10.7639 : unitSizeMin;
   const sizeMaxSqm = unitType === 'sqft' ? unitSizeMax / 10.7639 : unitSizeMax;
 
-  let whereClauses = ['t.contract_date >= ? AND t.contract_date <= ?', 't.area_sqm >= ? AND t.area_sqm <= ?', "NOT EXISTS (SELECT 1 FROM project_identity_review q WHERE q.project_id=p.project_id AND q.status='pending')"];
-  let params = [effectiveDateFrom, effectiveDateTo, sizeMinSqm, sizeMaxSqm];
+  let whereClauses = ['t.contract_date >= ? AND t.contract_date <= ?', "NOT EXISTS (SELECT 1 FROM project_identity_review q WHERE q.project_id=p.project_id AND q.status='pending')"];
+  let params = [effectiveDateFrom, effectiveDateTo];
+  if(unitSizeMin>0) {whereClauses.push('t.area_sqm >= ?');params.push(sizeMinSqm);}
+  if(unitSizeMax!=null) {whereClauses.push('t.area_sqm <= ?');params.push(sizeMaxSqm);}
 
   // Specific project IDs or names
   if (Array.isArray(projects) && projects.length > 0) {
@@ -728,11 +730,14 @@ async function calculateRentalAnalytics(filters = {},generation=analyticsGenerat
   let params = [effectiveDateFrom.substring(0, 7), effectiveDateTo.substring(0, 7)];
 
   // Unit size / Floor area band filtering
-  if (unitSizeMin > 0 || (unitSizeMax != null && Number(unitSizeMax) < 100000)) {
+  if (unitSizeMin > 0 || unitSizeMax != null) {
     const minSqft = unitType === 'sqft' ? Number(unitSizeMin) : Number(unitSizeMin) * 10.7639;
-    const maxSqft = unitType === 'sqft' ? Number(unitSizeMax || 100000) : Number(unitSizeMax || 10000) * 10.7639;
-    whereClauses.push('(r.area_sqft >= ? AND r.area_sqft <= ?)');
-    params.push(minSqft, maxSqft);
+    whereClauses.push('r.area_sqft >= ?');
+    params.push(minSqft);
+    if(unitSizeMax != null) {
+      whereClauses.push('r.area_sqft <= ?');
+      params.push(unitType === 'sqft' ? Number(unitSizeMax) : Number(unitSizeMax) * 10.7639);
+    }
   }
 
   // Specific project IDs or names
@@ -847,6 +852,7 @@ async function calculateRentalAnalytics(filters = {},generation=analyticsGenerat
 
     medianOne(`SELECT COUNT(*) AS total_count,MIN(r.rent_sgd) AS min_rent,MAX(r.rent_sgd) AS max_rent,
       COUNT(CASE WHEN r.rent_psft>0 THEN 1 END) AS psft_count,
+      COUNT(CASE WHEN r.area_sqft IS NULL THEN 1 END) AS unknown_area_count,
       GROUP_CONCAT(CASE WHEN r.rent_sgd IS NOT NULL THEN printf('%!.17g',r.rent_sgd) END) AS rents,
       GROUP_CONCAT(CASE WHEN r.rent_psft>0 THEN printf('%!.17g',r.rent_psft) END) AS psft_values,
       GROUP_CONCAT(CASE WHEN r.rent_psft>0 AND r.rent_psqm IS NOT NULL THEN printf('%!.17g',r.rent_psqm) END) AS psqm_values
@@ -1051,6 +1057,7 @@ async function calculateRentalAnalytics(filters = {},generation=analyticsGenerat
     grossYieldPct: avgGrossYield,
     yieldSampleProjects: projectYields.length,
     totalLeases: summaryRow?.total_count || 0,
+    unknownAreaLeases: summaryRow?.unknown_area_count || 0,
     rentMinMaxRange: { min: summaryRow?.min_rent || 0, max: summaryRow?.max_rent || 0 }
   };
 
