@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-10-07T06:34:31.094Z",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "projectLinkSales": true,
+      "rentals": true,
+      "explicitRestriction": true,
+      "urlPersistence": true,
+      "searchSelection": true,
+      "overflow": {
+        "width": 1440,
+        "viewport": 1440
+      }
+    },
+    {
+      "viewport": "mobile",
+      "projectLinkSales": true,
+      "rentals": true,
+      "explicitRestriction": true,
+      "urlPersistence": true,
+      "searchSelection": true,
+      "overflow": {
+        "width": 390,
+        "viewport": 390
+      }
+    }
+  ],
+  "errors": [],
+  "passed": true
+}

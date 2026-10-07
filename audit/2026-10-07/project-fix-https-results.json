@@ -1,0 +1,78 @@
+{
+  "checkedAtUTC": "2026-10-07T06:34:12.752064+00:00",
+  "origin": "https://staging.homeintel.sg",
+  "certificateVerification": true,
+  "checks": [
+    {
+      "check": "anonymous /",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "check": "anonymous /api/features",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "check": "anonymous /api/health/ready",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "check": "anonymous /api/admin/login",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "check": "wrong password",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "check": "authenticated homepage",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "check": "frontend asset",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "check": "frontend asset",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "check": "readiness over verified TLS",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "check": "read-only features and allowed origin",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "check": "foreign origin excluded",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "check": "lead submission disabled",
+      "status": 403,
+      "passed": true
+    },
+    {
+      "check": "admin gateway forgery contained",
+      "status": 403,
+      "passed": true
+    },
+    {
+      "check": "ingestion disabled",
+      "status": 403,
+      "passed": true
+    }
+  ],
+  "passed": true
+}
