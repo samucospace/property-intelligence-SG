@@ -19,4 +19,10 @@ Before the fix, deterministic regressions reproduced 798 amenity inserts instead
 
 Evidence files: `audit/2026-10-07/startup-fix-windows-results.json`, `startup-fix-linux-results.json`, `startup-qualification-results.json`; test fixture sources are retained in `server/tests/startup-preparation.test.js`.
 
-Remote CI and staging rollout are pending at the initial repair commit. Real ingestion concurrent with valuation preparation may still cause a safe refusal; that guard is intentionally preserved. This repair does not close unrelated public-launch gates.
+Source repair `7f9200c91a52f44fc19f7e33407326e9ba10a03c` is committed and pushed. [GitHub CI run 37589128774](https://github.com/samucospace/property-intelligence-SG/actions/runs/37589128774) passed on its first attempt, including the strengthened 55-startup qualification.
+
+Deployed staging image: `property-intelligence-sg:startup-repair-20261007`, identity `sha256:71cd22954a376f06da82bb6b140e4e8e4f91e17f334837b885636494b78e625c`, labelled with the source revision. Readiness and protected HTTPS/lead/admin containment passed after rollout. The prior image and Compose configuration are retained for rollback.
+
+An additional independent run on the actual DigitalOcean Droplet passed **55/55** startups: 20 fresh, five existing, 15 concurrent empty and 15 concurrent populated. It used temporary fixtures in a read-only container with no external networking or live database mounts. Evidence: `audit/2026-10-07/startup-qualification-droplet.json` and `startup-fix-https-results.json`.
+
+The reproduced startup-preparation race is resolved. Real ingestion concurrent with valuation preparation may still cause a safe refusal; that guard is intentionally preserved. This repair does not close unrelated public-launch gates.
