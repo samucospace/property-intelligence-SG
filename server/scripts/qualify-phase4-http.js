@@ -32,7 +32,7 @@ await Promise.all(Array.from({length:10},async(_,user)=>{
   for(let n=0;n<14;n++) {const [name,route,body]=workload[(user+n)%workload.length];await request('mixed-'+name,route,body);}
 }));
 const mixed=samples.filter(sample=>sample.name.startsWith('mixed-')),times=mixed.map(sample=>sample.ms).sort((a,b)=>a-b);
-const report={recordedAt:new Date().toISOString(),runtime:process.version,base,hardware:'Docker 1 CPU / 1 GiB limit, local machine; actual Droplet not available',concurrency:10,durationMs:performance.now()-mixedStart,
+const report={recordedAt:new Date().toISOString(),runtime:process.version,base,hardware:arg('hardware') || 'Not specified by caller; record actual server hardware and limits separately',concurrency:10,durationMs:performance.now()-mixedStart,
   startedAt:recordAtStart,
   originalTargets:{salesDefault:samples.find(s=>s.name==='sale-first-http').ms<300 && samples.find(s=>s.name==='sale-first-http').bytes<500000,rentalDefault:samples.find(s=>s.name==='rental-first-http').ms<300 && samples.find(s=>s.name==='rental-first-http').bytes<500000,projectsPayload:samples.find(s=>s.name==='projects').bytes<1500000,concurrentAdditional:concurrent.sample.ms-baseline.sample.ms<100},
   coldDefinition:'First HTTP calls after startup-prepared materializations. Separately measured uncached custom filter. Warm mixed workload includes initial district misses.',

@@ -4,12 +4,32 @@ import {operationalStatus} from './operationalStatus.js';
 let emergencyUntil=0;
 
 export async function sendOperationalAlert(payload,{idempotencyKey}={}) {
-  if(['test','staging'].includes(process.env.NODE_ENV)) return {mocked:true,accepted:false};
-  const target=process.env.OPERATIONS_ALERT_WEBHOOK_URL;
-  if(process.env.ENABLE_OPERATIONS_MONITORING!=='true' || !target || !target.startsWith('https://')) throw new Error('Operational alert transport is not configured');
-  const response=await fetch(target,{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':idempotencyKey},
-    body:JSON.stringify({text:`${payload.event}: ${payload.summary}`,issue:payload}),signal:AbortSignal.timeout(5000)});
+  if(['test','staging'].includes(process.env.NODE_ENV) || process.env.MOCK_OPERATIONS_ALERTS==='true') return {mocked:true,accepted:false};
+  if(process.env.ENABLE_OPERATIONS_MONITORING!=='true') throw new Error('Operational monitoring is disabled');
+  const transport=process.env.OPERATIONS_ALERT_TRANSPORT || 'webhook';
+  let target,body,headers={'Content-Type':'application/json'};
+  if(idempotencyKey) headers['Idempotency-Key']=idempotencyKey;
+  if(transport==='email') {
+    const key=process.env.OPERATIONS_RESEND_API_KEY;
+    const from=process.env.OPERATIONS_ALERT_EMAIL_FROM,to=process.env.OPERATIONS_ALERT_EMAIL_TO;
+    const mailbox=/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/;
+    if(process.env.NODE_ENV!=='production' || !key?.startsWith('re_') || key.startsWith('re_mock') || !mailbox.test(from || '') || !mailbox.test(to || '')) throw new Error('Operational email transport is not configured');
+    // A fixed operator recipient and separate key; this never enables lead/newsletter email.
+    target='https://api.resend.com/emails';headers.Authorization=`Bearer ${key}`;
+    body={from,to:[to],subject:`HomeIntel operations: ${payload.event} (${payload.severity || 'warning'})`,
+      text:`${payload.summary}\n\nIssue: ${payload.key}\nState: ${payload.event}\n\nInspect the server operational logs and job history.`};
+  } else if(transport==='webhook') {
+    target=process.env.OPERATIONS_ALERT_WEBHOOK_URL;
+    if(!target?.startsWith('https://')) throw new Error('Operational webhook transport is not configured');
+    body={text:`${payload.event}: ${payload.summary}`,issue:payload};
+  } else throw new Error('Unknown operational alert transport');
+  const response=await fetch(target,{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(5000)});
   if(!response.ok) throw new Error(`Operational alert rejected: HTTP ${response.status}`);
+  if(transport==='email') {
+    const receipt=await response.json();
+    if(typeof receipt.id!=='string' || !receipt.id) throw new Error('Operational email did not receive a provider message ID');
+    return {accepted:true,providerMessageId:receipt.id};
+  }
   return {accepted:true};
 }
 

@@ -1,5 +1,7 @@
 # Phase 3 release closeout checklist — 6 October 2026
 
+**7 October private deployment update:** The actual Droplet now runs a server-local, contact-free analytics pilot. Independent encrypted backups and separate-computer data recovery pass. Public/protected HTTPS, received operator email and broad cold-filter capacity remain open; see [private deployment status](PRIVATE_DEPLOYMENT_STATUS_2026-10-07.md).
+
 The Phase 3 repairs pass 238 tests on Windows and Node 22/Linux. These checks establish local behavior. The remaining gates below need actual infrastructure, communications evidence or owner decisions. The older deployment guide lists proposed accounts/providers, not confirmed current setup.
 
 **Owner update:** No Droplet, domain/DNS setup, Resend or independent backup account is ready. Hosted Phase 3 qualification is deferred until infrastructure is provisioned. The adviser relationship is an informal trial with no documented arrangement; recipient/consent approval remains open. Local Phase 4 work can proceed in parallel, with collection and sending contained.

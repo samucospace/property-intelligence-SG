@@ -18,7 +18,11 @@ Health routes have no public analytics rate limiter. Short metadata and autocomp
 
 ## Operational alerts
 
-Set `ENABLE_OPERATIONS_MONITORING=true` and a private HTTPS `OPERATIONS_ALERT_WEBHOOK_URL` only after selecting the operator and transport. The maintenance scheduler checks once per minute. The web process does not start maintenance. A 2xx webhook response establishes transport acceptance; it does not prove an operator received or acknowledged the alert. Confirm that separately with a real, authorized failure drill. Test/staging never posts to the real endpoint.
+Set `ENABLE_OPERATIONS_MONITORING=true` only after configuring and testing the chosen transport. The maintenance scheduler checks once per minute; the web process does not start maintenance. Test/staging and `MOCK_OPERATIONS_ALERTS=true` never reach a real transport.
+
+For webhook alerts, use `OPERATIONS_ALERT_TRANSPORT=webhook` and a private HTTPS `OPERATIONS_ALERT_WEBHOOK_URL`. For email alerts, use `OPERATIONS_ALERT_TRANSPORT=email`, a separate domain-restricted `OPERATIONS_RESEND_API_KEY`, a verified plain mailbox in `OPERATIONS_ALERT_EMAIL_FROM`, and the fixed operator mailbox in `OPERATIONS_ALERT_EMAIL_TO`. Email alerts require production mode even when testing on a protected staging hostname. This operational boundary does not enable lead capture, newsletters, advisory emails or `ENABLE_OUTBOUND_EMAIL`; keep those disabled for analytics-only scope.
+
+A 2xx webhook response or Resend message ID establishes transport acceptance, not operator receipt. Confirm receipt separately with an authorized failure drill. Resend failure can also prevent email alerts about that same provider; external uptime monitoring with independent email delivery is required. UptimeRobot monitor/heartbeat URLs are not automatically compatible incoming destinations for application failure messages.
 
 Signals include missing migrations/market/prepared analytics, failed or interrupted jobs, no successful backup for 26 hours, source-sync age over eight days when sync is enabled, sale/rental periods older than 120 days even in read-only scope, delayed/permanently failed email work when sending is enabled, less than 512 MiB free database-volume space, and an unavailable configured privacy replica. These are initial operational thresholds, not promises about provider publication schedules or dataset completeness.
 

@@ -1,0 +1,32 @@
+services:
+  app:
+    image: property-intelligence-sg:operations-email-20261007
+    init: true
+    restart: unless-stopped
+    env_file: /opt/homeintel/config/runtime.env
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes: &storage
+      - /opt/homeintel/data:/app/data
+      - /opt/homeintel/privacy:/app/privacy
+      # Local-only placeholder for an empty-history market-only pilot.
+      # It is not an independent replica and must not protect real contacts.
+      - /opt/homeintel/privacy-replica:/app/privacy-replica
+      - /opt/homeintel/backup-keys:/app/backup-keys:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3001/api/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+  scheduler:
+    image: property-intelligence-sg:operations-email-20261007
+    init: true
+    profiles: [maintenance]
+    restart: unless-stopped
+    env_file: /opt/homeintel/config/runtime.env
+    command: ["node", "server/scheduler.js"]
+    volumes: *storage
+    depends_on:
+      app:
+        condition: service_healthy

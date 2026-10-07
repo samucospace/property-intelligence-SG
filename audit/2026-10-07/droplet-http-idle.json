@@ -1,0 +1,914 @@
+{
+  "recordedAt": "2026-10-07T03:59:31.884Z",
+  "runtime": "v22.23.3",
+  "base": "http://127.0.0.1:3001",
+  "hardware": "DigitalOcean-SGP1-Basic-2vCPU-4GB-80GB-Ubuntu24.04.5-NoContainerLimits",
+  "concurrency": 10,
+  "durationMs": 13014.228736,
+  "startedAt": "2026-10-07T03:59:07.196Z",
+  "originalTargets": {
+    "salesDefault": true,
+    "rentalDefault": true,
+    "projectsPayload": true,
+    "concurrentAdditional": true
+  },
+  "coldDefinition": "First HTTP calls after startup-prepared materializations. Separately measured uncached custom filter. Warm mixed workload includes initial district misses.",
+  "concurrentAdditionalMs": 3.9760320000002594,
+  "mixed": {
+    "requests": 140,
+    "p50": 286.2486800000006,
+    "p95": 6518.688148000001,
+    "p99": 6555.112265,
+    "max": 8864.937675000001
+  },
+  "samples": [
+    {
+      "name": "ready",
+      "status": 200,
+      "ms": 127.02747099999999,
+      "bytes": 175
+    },
+    {
+      "name": "sale-first-http",
+      "status": 200,
+      "ms": 129.640423,
+      "bytes": 27926
+    },
+    {
+      "name": "rental-first-http",
+      "status": 200,
+      "ms": 116.669623,
+      "bytes": 119006
+    },
+    {
+      "name": "projects",
+      "status": 200,
+      "ms": 564.500391,
+      "bytes": 1019558
+    },
+    {
+      "name": "sale-alone",
+      "status": 200,
+      "ms": 32.782203999999865,
+      "bytes": 27926
+    },
+    {
+      "name": "sale-during-cold-rental",
+      "status": 200,
+      "ms": 36.758236000000124,
+      "bytes": 27926
+    },
+    {
+      "name": "cold-broad-rental",
+      "status": 200,
+      "ms": 10654.862569,
+      "bytes": 119006
+    },
+    {
+      "name": "search",
+      "status": 200,
+      "ms": 47.25690299999951,
+      "bytes": 403
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 325.46465199999875,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 333.6784239999997,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 350.0156929999994,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 362.4779980000003,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 365.7814249999992,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 370.717396,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 160.81020999999964,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 147.61333100000047,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 126.25503200000094,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 524.5241249999999,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 94.44191599999976,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 76.04244299999846,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 1762.249092,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 1540.9921790000008,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 43.312253000000055,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 98.08456300000034,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 2309.363093,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 1964.312833,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 1942.5912310000003,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 1835.7061729999987,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 2313.0185710000005,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 1843.471422999999,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 1746.9306140000008,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 165.13428000000022,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 124.45845000000008,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 34.603401000000304,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 23.96132100000068,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 6524.606220999998,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 6518.688148000001,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 6522.297500999999,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 6532.903134,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 6514.202488999999,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 6523.464047999998,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 6477.192669,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 6468.984564,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 8864.937675000001,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 6555.112265,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1093.651342000001,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1101.2977879999999,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1154.7270099999987,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1172.6730960000023,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1227.181120000001,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1241.9160359999987,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 164.36611899999843,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 110.40295700000206,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 151.75776399999813,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1282.3171820000025,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1284.6873669999986,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1315.1418559999984,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 1358.7100360000004,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 176.34519400000136,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 176.58859200000006,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 179.00300199999765,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 255.38282299999992,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 209.5189980000032,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 185.0684770000007,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 164.64759799999956,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 139.91330800000287,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 103.92138200000045,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 65.23174300000028,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 122.12813800000004,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 127.15877099999852,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 130.54132599999866,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 144.71702899999946,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 144.01776499999687,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 147.45936099999744,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 147.42369099999996,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 144.12026799999876,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 149.64698599999974,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 149.37248000000181,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 144.91401899999983,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 145.88225899999816,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 141.74838999999702,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 285.65685900000244,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 286.2486800000006,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 292.0828560000009,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 286.28965099999914,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 293.9486770000003,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 301.38831199999913,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 290.90897100000075,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 196.4650959999999,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 195.39660300000105,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 196.157855999998,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 262.96570900000006,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 301.79670700000133,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 310.68711299999995,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 350.0090459999992,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 365.8540009999997,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 366.60834500000055,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 386.73200500000166,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 407.53277700000035,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 406.2825789999988,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 421.0330219999996,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 189.68461000000025,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 155.94593499999974,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 148.333542999997,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 196.69523899999695,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 187.03758000000016,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 207.4056810000002,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 189.84024099999806,
+      "bytes": 27640
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 465.64424599999984,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 516.427294000001,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 517.6392530000012,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 563.1965909999999,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 558.4531480000005,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 566.008006,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-rental-district",
+      "status": 200,
+      "ms": 568.0274439999994,
+      "bytes": 116088
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 951.5325100000009,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 972.2102210000012,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 988.9837630000002,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 737.2554180000006,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 334.3243909999983,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 310.0672639999975,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 324.60587600000144,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 852.5867889999972,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 122.9805950000009,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 129.38592499999868,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 155.01083300000028,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 901.2835110000015,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 114.737255,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 747.6970920000022,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 768.3489049999989,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-map",
+      "status": 200,
+      "ms": 814.9981529999968,
+      "bytes": 788228
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 115.80452700000023,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 154.87106700000004,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 161.55094499999905,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 146.46326599999884,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 193.1165519999995,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 176.8097319999979,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-search",
+      "status": 200,
+      "ms": 204.88272400000278,
+      "bytes": 1720
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 145.14267100000143,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 98.25297099999807,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 106.92550199999823,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 72.87319300000308,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 41.768238000000565,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-detail",
+      "status": 200,
+      "ms": 47.75294399999984,
+      "bytes": 3650
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 82.90575999999783,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-sale",
+      "status": 200,
+      "ms": 82.44658600000184,
+      "bytes": 27926
+    },
+    {
+      "name": "mixed-rental",
+      "status": 200,
+      "ms": 44.23165000000154,
+      "bytes": 119006
+    },
+    {
+      "name": "mixed-sale-district",
+      "status": 200,
+      "ms": 12.120226999999431,
+      "bytes": 27640
+    }
+  ]
+}

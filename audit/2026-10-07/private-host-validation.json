@@ -1,0 +1,34 @@
+{
+  "clientDate": "2026-10-07",
+  "scope": "Server-local, contact-free analytics pilot; no public launch",
+  "imageIdentity": "sha256:870d0ef80dc137e57cbf1fe22fc8ba6aa06d49555a075748a8bc2fd6bd44c15c",
+  "host": "Ubuntu 24.04.5 on DigitalOcean SGP1, Basic 2 vCPU / 4 GB / 80 GB",
+  "privateBinding": "127.0.0.1:3001",
+  "counts": {
+    "projects": 5905,
+    "sales": 132305,
+    "rentals": 451165,
+    "leads": 0
+  },
+  "jobObservation": {
+    "job": "cron-db-backup",
+    "kind": "Immediate scheduler execution with durable lock, not a clock-driven due slot",
+    "status": "success",
+    "startedAtUtc": "2026-10-07 03:45:09",
+    "finishedAtUtc": "2026-10-07 03:46:35"
+  },
+  "scheduledBackups": "Enabled at 04:00 Asia/Singapore; next clock-driven run not yet observed",
+  "leadCapture": false,
+  "customerSending": false,
+  "operationsEmailEnabled": false,
+  "firewall": "Host deny incoming except SSH; application bind loopback only; cloud firewall rules still require owner confirmation",
+  "recovery": "Independent provider download and fresh separate-computer Docker restore passed; full host/HTTPS service RTO not established",
+  "open": [
+    "DNS discrepancy and protected HTTPS",
+    "Resend sender/key and real operator receipt",
+    "Broad cold-query latency and sustained performance",
+    "Provider lifecycle/retention and recovery-vault custody",
+    "Actual scheduled observation and hosted rollback",
+    "Independent continuous privacy replica before any real contacts"
+  ]
+}

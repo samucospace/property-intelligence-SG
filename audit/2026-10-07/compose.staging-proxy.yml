@@ -1,0 +1,18 @@
+services:
+  caddy:
+    image: caddy:2-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    restart: unless-stopped
+    env_file: /opt/homeintel/config/staging-proxy.env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/homeintel/release/Caddyfile.staging:/etc/caddy/Caddyfile:ro
+      - staging_caddy_data:/data
+      - staging_caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  staging_caddy_data:
+  staging_caddy_config:

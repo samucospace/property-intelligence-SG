@@ -1,5 +1,7 @@
 # Phase 4 qualification report — 6 October 2026
 
+**7 October private deployment update:** The actual Droplet now runs a server-local, contact-free analytics pilot. Independent encrypted backups and separate-computer data recovery pass. Public/protected HTTPS, received operator email and broad cold-filter capacity remain open; see [private deployment status](PRIVATE_DEPLOYMENT_STATUS_2026-10-07.md).
+
 **CI follow-up:** The first remote run exposed a file-worker launch option inherited from the startup checker. The repair, two new regression tests and passing exact startup checks are documented in [CI failure repair](CI_FAILURE_REPAIR_2026-10-06.md). Earlier image/test figures below retain their historical provenance.
 
 **Status: local implementation and candidate qualification completed for the approved default-response targets; the full Phase 4 exit gate remains OPEN. Public launch remains NO-GO.** Broad uncached custom filters still take seconds, sustained target-host capacity is unverified, and received operational alerts/hosted recovery are outstanding. The original targets have not been relaxed.

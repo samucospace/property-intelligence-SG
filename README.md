@@ -1,5 +1,7 @@
 # Singapore Home Intel (`homeintel.sg`)
 
+**7 October private deployment update:** The actual Droplet now runs a server-local, contact-free analytics pilot. Independent encrypted backups and separate-computer data recovery pass. Public/protected HTTPS, received operator email and broad cold-filter capacity remain open; see [private deployment status](PRIVATE_DEPLOYMENT_STATUS_2026-10-07.md).
+
 [Source handoff and remaining release gates](RELEASE_HANDOFF_2026-10-06.md) records the accumulated Phase 2–4 work, candidate provenance and deployment prerequisites.
 
 **6 October Phase 4 update:** Compact complete-map contracts, bounded/coalesced queries, prepared default analytics, browser/accessibility and operational monitoring are implemented and locally qualified. The original default-response/payload/concurrent-delay targets pass; broad cold custom filters and full hosted qualification remain open. See [Phase 4 qualification](PHASE_4_QUALIFICATION_REPORT_2026-10-06.md) and [operations runbook](PHASE_4_OPERATIONS_RUNBOOK.md). Public launch remains NO-GO.
