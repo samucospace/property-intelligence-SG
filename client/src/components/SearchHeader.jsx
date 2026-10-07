@@ -63,6 +63,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
     setFilters(prev => ({
       ...prev,
       projects: [projName],
+      propertyType: 'all',
       centerCoords: !isNaN(lat) && !isNaN(lng) && lat && lng ? { lat, lng } : null
     }));
     setSearchTerm('');
@@ -110,6 +111,7 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
     const { dateFrom, dateTo } = getDefaultDateRange(5);
     setFilters({
       projects: [],
+      propertyType: 'condo',
       street: null,
       district: null,
       planningArea: null,
@@ -291,6 +293,18 @@ export default function SearchHeader({ filters, setFilters, unitType, setUnitTyp
             value={filters.dateTo}
             onChange={e => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
           />
+        </div>
+
+        <div className="filter-group">
+          <label className="filter-label" htmlFor="property-type">Property Type</label>
+          <select id="property-type" className="input-box"
+            value={filters.propertyType || 'condo'}
+            onChange={e => setFilters(prev => ({ ...prev, propertyType: e.target.value }))}>
+            <option value="all">All Property Types</option>
+            <option value="condo">Condos / Apartments</option>
+            <option value="landed">Landed / Strata Landed</option>
+            <option value="ec">Executive Condominiums</option>
+          </select>
         </div>
 
         {/* Tenure Filter (Freehold vs Leasehold) */}

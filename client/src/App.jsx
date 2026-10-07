@@ -41,6 +41,8 @@ export default function App() {
 
     return {
       projects: urlProject ? [urlProject] : [],
+      propertyType: ['all', 'condo', 'landed', 'ec'].includes(params.get('propertyType'))
+        ? params.get('propertyType') : (urlProject ? 'all' : 'condo'),
       street: urlStreet || null,
       district: urlDistrict || null,
       planningArea: urlArea || null,
@@ -96,6 +98,7 @@ export default function App() {
             setFilters(prev => ({
               ...prev,
               projects: [match.name],
+              propertyType: 'all',
               centerCoords: !isNaN(lat) && !isNaN(lng) && lat && lng ? { lat, lng } : null
             }));
           } else if (data.streets && data.streets.length > 0) {
@@ -118,6 +121,7 @@ export default function App() {
       return;
     }
     const params = new URLSearchParams(window.location.search);
+    params.set('propertyType', filters.propertyType || 'condo');
     if (filters.projects && filters.projects.length === 1) {
       params.set('project', filters.projects[0]);
     } else {
@@ -151,7 +155,7 @@ export default function App() {
     const newSearch = params.toString();
     const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
     window.history.replaceState({}, '', newUrl);
-  }, [filters.projects, filters.district, filters.street, filters.planningArea, viewMode]);
+  }, [filters.projects, filters.propertyType, filters.district, filters.street, filters.planningArea, viewMode]);
 
   const handleOpenLivabilityDrawer = async (projData) => {
     const proj = projData?.project || projData;
@@ -537,7 +541,7 @@ export default function App() {
                   ) : (
                     <tr>
                       <td colSpan="8" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '24px' }}>
-                        No tenancy agreements found for the selected criteria.
+                        No tenancy agreements match these filters. Check Property Type, dates and other filters.
                       </td>
                     </tr>
                   )}
@@ -609,7 +613,7 @@ export default function App() {
                   ) : (
                     <tr>
                       <td colSpan="8" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '24px' }}>
-                        No transaction caveats found for the selected criteria.
+                        No transaction caveats match these filters. Check Property Type, dates and other filters.
                       </td>
                     </tr>
                   )}

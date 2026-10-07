@@ -392,7 +392,7 @@ async function calculatePriceAnalytics(filters = {},generation=analyticsGenerati
     priceMin = null,
     priceMax = null,
     tenure = 'all',
-    propertyType = 'condo',
+    propertyType = projects.length > 0 ? 'all' : 'condo',
     lifestyleWeights = null,
     page = 1,
     limit = 100
@@ -711,7 +711,7 @@ async function calculateRentalAnalytics(filters = {},generation=analyticsGenerat
     priceMin = null,
     priceMax = null,
     tenure = 'all',
-    propertyType = 'condo',
+    propertyType = projects.length > 0 ? 'all' : 'condo',
     lifestyleWeights = null,
     page = 1,
     limit = 100
@@ -853,7 +853,7 @@ async function calculateRentalAnalytics(filters = {},generation=analyticsGenerat
       FROM rental_transactions r JOIN projects p INDEXED BY idx_projects_filter_cover ON r.project_id=p.project_id ${summarySqlWhere}`,summaryParams,
       [{source:'rents',count:'total_count',target:'median_rent',digits:0},{source:'psft_values',count:'psft_count',target:'median_rent_psft',digits:2},{source:'psqm_values',count:'psft_count',target:'median_rent_psqm',digits:2}]),
 
-    matchedSaleValuations({ ...filters, dateTo: effectiveDateTo }),
+    matchedSaleValuations({ ...filters, propertyType, dateTo: effectiveDateTo }),
 
     // 3. Time Series Monthly Breakdown
     dbAll(
