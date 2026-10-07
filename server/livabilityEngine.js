@@ -131,8 +131,14 @@ export async function seedAmenities(forceRefresh = false, targetConn = null) {
       return countRow ? countRow.count : seedAmenitiesData.length;
     }
 
-    console.log(`Synchronizing ${seedAmenitiesData.length} curated seed amenities (coverage incomplete) (v${AMENITIES_SEED_VERSION}) into database...`);
-    await withTransaction(conn, async () => {
+    let seeded = false;
+    const count = await withTransaction(conn, async () => {
+      // Another process may have completed preparation while we waited for SQLite.
+      const lockedVersion = await conn.get(`SELECT version FROM seed_versions WHERE name = 'amenities'`);
+      if (!forceRefresh && lockedVersion && lockedVersion.version >= AMENITIES_SEED_VERSION) {
+        return (await conn.get(`SELECT COUNT(*) as count FROM amenities WHERE source = 'seed'`)).count;
+      }
+      console.log(`Synchronizing ${seedAmenitiesData.length} curated seed amenities (coverage incomplete) (v${AMENITIES_SEED_VERSION}) into database...`);
       // Step 2.6: Delete only source = 'seed' rows; preserve OSM greenery
       await conn.run(`DELETE FROM amenities WHERE source = 'seed' OR source IS NULL`);
       for (const item of seedAmenitiesData) {
@@ -142,20 +148,23 @@ export async function seedAmenities(forceRefresh = false, targetConn = null) {
         );
       }
 
+      // Publish the completion marker only with the related score preparation.
+      // Nested score transactions use a savepoint on this same connection.
+      await precomputeAllProjectLivability(conn);
       await conn.run(
         `INSERT INTO seed_versions (name, version, updated_at) VALUES ('amenities', ?, CURRENT_TIMESTAMP)
          ON CONFLICT(name) DO UPDATE SET version = excluded.version, updated_at = CURRENT_TIMESTAMP`,
         [AMENITIES_SEED_VERSION]
       );
+      seeded = true;
+      return seedAmenitiesData.length;
     });
 
-    console.log(`Successfully seeded ${seedAmenitiesData.length} amenities into database.`);
-    invalidateLivabilityCache();
-
-    // Step 3.1: Pre-compute livability after amenity reseed
-    await precomputeAllProjectLivability(conn);
-
-    return seedAmenitiesData.length;
+    if (seeded) {
+      console.log(`Successfully seeded ${seedAmenitiesData.length} amenities and prepared scores atomically.`);
+      invalidateLivabilityCache();
+    }
+    return count;
   } finally {
     if (!targetConn) await conn.close();
   }
@@ -338,10 +347,15 @@ export function invalidateLivabilityCache() {
 // Initialize livability on server start (ensures pre-computed scores exist in database)
 export async function initLivabilityCache() {
   invalidateLivabilityCache();
-  const check = await dbGet(`SELECT COUNT(livability_score) as cnt FROM projects WHERE latitude IS NOT NULL AND longitude IS NOT NULL`);
-  if (!check || check.cnt === 0) {
-    await precomputeAllProjectLivability();
-  }
+  const missing = `SELECT COUNT(*) as cnt FROM projects WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+    AND latitude != 0 AND longitude != 0 AND (geo_source IS NULL OR geo_source != 'district_centre') AND livability_score IS NULL`;
+  if ((await dbGet(missing)).cnt === 0) return;
+  const conn = createConnection();
+  try {
+    await withTransaction(conn, async () => {
+      if ((await conn.get(missing)).cnt > 0) await precomputeAllProjectLivability(conn);
+    });
+  } finally { await conn.close(); }
 }
 
 // Fast access helper using pre-computed database fields (Step 3.1)

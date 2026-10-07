@@ -1,0 +1,5 @@
+FROM property-intelligence-sg:filter-repairs-tests-20261007
+COPY --chown=node:node server/ /app/server/
+WORKDIR /app/server
+ENV NODE_ENV=test
+CMD ["node", "node_modules/vitest/vitest.mjs", "run", "--silent"]
