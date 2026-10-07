@@ -1,0 +1,45 @@
+{
+  "checkedAt": "2026-10-07T09:14:55.923Z",
+  "base": "https://staging.homeintel.sg",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "amenitiesHiddenByDefault": true,
+      "amenityToggle": true,
+      "propertyHover": true,
+      "inspectionNoSearch": true,
+      "inspectionNoViewportReset": true,
+      "ringsOptInAndClose": true,
+      "clearInspection": true,
+      "radiusInPlaceAndClear": true,
+      "clusters": false,
+      "approximateRingsWithheld": false,
+      "explicitFilter": true,
+      "overflow": {
+        "width": 1440,
+        "viewport": 1440
+      }
+    },
+    {
+      "viewport": "mobile",
+      "amenitiesHiddenByDefault": true,
+      "amenityToggle": true,
+      "propertyHover": false,
+      "inspectionNoSearch": true,
+      "inspectionNoViewportReset": true,
+      "ringsOptInAndClose": true,
+      "clearInspection": true,
+      "radiusInPlaceAndClear": true,
+      "clusters": false,
+      "approximateRingsWithheld": false,
+      "explicitFilter": true,
+      "overflow": {
+        "width": 390,
+        "viewport": 390
+      }
+    }
+  ],
+  "errors": [],
+  "externalTiles": "replaced with blank test tiles; real Leaflet events/analytics",
+  "passed": true
+}
