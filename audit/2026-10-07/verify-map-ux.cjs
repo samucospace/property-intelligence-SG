@@ -60,7 +60,7 @@ const passwordPath=process.argv[5];
    await page.locator(`.leaflet-marker-icon[alt="${project} property details"]`).click();
    const filterResponse=page.waitForResponse(response=>response.url().endsWith('/api/analytics/map')&&response.status()===200);
    await page.getByRole('button',{name:'Show only this development',exact:true}).click();await filterResponse;await settled();
-   assert.equal(new URL(page.url()).searchParams.get('project'),project);assert.equal(await page.locator('.leaflet-popup').count(),0);
+   assert.equal(new URL(page.url()).searchParams.get('project'),project);assert.equal(await page.getByRole('region',{name:'Property details',exact:true}).count(),0);
    const overflow=await page.evaluate(()=>({width:document.documentElement.scrollWidth,viewport:innerWidth}));assert.ok(overflow.width<=overflow.viewport+1);
    await page.locator('.card').filter({has:page.getByText('Property map',{exact:true})}).screenshot({path:output+'/map-ux-'+name+(passwordPath?'-staging':'-local')+'.png'});
    evidence.checks.push({viewport:name,amenitiesHiddenByDefault:true,amenityToggle:true,propertyHover:name==='desktop',inspectionNoSearch:true,inspectionNoViewportReset:true,ringsOptInAndClose:true,clearInspection:true,radiusInPlaceAndClear:true,clusters:!passwordPath,approximateRingsWithheld:!passwordPath,explicitFilter:true,overflow});

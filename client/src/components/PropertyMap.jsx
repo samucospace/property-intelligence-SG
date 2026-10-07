@@ -230,6 +230,7 @@ export default function PropertyMap({ mapProjects, loadedSearchKey, filters, set
   };
 
   const handleSelectProjectOnMap = (projName) => {
+    setActiveProperty(null);setShowDistanceRings(false);
     setFilters(prev => selectLocation(prev, {
       projects: [projName]
     }));
