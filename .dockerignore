@@ -64,6 +64,7 @@ server/scripts/newsletter-preview.html
 # Internal review & planning docs
 TECHNICAL_REVIEW.md
 REMEDIATION_PLAN.md
+docs/archive/private-local/
 # Never bake privacy ledgers or local test outputs into release artifacts
 *.privacy.jsonl
 privacy/

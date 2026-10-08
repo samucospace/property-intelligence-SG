@@ -1,0 +1,326 @@
+{
+  "date": "2026-10-08",
+  "scope": "documentation consolidation only; no application deployment or new host verification",
+  "canonicalDocuments": [
+    "AGENTS.md",
+    "docs/PRODUCT_SPEC.md",
+    "docs/OPERATIONS.md"
+  ],
+  "movedPublicDocuments": [
+    {
+      "formerPath": "CANONICAL_HARDENING_AND_SECURITY_REPORT.md",
+      "path": "docs/archive/remediation-2026-10/CANONICAL_HARDENING_AND_SECURITY_REPORT.md",
+      "originalSha256": "016f43336ea5639966cc1066eb9df904add49fca4802b2737271572ccb7310d5",
+      "archivedSha256": "70731638b4d7319faab2167132114e00b8aaa70c8588b340cbf270405b6fee0f",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "CI_FAILURE_REPAIR_2026-10-06.md",
+      "path": "docs/archive/changes-2026-10/CI_FAILURE_REPAIR_2026-10-06.md",
+      "originalSha256": "c1e2892faf97532f8eed9bb77d963542816e98677ddbad6f734078010b75e0c3",
+      "archivedSha256": "c2dd8b95c86d5067c03d7a4d6c95c0932b639493c8d33bef6d0a7166d0195ea9",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "DEPLOYMENT_AND_EMAIL_SETUP.md",
+      "path": "docs/archive/remediation-2026-10/DEPLOYMENT_AND_EMAIL_SETUP.md",
+      "originalSha256": "77581c599a845d7e5d9f1d5b95affae21da6012ce9c1a128aa3346ab31e64c15",
+      "archivedSha256": "2b65f5eba8a309be886bbf1b19923335cb2d8ecf3a1f84dc4b859b9762aabbec",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "design-system.md",
+      "path": "docs/archive/remediation-2026-10/design-system.md",
+      "originalSha256": "790bb4087a437ce1643a6b16a861bb7d3c7fef9e4dda213820d7a0a4cb36bba4",
+      "archivedSha256": "1473e77b3ab0d65292df6fd2fd9fabf58c4607e1052182987460520e51c43db7",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "DOCKER_QUALIFICATION_REPORT_2026-10-05.md",
+      "path": "docs/archive/remediation-2026-10/DOCKER_QUALIFICATION_REPORT_2026-10-05.md",
+      "originalSha256": "8a4365789230fd07503ca54d313f512d04820555808990854b7314af0411898c",
+      "archivedSha256": "0f12bee613a9db85ab2f717bc130822d9ffd78bc648146f9813b8422ca7a8f40",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "FAVICON_UPDATE_2026-10-07.md",
+      "path": "docs/archive/changes-2026-10/FAVICON_UPDATE_2026-10-07.md",
+      "originalSha256": "015643fd176cffb73a4b456245b809c9a5bc5f3bfc008dc8f53bab62bd6083de",
+      "archivedSha256": "c00d96e1fa43be0c07be3cbcca748053e8fc539f745ccefff2c82c35cfb9929f",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "FILTER_COVERAGE_REVIEW_2026-10-07.md",
+      "path": "docs/archive/changes-2026-10/FILTER_COVERAGE_REVIEW_2026-10-07.md",
+      "originalSha256": "b207257a2084841b505a61a23a064f7ab30e91033808663dc763664a842ce040",
+      "archivedSha256": "c4433e24293e250e8fcb6aad1d4ad22008b2370d32a5815d2a03e499c91843f3",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "FILTER_FIXES_2026-10-07.md",
+      "path": "docs/archive/changes-2026-10/FILTER_FIXES_2026-10-07.md",
+      "originalSha256": "d4f882f6fff3681ecfea87a8bd6ef40d20dfd51686d815fe6adcd43046bf3adf",
+      "archivedSha256": "f6361a55fc1f891c0c1524d92922a31bc20d82cd7f324aeb9ce064e0fc3c6b7f",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "GO_LIVE_READINESS_REPORT_2026-10-02.md",
+      "path": "docs/archive/remediation-2026-10/GO_LIVE_READINESS_REPORT_2026-10-02.md",
+      "originalSha256": "2a51b9825ed7d747d98a9b72d3d6ee20fc51553bff6999e4282c2f92b75899cf",
+      "archivedSha256": "6770600cb751e90ec6d02ff8886af1a14630a72d8aec0773ce527a0b0696fb2d",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "GO_LIVE_REMEDIATION_PLAN_2026-10-02.md",
+      "path": "docs/archive/remediation-2026-10/GO_LIVE_REMEDIATION_PLAN_2026-10-02.md",
+      "originalSha256": "13efc7690470913cb5b5ba3a4b448086adef1d1bf9171595c3b40abe3d05b937",
+      "archivedSha256": "c38b0baf40a19bc5a41536117ff73547b022d5cd6164577612ab30c9d9f0f138",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "LIVE_OPERATIONS_SETUP_CHECKLIST.md",
+      "path": "docs/archive/remediation-2026-10/LIVE_OPERATIONS_SETUP_CHECKLIST.md",
+      "originalSha256": "ac5eb90929432bb54b6ea73047d89b34b2c805ec5061b03029ad6b2611dddae5",
+      "archivedSha256": "0c86a9bbfd42f6db7b01198688adeaf2455537b797c4d1edea3ff7756b0d09b5",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "MAP_UX_IMPROVEMENTS_2026-10-07.md",
+      "path": "docs/archive/changes-2026-10/MAP_UX_IMPROVEMENTS_2026-10-07.md",
+      "originalSha256": "e88831d11f6b14c3e78eddc29abe5cd44e08b79fdbfcbef86442710da1c5fbec",
+      "archivedSha256": "b8f420d7a4b1bcf0c269a5216a2e5f1407e2aedb89ff1899e418f7d050b7c126",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "ongoing_operations.md",
+      "path": "docs/archive/remediation-2026-10/ongoing_operations.md",
+      "originalSha256": "a96338aa6bd2f3645d229714eed3218bd4ee5279389823e378907eece434788e",
+      "archivedSha256": "8a85e81577ea66382c3fb09bd683907a077e162bd3a51af176d466e1ea69e1b6",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "OPERATIONAL_INVENTORY_2026-10-02.md",
+      "path": "docs/archive/remediation-2026-10/OPERATIONAL_INVENTORY_2026-10-02.md",
+      "originalSha256": "c9306710b7fbdbcc8fd1df6a840bb5c49f01947b2462daf7f5821cd3a13c187b",
+      "archivedSha256": "cb94d448bbd6e7977e69a530f0bdce397e86d1aef2a5c8dd22803305436eb089",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_0_COMPLETION_REPORT_2026-10-02.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_0_COMPLETION_REPORT_2026-10-02.md",
+      "originalSha256": "6e5107149ce21f07f0c7078eb31d0347ccffcff8632395e3fd611df3d38504dc",
+      "archivedSha256": "cf01ee5fd507ab8d231d26530adae316c1696118ee0390148b828497eba2979e",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_0_OPERATIONS_RUNBOOK.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_0_OPERATIONS_RUNBOOK.md",
+      "originalSha256": "1a9a204612615ef8bd73e185f5eda2e63587cc959acfc3ccdba6e4cc121bdb6d",
+      "archivedSha256": "a6bab62fb85e0f3d1545dd35e1c47529293207ac7bcb53209adedcdf6f1500e0",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_0_SCOPE_AND_GOVERNANCE.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_0_SCOPE_AND_GOVERNANCE.md",
+      "originalSha256": "d6921a8f0b78ebca431b85c3729f933299e83fcafc13a89fef5cf3ec36652613",
+      "archivedSha256": "682fa977fb70f856880d0b26b20defef2d872c4fd5abd34339073cfa5cc988cb",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_0_TO_2_INDEPENDENT_VALIDATION_2026-10-02.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_0_TO_2_INDEPENDENT_VALIDATION_2026-10-02.md",
+      "originalSha256": "1159b44afefca21237da86494b47cc7f91fde7209b5aee599da37f6a407a81d3",
+      "archivedSha256": "c71b2e4fbe15cdb7161e9a1d446a061c80670f1684e360bca732ac1d08fd44a8",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_1_COMPLETION_REPORT_2026-10-02.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_1_COMPLETION_REPORT_2026-10-02.md",
+      "originalSha256": "3ecaba1f8d074c8532a015de196d3287291f4bd5e016b5be1a98c8c500dc631e",
+      "archivedSha256": "1747cd1fb94f33af7b82bf148ec9f9ac0fa258b4f4490bca868957c385594f82",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_1_DETAILED_IMPLEMENTATION_PLAN.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_1_DETAILED_IMPLEMENTATION_PLAN.md",
+      "originalSha256": "ba8d9cf2e20cb0c07b580bde64ac44aa59a53adfdb723472e542603449c95a06",
+      "archivedSha256": "f85525ea92f6572c709ecf370b38aecd1163bcbb05b2af1ed1c75ab0480b01fa",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_1_OPERATIONS_RUNBOOK.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_1_OPERATIONS_RUNBOOK.md",
+      "originalSha256": "9cc4e7e4a878b9a17b2e1760622fdee50d5593d06b1e84395a1b8d7d557717f0",
+      "archivedSha256": "137d62f141c7a64b9be9eb8e16812afba47beaa03f0fb31089578727a0103f3c",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_2_COMPLETION_REPORT_2026-10-02.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_2_COMPLETION_REPORT_2026-10-02.md",
+      "originalSha256": "84f58c357a5e5b9f3dc80d3e16ae7cfb5fbdea541e32a164e32cd4dd4ef0f4e9",
+      "archivedSha256": "62d179ea7f3ffba24ad1da711e92cd42189959e20032b1c2ab20bc6a95bd1e05",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_2_COMPLETION_REPORT_2026-10-05.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_2_COMPLETION_REPORT_2026-10-05.md",
+      "originalSha256": "16313c7eca523c28e080c0c38e4f0b3b0596a7783ca50c97b160e9d9234cf9d4",
+      "archivedSha256": "41eb2cb823d4f57670c707ef4be31e2a69e9407b4d0964b7306dbe934c0c3ae9",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_2_DETAILED_IMPLEMENTATION_PLAN.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_2_DETAILED_IMPLEMENTATION_PLAN.md",
+      "originalSha256": "57d0f5c949b1e5a3d118dff75da25917f49ed26de3f1728e7d27a6e9808dd946",
+      "archivedSha256": "089fed7f90e270609c00ad8003e10eb7d6ef532a7b7fb317a797f8f2ec2de585",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_2_IDENTITY_REVIEW_GUIDE.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_2_IDENTITY_REVIEW_GUIDE.md",
+      "originalSha256": "80d7c06e06bb58541bb3021ad6845ef93792f24143123a9ce671d1bb35515b5c",
+      "archivedSha256": "c2dd5d1db01e4d48d23007fc2f751ee2e730a86d230c7d6882e83669e9495a72",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_2_METRIC_CONTRACT.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_2_METRIC_CONTRACT.md",
+      "originalSha256": "ca180039132d2512ffa3cae04f7aa16c941ab14386d4381c7d6f843e994332ad",
+      "archivedSha256": "6d8a14878c966ada4094221340f78db245878fcf98d076a70f7c4ad8c8f89773",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_2_OPERATIONS_RUNBOOK.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_2_OPERATIONS_RUNBOOK.md",
+      "originalSha256": "6333411cfaf894472b379c6c2d02e15067934514e42e32a646286c5acdcde6ce",
+      "archivedSha256": "7dc7c492a58a01f8a1fcd19989906cc5cf638ce840c65268a76da9fd085f953c",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_3_COMPLETION_REPORT_2026-10-06.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_3_COMPLETION_REPORT_2026-10-06.md",
+      "originalSha256": "ff5beba957e88a030c6175c5bd12f11ae316eeeb7b14ad2d141eb400b52e3bbd",
+      "archivedSha256": "5ac1771c59d00859fccb134731f86cfcf9d7ff9abec3743caea55b958fafdead",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_3_DETAILED_IMPLEMENTATION_PLAN.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_3_DETAILED_IMPLEMENTATION_PLAN.md",
+      "originalSha256": "5bba86bec211e81a2cf40ebb39a1750e0df418f118c902febc4df8b34f2d128b",
+      "archivedSha256": "4303b9c32e00847a71e3875a3e71a6d45f94d912a8be659a78549b4f6d52dd74",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_3_INDEPENDENT_REVIEW_2026-10-06.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_3_INDEPENDENT_REVIEW_2026-10-06.md",
+      "originalSha256": "191809177c4624b52615287143b23bd65d5439d352d31a89dc5579b5f6f187c1",
+      "archivedSha256": "cd76bfdd030d675af284aaad00bee2ffceb77510787ac1ec832553bf58a03b75",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_3_OPERATIONS_RUNBOOK.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_3_OPERATIONS_RUNBOOK.md",
+      "originalSha256": "c9fec4eface4bbc5b18627b7d518d288a08172f34ad18454a81eec38abb93f2f",
+      "archivedSha256": "feba0a76dd2470cc14cc809a3a153d8e6c53c942e23e6e59dff5ba2a38eb1dd1",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_3_RELEASE_CLOSEOUT_CHECKLIST.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_3_RELEASE_CLOSEOUT_CHECKLIST.md",
+      "originalSha256": "d5eb879ca47467b40783c7eeeb7d13147f8858ebe417c19f9de5e0ea5b63b6f9",
+      "archivedSha256": "725c140b47b1c90ea8bca17a656d4c3eecc0d0a59e68ad0df694bc6b97ab1141",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_4_IMPLEMENTATION_PLAN_2026-10-06.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_4_IMPLEMENTATION_PLAN_2026-10-06.md",
+      "originalSha256": "2034f244368f122dd5b6b614f096c086558e0d7bcf5374a1da6c6c8e29678389",
+      "archivedSha256": "56037b9f07d41c3994917918e5af9de4c623c3d069245eb9ae6b1e174827a96a",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_4_OPERATIONS_RUNBOOK.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_4_OPERATIONS_RUNBOOK.md",
+      "originalSha256": "2976e63d55a45d5c8177187cf17e0f1ca8019df19a0a2cde5797b982cb6473d8",
+      "archivedSha256": "4b00e986c33186f2ee0d3aa616a29221538bcaac6f2cde95c29ea5aa72567f36",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PHASE_4_QUALIFICATION_REPORT_2026-10-06.md",
+      "path": "docs/archive/remediation-2026-10/PHASE_4_QUALIFICATION_REPORT_2026-10-06.md",
+      "originalSha256": "3b7bbb2c70bad3c6f3d01fde1225475d150a65ea96412a799ca7a03dce026798",
+      "archivedSha256": "d5cc33df0204cb3dcad30c06fb9606cc0d2f52612b2baf7db05b3e6d1eb92e03",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PRIVATE_DEPLOYMENT_PREPARATION_2026-10-07.md",
+      "path": "docs/archive/remediation-2026-10/PRIVATE_DEPLOYMENT_PREPARATION_2026-10-07.md",
+      "originalSha256": "94518bc97b662d0927b4a936d8d5b7cbee8caf8217cdc2bab9fb27694846ac00",
+      "archivedSha256": "4ffb5abab946de3aa0d8d33485ce3f4a3fc31190b4c9754c293f8cd249627434",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PRIVATE_DEPLOYMENT_STATUS_2026-10-07.md",
+      "path": "docs/archive/remediation-2026-10/PRIVATE_DEPLOYMENT_STATUS_2026-10-07.md",
+      "originalSha256": "847ec0e026f3de01c330ff0807a6d5bff09a808e0076a8b0242fdd38182eb71e",
+      "archivedSha256": "edddb6fd6993f16334dec5df3d6599d671f94e29bc1d0fc0b8f954a90ac1fb0e",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "PROJECT_COVERAGE_FIX_2026-10-07.md",
+      "path": "docs/archive/changes-2026-10/PROJECT_COVERAGE_FIX_2026-10-07.md",
+      "originalSha256": "1c76a3c1716590c5979d3e4b3b407b4cd6c2d36e33d46d1780260d6a44439cc6",
+      "archivedSha256": "b8e1a5866de580b0e7840879cbabf2fa237eed202638b53b809094cac5ca7bf2",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "README.md",
+      "path": "docs/archive/remediation-2026-10/README_PRE_CONSOLIDATION_2026-10-08.md",
+      "originalSha256": "4f0ce02961f8cf802a3304fb38382ae994f3f9f84c5a4a4d804e824e7e4c6256",
+      "archivedSha256": "79250e6a0bc8f4fcc493af4d9af36b7d734cdb28d49005d577598590d3115a71",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "RELEASE_HANDOFF_2026-10-06.md",
+      "path": "docs/archive/remediation-2026-10/RELEASE_HANDOFF_2026-10-06.md",
+      "originalSha256": "5aba389ebdfd18ec56f3c393cd088115e6a7c9d29f5a50c9b959973fa69bed91",
+      "archivedSha256": "4a75fa8e8e508192b3fb0773580dc72a18241ffe5b1e3fee5a7c4b2c6980de34",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "STARTUP_RACE_REPAIR_2026-10-07.md",
+      "path": "docs/archive/changes-2026-10/STARTUP_RACE_REPAIR_2026-10-07.md",
+      "originalSha256": "ed4ccd21de7de1142ee72ca1f76adf0dcee4b7ab693fd12d19d6b232b9e8c435",
+      "archivedSha256": "c7f3cb3d2104c88e74ef0cd654512dbf6387d3e91e45f125a5db8e0ec1e65c93",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "ura_property_valuation_spec.md",
+      "path": "docs/archive/remediation-2026-10/ura_property_valuation_spec.md",
+      "originalSha256": "6935d0d4d1e0ec73e4c93ec381761045a65570356185e24c7dba639145c8d2df",
+      "archivedSha256": "2c69fcef8242372929d2d936a2f18a11a67369e155fbddedc540a23c633fabab",
+      "change": "historical banner and relative-link repair only"
+    },
+    {
+      "formerPath": "USER_TESTING_PLAN.md",
+      "path": "docs/research/USER_TESTING_PLAN.md",
+      "originalSha256": "6b0388004806d8a36d75992a43c2ee9599254b4442ec63b2967e3c333dd36ff1",
+      "archivedSha256": "6b0388004806d8a36d75992a43c2ee9599254b4442ec63b2967e3c333dd36ff1",
+      "change": "byte-preserved current research reference"
+    }
+  ],
+  "ignoredPrivateDocumentsMovedWithoutPublication": 6,
+  "qualificationJsonModified": false,
+  "verification": {
+    "publicMarkdownDocumentsChecked": 51,
+    "localLinksChecked": 328,
+    "headingAnchorsChecked": 6,
+    "missingLinks": [],
+    "unpublishedLinkTargets": [],
+    "publicBodiesPreservedExceptBannersAndLinkDestinations": 43,
+    "researchBodyBytePreserved": true,
+    "existingQualificationJsonUnchanged": true,
+    "privateReviewsExcludedFromGit": true,
+    "applicationCodeChanged": false
+  }
+}
